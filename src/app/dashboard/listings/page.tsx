@@ -37,7 +37,7 @@ function SkeletonRow() {
 
 export default function ListingsPage() {
   const { data, isLoading, mutate } = useSWR("/api/listings", fetcher);
-  const listings: Listing[] = data ?? [];
+  const listings: Listing[] = data?.data ?? [];
 
   const handlePause = async (id: string) => {
     await fetch(`/api/listings/${id}/pause`, { method: "PUT" });
