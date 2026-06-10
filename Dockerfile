@@ -1,5 +1,8 @@
 FROM node:20-alpine AS base
 
+# OpenSSL — Prisma engine için gerekli
+RUN apk add --no-cache openssl
+
 # ── deps: sadece bağımlılıkları yükle ──────────────────────────────────────
 FROM base AS deps
 WORKDIR /app

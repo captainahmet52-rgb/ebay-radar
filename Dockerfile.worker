@@ -1,6 +1,9 @@
 FROM node:20-alpine
 WORKDIR /app
 
+# OpenSSL — Prisma engine için gerekli
+RUN apk add --no-cache openssl
+
 # Bağımlılıklar (tüm deps — tsx devDependencies'de)
 COPY package.json package-lock.json* ./
 RUN npm ci
