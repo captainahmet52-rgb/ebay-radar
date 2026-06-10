@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { RadarTriggerButton } from "./_components/RadarTriggerButton";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminPage() {
   const [storeCount, depotCount, userCount, distributionCount] = await Promise.all([
     prisma.trackedStore.count(),
