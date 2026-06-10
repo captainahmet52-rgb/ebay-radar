@@ -38,10 +38,10 @@ function SkeletonRow() {
 }
 
 export default function OrdersPage() {
-  const { data: orders, isLoading } = useSWR<Order[]>("/api/orders", fetcher);
+  const { data: ordersRes, isLoading } = useSWR("/api/orders", fetcher);
   const { data: stats } = useSWR("/api/orders/stats", fetcher);
 
-  const safeOrders = orders ?? [];
+  const safeOrders: Order[] = ordersRes?.data ?? [];
   const totalProfit = safeOrders.reduce((sum, o) => sum + (o.netProfit ?? 0), 0);
 
   return (

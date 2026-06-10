@@ -22,7 +22,8 @@ const fadeUp = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 } }
 
 export default function SettingsPage() {
   const { data: session } = useSession();
-  const { data: accounts, mutate } = useSWR<EbayAccount[]>("/api/ebay/accounts", fetcher);
+  const { data: accountsRes, mutate } = useSWR("/api/ebay/accounts", fetcher);
+  const accounts: EbayAccount[] = accountsRes?.data ?? [];
   const [margin, setMargin] = useState(20);
   const [minPrice, setMinPrice] = useState("15");
   const [connectingEbay, setConnectingEbay] = useState(false);
