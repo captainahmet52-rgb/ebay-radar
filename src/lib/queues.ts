@@ -1,0 +1,186 @@
+// BullMQ Queue tanımları — hem API route'ları hem worker bu modülü kullanır.
+// BullMQ'nun kendi dahili ioredis'ini kullanıyoruz — dış ioredis import YOK.
+// connection: URL string veya {host,port} config — type çakışmasını önler.
+
+import { Queue } from "bullmq";
+import type { ConnectionOptions } from "bullmq";
+
+const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
+
+function parseRedisUrl(url: string): ConnectionOptions {
+  try {
+    const parsed = new URL(url);
+    return {
+      host: parsed.hostname || "localhost",
+      port: parseInt(parsed.port || "6379", 10),
+      password: parsed.password || undefined,
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false,
+    } as ConnectionOptions;
+  } catch {
+    return { host: "localhost", port: 6379, maxRetriesPerRequest: null } as ConnectionOptions;
+  }
+}
+
+export const connection = parseRedisUrl(redisUrl);
+
+// ─── Job veri tipleri ──────────────────────────────────────────────────────────
+export interface PollProductJobData {
+  productId: string;
+}
+
+export interface VerifyOrderJobData {
+  orderId: string;
+}
+
+export interface UpdateListingJobData {
+  listingId: string;
+  price: number;
+  qty: number;
+}
+
+export interface PollOrdersJobData {
+  ebayAccountId: string;
+}
+
+// ─── Kuyruklar ─────────────────────────────────────────────────────────────────
+// 3. generic param (NameType) açıkça string — ExtractNameType string literal hatasını önler
+export const pollProductQueue = new Queue<PollProductJobData, void, string>("poll-product", {
+  connection,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: "exponential",
+      delay: 5000, // 5 sn → 10 sn → 20 sn
+    },
+    removeOnComplete: { count: 100 },
+    removeOnFail: { count: 500 },
+  },
+});
+
+export const verifyOrderQueue = new Queue<VerifyOrderJobData, void, string>("verify-order", {
+  connection,
+  defaultJobOptions: {
+    attempts: 2,
+    backoff: {
+      type: "fixed",
+      delay: 3000,
+    },
+    // Sipariş doğrulama kritik — fail joblar uzun süre saklanır
+    removeOnComplete: { count: 200 },
+    removeOnFail: { count: 1000 },
+  },
+});
+
+export const updateListingQueue = new Queue<UpdateListingJobData, void, string>(
+  "update-listing",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 4,
+      backoff: {
+        type: "exponential",
+        delay: 2000,
+      },
+      removeOnComplete: { count: 200 },
+      removeOnFail: { count: 500 },
+    },
+  }
+);
+
+export const pollOrdersQueue = new Queue<PollOrdersJobData, void, string>("poll-orders", {
+  connection,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: "exponential",
+      delay: 5000,
+    },
+    removeOnComplete: { count: 100 },
+    removeOnFail: { count: 500 },
+  },
+});
+
+// ─── Radar & Dağıtım Kuyrukları ────────────────────────────────────────────────
+export interface RadarScanJobData {
+  trackedStoreId: string;
+}
+
+export interface DistributeProductsJobData {
+  userId?: string; // undefined ise tüm kullanıcılara dağıt
+}
+
+export const radarScanQueue = new Queue<RadarScanJobData, void, string>("radar-scan", {
+  connection,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: { type: "exponential", delay: 10000 },
+    removeOnComplete: { count: 100 },
+    removeOnFail: { count: 200 },
+  },
+});
+
+export const distributeProductsQueue = new Queue<DistributeProductsJobData, void, string>(
+  "distribute-products",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 2,
+      backoff: { type: "fixed", delay: 5000 },
+      removeOnComplete: { count: 100 },
+      removeOnFail: { count: 200 },
+    },
+  }
+);
+
+// ─── Token Yenileme Kuyruğu ────────────────────────────────────────────────────
+export interface RefreshTokensJobData {
+  ebayAccountId?: string; // undefined ise süresi yaklaşan tüm hesapları yenile
+}
+
+export const refreshTokensQueue = new Queue<RefreshTokensJobData, void, string>(
+  "refresh-tokens",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 2,
+      backoff: { type: "fixed", delay: 5000 },
+      removeOnComplete: { count: 100 },
+      removeOnFail: { count: 200 },
+    },
+  }
+);
+
+// ─── Dispatch Kuyrukları (Scheduler tarafından tetiklenir) ────────────────────
+
+export interface DispatchPollsJobData {
+  _trigger?: string; // boş data, sadece tetikleyici
+}
+
+export const dispatchPollsQueue = new Queue<DispatchPollsJobData, void, string>(
+  "dispatch-polls",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 1,
+      removeOnComplete: { count: 10 },
+      removeOnFail: { count: 20 },
+    },
+  }
+);
+
+export interface DispatchPollOrdersJobData {
+  _trigger?: string;
+}
+
+export const dispatchPollOrdersQueue = new Queue<DispatchPollOrdersJobData, void, string>(
+  "dispatch-poll-orders",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 1,
+      removeOnComplete: { count: 10 },
+      removeOnFail: { count: 20 },
+    },
+  }
+);

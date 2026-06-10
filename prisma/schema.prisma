@@ -1,0 +1,241 @@
+// CLAUDE.md Bölüm 6 şemasının Prisma karşılığı
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ─── Kullanıcılar (kiracılar) ─────────────────────────────────────────────────
+model User {
+  id                   String   @id @default(cuid())
+  email                String   @unique
+  passwordHash         String
+  plan                 String   @default("free") // free | pro | enterprise
+  role                 String   @default("user") // user | admin
+  productLimit         Int      @default(100)    // aylık ürün paketi limiti
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  createdAt            DateTime @default(now())
+
+  ebayAccounts         EbayAccount[]
+  listings             Listing[]
+  orders               Order[]
+  productDistributions ProductDistribution[]
+
+  // Otomatik Yükleme Ayarları
+  autoUploadEnabled     Boolean  @default(false)
+  uploadSchedule        String   @default("daily")
+  uploadScheduleHour    Int      @default(9)
+  uploadDailyLimit      Int      @default(10)
+  uploadMinProfit       Float    @default(2)
+  uploadMinMarginPct    Float    @default(10)
+  uploadMinAmazonPrice  Float    @default(0)
+  uploadMaxAmazonPrice  Float    @default(150)
+  uploadPrimeOnly       Boolean  @default(false)
+  uploadSoldWithinDays  Int?
+  uploadSourceMarket    String   @default("US")
+  uploadEbaySite        String   @default("EBAY_US")
+  uploadProfitMarginPct Float    @default(30)
+  uploadQuantity        Int      @default(1)
+  uploadAutoPublish     Boolean  @default(true)
+
+  // NextAuth
+  accounts Account[]
+  sessions Session[]
+  autoUploadLogs AutoUploadLog[]
+}
+
+// ─── Bağlı eBay mağazaları ────────────────────────────────────────────────────
+model EbayAccount {
+  id                    String    @id @default(cuid())
+  userId                String
+  ebayUserId            String
+  // Token'lar ŞİFRELİ saklanır — Node crypto (AES-256-GCM). Düz metin ASLA.
+  oauthTokenEncrypted   String?   @db.Text
+  refreshTokenEncrypted String?   @db.Text
+  tokenExpiresAt        DateTime?
+  refreshTokenExpiresAt DateTime?
+  fulfillmentPolicyId   String?
+  paymentPolicyId       String?
+  returnPolicyId        String?
+  merchantLocationKey   String?
+  policiesCheckedAt     DateTime?
+  createdAt             DateTime  @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listings Listing[]
+}
+
+// ─── Ürün deposu (ASIN bazlı) ─────────────────────────────────────────────────
+model Product {
+  id                  String    @id @default(cuid())
+  asin                String    @unique
+  title               String?
+  category            String?
+  imageUrl            String?
+  amazonPrice         Float?
+  // in_stock | low | out
+  amazonStockStatus   String    @default("in_stock")
+  amazonStockQty      Int?      // "only N left" sinyali
+  ebayFeeRate         Float     @default(0.136)  // Kategoriye göre değişir
+  targetMargin        Float     @default(0.20)
+  floorPrice          Float?
+  calculatedEbayPrice Float?
+  // hot | normal | dead
+  pollTier            String    @default("normal")
+  lastScrapedAt       DateTime?
+  // active | paused
+  status              String    @default("active")
+  createdAt           DateTime  @default(now())
+
+  listings Listing[]
+}
+
+// ─── Kullanıcı listelemeleri ──────────────────────────────────────────────────
+model Listing {
+  id            String   @id @default(cuid())
+  userId        String
+  productId     String
+  ebayAccountId String
+  ebayListingId String?  // eBay marketplace listing ID (publish sonrası döner)
+  ebaySku       String?  // Inventory item SKU — bulk_update_price_quantity için
+  ebayOfferId   String?  // Offer ID — fiyat güncellemesi için
+  currentQty    Int      @default(2)
+  currentPrice  Float?
+  publishStage  String?
+  lastEbayError String?
+  // active | paused | ended
+  status        String   @default("active")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  ebayAccount EbayAccount @relation(fields: [ebayAccountId], references: [id], onDelete: Cascade)
+  orders      Order[]
+  distribution ProductDistribution?
+}
+
+// ─── Siparişler ───────────────────────────────────────────────────────────────
+model Order {
+  id                String    @id @default(cuid())
+  userId            String
+  listingId         String
+  ebayOrderId       String?
+  soldPrice         Float?
+  amazonPriceAtSale Float?
+  netProfit         Float?
+  ebayFulfillmentId String?
+  cancellationReason String?
+  verifiedAt        DateTime?
+  // pending | verified | cancelled | fulfilled
+  fulfillmentStatus String    @default("pending")
+  createdAt         DateTime  @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId],    references: [id], onDelete: Cascade)
+}
+
+// ─── NextAuth zorunlu tablolar ────────────────────────────────────────────────
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Otomatik Yükleme Geçmişi ────────────────────────────────────────────────
+model AutoUploadLog {
+  id               String   @id @default(cuid())
+  userId           String
+  status           String   // success | partial | failed
+  productsUploaded Int      @default(0)
+  productsSkipped  Int      @default(0)
+  productsChecked  Int      @default(0)
+  errorMessage     String?
+  ranAt            DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Takip Edilen eBay Mağazaları (admin tarafından eklenir) ──────────────────
+model TrackedStore {
+  id            String    @id @default(cuid())
+  ebayUsername  String    @unique
+  storeUrl      String
+  isActive      Boolean   @default(true)
+  lastScannedAt DateTime?
+  createdAt     DateTime  @default(now())
+
+  depotProducts DepotProduct[]
+}
+
+// ─── Ortak Ürün Deposu (radar ile doldurulur) ────────────────────────────────
+model DepotProduct {
+  id                  String    @id @default(cuid())
+  asin                String    @unique
+  title               String?
+  imageUrl            String?
+  category            String?
+  amazonPrice         Float?
+  amazonStockStatus   String    @default("in_stock")
+  amazonStockQty      Int?
+  ebayFeeRate         Float     @default(0.136)
+  calculatedEbayPrice Float?
+  sourceStoreId       String?
+  sourceKeyword       String?
+  lastScrapedAt       DateTime?
+  status              String    @default("active")
+  createdAt           DateTime  @default(now())
+
+  sourceStore     TrackedStore?         @relation(fields: [sourceStoreId], references: [id])
+  distributions   ProductDistribution[]
+}
+
+// ─── Kullanıcıya Dağıtılan Ürünler ──────────────────────────────────────────
+model ProductDistribution {
+  id             String   @id @default(cuid())
+  userId         String
+  depotProductId String
+  listingId      String?  @unique
+  distributedAt  DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  depotProduct DepotProduct @relation(fields: [depotProductId], references: [id], onDelete: Cascade)
+  listing      Listing?     @relation(fields: [listingId], references: [id])
+
+  @@unique([userId, depotProductId])
+}

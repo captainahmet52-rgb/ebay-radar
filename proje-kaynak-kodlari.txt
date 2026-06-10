@@ -1,0 +1,2259 @@
+================================================================
+EBAY OTOMASYON SAAS — KAYNAK KODLARI
+Oluşturulma: 2026-06-08
+================================================================
+Toplam: package.json + src/ klasörü (60 dosya)
+================================================================
+
+
+================================================================
+DOSYA: package.json
+================================================================
+{
+  "name": "ebay-automation-saas",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "repricer": "tsx scripts/test-repricer.ts",
+    "worker": "tsx worker/index.ts",
+    "worker:build": "tsc -p worker/tsconfig.json",
+    "generate-keys": "tsx scripts/generate-keys.ts"
+  },
+  "dependencies": {
+    "next": "^15.3.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "next-auth": "^5.0.0-beta.22",
+    "@auth/prisma-adapter": "^2.4.2",
+    "@prisma/client": "^5.17.0",
+    "bullmq": "^5.12.0",
+    "ioredis": "^5.4.1",
+    "stripe": "^16.9.0",
+    "bcryptjs": "^2.4.3",
+    "zod": "^3.23.8",
+    "swr": "^2.2.5",
+    "framer-motion": "^11.3.0",
+    "recharts": "^2.12.7",
+    "lucide-react": "^0.400.0",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.4.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5",
+    "prisma": "^5.17.0",
+    "tsx": "^4.16.2",
+    "tailwindcss": "^3.4",
+    "autoprefixer": "^10",
+    "postcss": "^8",
+    "eslint": "^8",
+    "eslint-config-next": "^15.3.3"
+  }
+}
+
+
+================================================================
+DOSYA: src/types/index.ts
+================================================================
+// Uygulama genelinde kullanılan TypeScript tipleri
+
+export type PollTier = "hot" | "normal" | "dead";
+export type StockStatus = "in_stock" | "low" | "out";
+export type ListingStatus = "active" | "paused" | "ended";
+export type FulfillmentStatus = "pending" | "verified" | "cancelled" | "fulfilled";
+export type Plan = "free" | "pro" | "enterprise";
+
+export interface ScraperResult {
+  asin: string;
+  title: string;
+  imageUrl: string | null;
+  price: number | null;
+  stockStatus: StockStatus;
+  stockQty: number | null;
+}
+
+export interface RepricerResult {
+  amazonPrice: number;
+  ebayPrice: number;
+  ebayFee: number;
+  netProfit: number;
+  marginPct: number;
+  recommendedQty: number;
+}
+
+// NextAuth session tipini genişlet
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      email: string;
+      plan: string;
+    };
+  }
+}
+
+
+================================================================
+DOSYA: src/lib/prisma.ts
+================================================================
+import { PrismaClient } from "@prisma/client";
+
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
+
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+  });
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+
+
+================================================================
+DOSYA: src/lib/auth.ts
+================================================================
+import NextAuth from "next-auth";
+import { PrismaAdapter } from "@auth/prisma-adapter";
+import Credentials from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/prisma";
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
+  adapter: PrismaAdapter(prisma),
+  session: { strategy: "jwt" },
+  pages: {
+    signIn: "/login",
+    error: "/login",
+  },
+  providers: [
+    Credentials({
+      name: "credentials",
+      credentials: {
+        email:    { label: "E-posta", type: "email" },
+        password: { label: "Şifre",  type: "password" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) return null;
+
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email as string },
+        });
+
+        if (!user) return null;
+
+        const valid = await bcrypt.compare(
+          credentials.password as string,
+          user.passwordHash
+        );
+        if (!valid) return null;
+
+        return { id: user.id, email: user.email, plan: user.plan };
+      },
+    }),
+  ],
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.id   = user.id;
+        token.plan = (user as { plan?: string }).plan ?? "free";
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (token) {
+        session.user.id   = token.id as string;
+        session.user.plan = token.plan as string;
+      }
+      return session;
+    },
+  },
+});
+
+
+================================================================
+DOSYA: src/lib/crypto.ts
+================================================================
+// Token şifreleme — Node.js yerleşik crypto (AES-256-GCM)
+// Python Fernet KULLANILMAZ. CLAUDE.md Bölüm 0.
+
+import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
+
+const ALGORITHM = "aes-256-gcm";
+const KEY_HEX   = process.env.TOKEN_ENCRYPTION_KEY ?? "";
+
+function getKey(): Buffer {
+  if (!KEY_HEX || KEY_HEX.length !== 64) {
+    throw new Error("TOKEN_ENCRYPTION_KEY .env'de 64 hex karakter olmalı (32 byte)");
+  }
+  return Buffer.from(KEY_HEX, "hex");
+}
+
+export function encryptToken(plain: string): string {
+  const key = getKey();
+  const iv  = randomBytes(12); // 96-bit IV for GCM
+
+  const cipher = createCipheriv(ALGORITHM, key, iv);
+  const encrypted = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+
+  // Format: iv(hex) + ":" + tag(hex) + ":" + ciphertext(hex)
+  return `${iv.toString("hex")}:${tag.toString("hex")}:${encrypted.toString("hex")}`;
+}
+
+export function decryptToken(encrypted: string): string {
+  const key = getKey();
+  const [ivHex, tagHex, dataHex] = encrypted.split(":");
+
+  if (!ivHex || !tagHex || !dataHex) throw new Error("Geçersiz şifreli token formatı");
+
+  const decipher = createDecipheriv(ALGORITHM, key, Buffer.from(ivHex, "hex"));
+  decipher.setAuthTag(Buffer.from(tagHex, "hex"));
+
+  const decrypted = Buffer.concat([
+    decipher.update(Buffer.from(dataHex, "hex")),
+    decipher.final(),
+  ]);
+
+  return decrypted.toString("utf8");
+}
+
+
+================================================================
+DOSYA: src/lib/api-helpers.ts
+================================================================
+import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+
+type Handler = (req: NextRequest, ctx: { userId: string; plan: string }) => Promise<NextResponse>;
+
+/** Giriş yapmış kullanıcı gerektiren route wrapper'ı */
+export function requireAuth(handler: Handler) {
+  return async (req: NextRequest) => {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Giriş gerekli" }, { status: 401 });
+    }
+    return handler(req, { userId: session.user.id, plan: session.user.plan ?? "free" });
+  };
+}
+
+/** Pro veya Enterprise plan gerektiren route wrapper'ı */
+export function requireSeller(handler: Handler) {
+  return requireAuth(async (req, ctx) => {
+    if (ctx.plan === "free") {
+      return NextResponse.json({ error: "Bu özellik Pro plana gerektirir" }, { status: 403 });
+    }
+    return handler(req, ctx);
+  });
+}
+
+/** Sadece admin route'ları için (ileride kullanılacak) */
+export function requireAdmin(handler: Handler) {
+  return requireAuth(async (req, ctx) => {
+    // TODO: User.role alanı eklenince burası güncellenir
+    return NextResponse.json({ error: "Yetkisiz" }, { status: 403 });
+  });
+}
+
+/** Cron job'ları için Bearer token doğrulama */
+export function requireCron(handler: (req: NextRequest) => Promise<NextResponse>) {
+  return async (req: NextRequest) => {
+    const token = req.headers.get("authorization")?.replace("Bearer ", "");
+    if (!token || token !== process.env.CRON_SECRET) {
+      return NextResponse.json({ error: "Yetkisiz" }, { status: 401 });
+    }
+    return handler(req);
+  };
+}
+
+
+================================================================
+DOSYA: src/lib/scraper.ts
+================================================================
+// Amazon ürün verisi çekme — ScrapingBee API
+import type { ScraperResult, StockStatus } from "@/types";
+
+const SCRAPINGBEE_URL = "https://app.scrapingbee.com/api/v1/";
+
+function parsePrice(raw: string | null | undefined): number | null {
+  if (!raw) return null;
+  // "$149.99" veya "149.99" gibi formatları ele al
+  const cleaned = raw.replace(/[^0-9.]/g, "");
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) ? null : parsed;
+}
+
+function parseStock(availability: string | null | undefined): {
+  stockStatus: StockStatus;
+  stockQty: number | null;
+} {
+  if (!availability) return { stockStatus: "in_stock", stockQty: null };
+
+  const text = availability.toLowerCase().trim();
+
+  // Tükendi
+  if (
+    text.includes("unavailable") ||
+    text.includes("out of stock") ||
+    text.includes("currently unavailable") ||
+    text.includes("not available")
+  ) {
+    return { stockStatus: "out", stockQty: null };
+  }
+
+  // "Only N left in stock"
+  const onlyNMatch = text.match(/only\s+(\d+)\s+left/i);
+  if (onlyNMatch) {
+    const qty = parseInt(onlyNMatch[1], 10);
+    return { stockStatus: "low", stockQty: qty };
+  }
+
+  // "N left in stock"
+  const nLeftMatch = text.match(/(\d+)\s+left\s+in\s+stock/i);
+  if (nLeftMatch) {
+    const qty = parseInt(nLeftMatch[1], 10);
+    return { stockStatus: "low", stockQty: qty };
+  }
+
+  // In stock
+  if (text.includes("in stock") || text.includes("available")) {
+    return { stockStatus: "in_stock", stockQty: null };
+  }
+
+  // Varsayılan: in_stock kabul et
+  return { stockStatus: "in_stock", stockQty: null };
+}
+
+export async function fetchAmazonProduct(asin: string): Promise<ScraperResult> {
+  const apiKey = process.env.SCRAPINGBEE_API_KEY;
+  if (!apiKey) {
+    throw new Error("SCRAPINGBEE_API_KEY .env'de tanımlı değil");
+  }
+
+  const targetUrl = `https://www.amazon.com/dp/${asin}`;
+
+  const extractRules = JSON.stringify({
+    price_offscreen: ".a-offscreen",
+    availability: "#availability span",
+    title: "#productTitle",
+    image: "#landingImage",
+  });
+
+  const params = new URLSearchParams({
+    api_key: apiKey,
+    url: targetUrl,
+    render_js: "false",
+    country_code: "us",
+    extract_rules: extractRules,
+  });
+
+  const response = await fetch(`${SCRAPINGBEE_URL}?${params.toString()}`);
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    throw new Error(
+      `ScrapingBee API hatası: ${response.status} ${response.statusText} — ${errorBody}`
+    );
+  }
+
+  const data = (await response.json()) as {
+    price_offscreen?: string | null;
+    availability?: string | null;
+    title?: string | null;
+    image?: string | null;
+  };
+
+  const price = parsePrice(data.price_offscreen);
+  const { stockStatus, stockQty } = parseStock(data.availability);
+
+  const title = data.title?.trim() ?? "";
+  const imageUrl = data.image ?? null;
+
+  return {
+    asin,
+    title,
+    imageUrl,
+    price,
+    stockStatus,
+    stockQty,
+  };
+}
+
+
+================================================================
+DOSYA: src/lib/repricer.ts
+================================================================
+// Fiyat hesaplama motoru — CLAUDE.md Bölüm 3 & 4
+import type { RepricerResult, StockStatus } from "@/types";
+import type { Product } from "@prisma/client";
+
+// CLAUDE.md: >=10$ → 0.40, <10$ → 0.30
+function getFixedFee(amazonPrice: number): number {
+  return amazonPrice >= 10 ? 0.40 : 0.30;
+}
+
+/**
+ * eBay satış fiyatı hesaplama.
+ * Formül: eBay_fiyatı = (amazon_fiyatı + sabit_ücret) / (1 - komisyon - margin)
+ */
+export function calculateEbayPrice(
+  amazonPrice: number,
+  commission: number = 0.136,
+  margin: number = 0.20
+): RepricerResult {
+  const fixedFee = getFixedFee(amazonPrice);
+  const divisor = 1 - commission - margin;
+
+  if (divisor <= 0) {
+    throw new Error("Komisyon + margin toplamı 1'e eşit veya büyük olamaz");
+  }
+
+  const ebayPrice = (amazonPrice + fixedFee) / divisor;
+
+  // eBay'e ödenen komisyon
+  const ebayFee = ebayPrice * commission + fixedFee;
+
+  // Net kâr
+  const netProfit = ebayPrice - amazonPrice - ebayFee;
+
+  // Gerçek margin yüzdesi
+  const marginPct = netProfit / ebayPrice;
+
+  return {
+    amazonPrice,
+    ebayPrice: Math.round(ebayPrice * 100) / 100,
+    ebayFee: Math.round(ebayFee * 100) / 100,
+    netProfit: Math.round(netProfit * 100) / 100,
+    marginPct: Math.round(marginPct * 10000) / 10000,
+    recommendedQty: 2,
+  };
+}
+
+/**
+ * Stok durumuna göre eBay adedi belirle.
+ * CLAUDE.md Bölüm 4:
+ * - in_stock → 2
+ * - low (qty>=3) → 1
+ * - low (qty<3) veya out → 0 (duraklat)
+ */
+export function determineQty(
+  stockStatus: StockStatus | string,
+  stockQty: number | null | undefined
+): number {
+  if (stockStatus === "out") return 0;
+
+  if (stockStatus === "low") {
+    const qty = stockQty ?? 0;
+    if (qty >= 3) return 1;
+    return 0;
+  }
+
+  // in_stock
+  return 2;
+}
+
+/**
+ * Fiyat spike kontrolü.
+ * CLAUDE.md: %50'den fazla artış → spike
+ */
+export function isPriceSpike(oldPrice: number, newPrice: number): boolean {
+  if (oldPrice <= 0) return false;
+  const increase = (newPrice - oldPrice) / oldPrice;
+  return increase > 0.50;
+}
+
+/**
+ * Ürün için tam repricer çıktısı.
+ * Stok durumu + fiyat spike kontrolü dahil.
+ */
+export function reprice(product: Product): RepricerResult & {
+  qty: number;
+  shouldPause: boolean;
+} {
+  if (!product.amazonPrice) {
+    throw new Error(`Ürün ${product.asin} için Amazon fiyatı mevcut değil`);
+  }
+
+  const result = calculateEbayPrice(
+    product.amazonPrice,
+    product.ebayFeeRate,
+    product.targetMargin
+  );
+
+  const qty = determineQty(
+    product.amazonStockStatus as StockStatus,
+    product.amazonStockQty
+  );
+
+  const shouldPause = qty === 0;
+
+  // Floor price kontrolü
+  let finalEbayPrice = result.ebayPrice;
+  if (product.floorPrice && finalEbayPrice < product.floorPrice) {
+    return {
+      ...result,
+      ebayPrice: finalEbayPrice,
+      qty: 0,
+      shouldPause: true,
+    };
+  }
+
+  return {
+    ...result,
+    qty,
+    shouldPause,
+  };
+}
+
+
+================================================================
+DOSYA: src/lib/ebay-auth.ts
+================================================================
+// eBay OAuth 2.0 — Authorization Code flow
+import { decryptToken } from "@/lib/crypto";
+
+function isSandbox(): boolean {
+  return process.env.EBAY_SANDBOX === "true";
+}
+
+function getAuthBaseUrl(): string {
+  return isSandbox()
+    ? "https://auth.sandbox.ebay.com"
+    : "https://auth.ebay.com";
+}
+
+function getApiBaseUrl(): string {
+  return isSandbox()
+    ? "https://api.sandbox.ebay.com"
+    : "https://api.ebay.com";
+}
+
+function getClientId(): string {
+  const id = process.env.EBAY_CLIENT_ID;
+  if (!id) throw new Error("EBAY_CLIENT_ID .env'de tanımlı değil");
+  return id;
+}
+
+function getClientSecret(): string {
+  const secret = process.env.EBAY_CLIENT_SECRET;
+  if (!secret) throw new Error("EBAY_CLIENT_SECRET .env'de tanımlı değil");
+  return secret;
+}
+
+function getRedirectUri(): string {
+  const uri = process.env.EBAY_REDIRECT_URI;
+  if (!uri) throw new Error("EBAY_REDIRECT_URI .env'de tanımlı değil");
+  return uri;
+}
+
+const SCOPES = [
+  "https://api.ebay.com/oauth/api_scope/sell.inventory",
+  "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
+  "https://api.ebay.com/oauth/api_scope/sell.account",
+  "https://api.ebay.com/oauth/api_scope/commerce.identity.readonly",
+].join(" ");
+
+/** Kullanıcıyı eBay OAuth onay sayfasına yönlendirmek için URL üretir */
+export function getAuthorizationUrl(state: string): string {
+  const params = new URLSearchParams({
+    client_id: getClientId(),
+    redirect_uri: getRedirectUri(),
+    response_type: "code",
+    scope: SCOPES,
+    state,
+  });
+
+  return `${getAuthBaseUrl()}/oauth2/authorize?${params.toString()}`;
+}
+
+export interface EbayTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number; // saniye
+}
+
+/** Authorization code → access + refresh token değişimi */
+export async function exchangeCodeForTokens(code: string): Promise<EbayTokens> {
+  const credentials = Buffer.from(
+    `${getClientId()}:${getClientSecret()}`
+  ).toString("base64");
+
+  const body = new URLSearchParams({
+    grant_type: "authorization_code",
+    code,
+    redirect_uri: getRedirectUri(),
+  });
+
+  const response = await fetch(`${getApiBaseUrl()}/identity/v1/oauth2/token`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${credentials}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: body.toString(),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    throw new Error(
+      `eBay token değişimi hatası: ${response.status} — ${errorBody}`
+    );
+  }
+
+  const data = (await response.json()) as {
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
+  };
+
+  return {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+    expiresIn: data.expires_in,
+  };
+}
+
+export interface RefreshedToken {
+  accessToken: string;
+  expiresAt: Date;
+}
+
+/** Şifreli refresh token kullanarak yeni access token al */
+export async function refreshAccessToken(
+  refreshTokenEncrypted: string
+): Promise<RefreshedToken> {
+  const refreshToken = decryptToken(refreshTokenEncrypted);
+
+  const credentials = Buffer.from(
+    `${getClientId()}:${getClientSecret()}`
+  ).toString("base64");
+
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+    scope: SCOPES,
+  });
+
+  const response = await fetch(`${getApiBaseUrl()}/identity/v1/oauth2/token`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${credentials}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: body.toString(),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    throw new Error(
+      `eBay token yenileme hatası: ${response.status} — ${errorBody}`
+    );
+  }
+
+  const data = (await response.json()) as {
+    access_token: string;
+    expires_in: number;
+  };
+
+  const expiresAt = new Date(Date.now() + data.expires_in * 1000);
+
+  return {
+    accessToken: data.access_token,
+    expiresAt,
+  };
+}
+
+
+================================================================
+DOSYA: src/lib/ebay-client.ts
+================================================================
+// eBay REST API HTTP istemcisi
+export class EbayClient {
+  private readonly baseUrl: string;
+  private readonly accessToken: string;
+
+  constructor(accessToken: string, sandbox?: boolean) {
+    const useSandbox = sandbox ?? process.env.EBAY_SANDBOX === "true";
+    this.baseUrl = useSandbox
+      ? "https://api.sandbox.ebay.com"
+      : "https://api.ebay.com";
+    this.accessToken = accessToken;
+  }
+
+  private async request<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    params?: Record<string, string>
+  ): Promise<T> {
+    let url = `${this.baseUrl}${path}`;
+
+    if (params && Object.keys(params).length > 0) {
+      const qs = new URLSearchParams(params);
+      url = `${url}?${qs.toString()}`;
+    }
+
+    const init: RequestInit = {
+      method,
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    };
+
+    if (body !== undefined) {
+      init.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(url, init);
+
+    if (!response.ok) {
+      let errorBody: string;
+      try {
+        errorBody = JSON.stringify(await response.json());
+      } catch {
+        errorBody = await response.text().catch(() => "");
+      }
+      throw new Error(
+        `eBay API hatası [${method} ${path}]: ${response.status} ${response.statusText} — ${errorBody}`
+      );
+    }
+
+    // 204 No Content
+    if (response.status === 204) {
+      return undefined as unknown as T;
+    }
+
+    return response.json() as Promise<T>;
+  }
+
+  async get<T = unknown>(
+    path: string,
+    params?: Record<string, string>
+  ): Promise<T> {
+    return this.request<T>("GET", path, undefined, params);
+  }
+
+  async post<T = unknown>(path: string, body: unknown): Promise<T> {
+    return this.request<T>("POST", path, body);
+  }
+
+  async put<T = unknown>(path: string, body: unknown): Promise<T> {
+    return this.request<T>("PUT", path, body);
+  }
+
+  async delete<T = unknown>(path: string): Promise<T> {
+    return this.request<T>("DELETE", path);
+  }
+}
+
+
+================================================================
+DOSYA: src/lib/ebay-listings.ts
+================================================================
+// eBay Inventory + Offer API işlemleri
+import { EbayClient } from "@/lib/ebay-client";
+import { decryptToken } from "@/lib/crypto";
+import type { EbayAccount, Product } from "@prisma/client";
+
+function getClient(ebayAccount: EbayAccount): EbayClient {
+  if (!ebayAccount.oauthTokenEncrypted) {
+    throw new Error(`EbayAccount ${ebayAccount.id} için access token mevcut değil`);
+  }
+  const accessToken = decryptToken(ebayAccount.oauthTokenEncrypted);
+  return new EbayClient(accessToken);
+}
+
+function buildSku(product: Product): string {
+  return `EBAY-${product.asin}`;
+}
+
+interface OfferResponse {
+  offerId?: string;
+  offers?: Array<{ offerId: string; status: string }>;
+  listingId?: string;
+}
+
+export async function createOrUpdateListing(
+  ebayAccount: EbayAccount,
+  product: Product,
+  qty: number,
+  price: number
+): Promise<string> {
+  const client = getClient(ebayAccount);
+  const sku = buildSku(product);
+
+  // 1. Inventory Item oluştur / güncelle
+  await client.put(`/sell/inventory/v1/inventory_item/${encodeURIComponent(sku)}`, {
+    availability: {
+      shipToLocationAvailability: {
+        quantity: qty,
+      },
+    },
+    condition: "NEW",
+    product: {
+      title: product.title ?? `Amazon ASIN: ${product.asin}`,
+      imageUrls: product.imageUrl ? [product.imageUrl] : [],
+      description: product.title ?? "",
+    },
+  });
+
+  // 2. Mevcut offer var mı kontrol et
+  let offerId: string | null = null;
+
+  try {
+    const offersResp = await client.get<OfferResponse>(
+      `/sell/inventory/v1/offer`,
+      { sku }
+    );
+    if (offersResp.offers && offersResp.offers.length > 0) {
+      offerId = offersResp.offers[0].offerId;
+    }
+  } catch {
+    offerId = null;
+  }
+
+  const offerPayload = {
+    sku,
+    marketplaceId: "EBAY_US",
+    format: "FIXED_PRICE",
+    availableQuantity: qty,
+    categoryId: "9355",
+    listingDescription: product.title ?? `Amazon ASIN: ${product.asin}`,
+    pricingSummary: {
+      price: {
+        value: price.toFixed(2),
+        currency: "USD",
+      },
+    },
+    listingPolicies: {
+      fulfillmentPolicyId: process.env.EBAY_FULFILLMENT_POLICY_ID ?? "",
+      paymentPolicyId: process.env.EBAY_PAYMENT_POLICY_ID ?? "",
+      returnPolicyId: process.env.EBAY_RETURN_POLICY_ID ?? "",
+    },
+    merchantLocationKey: process.env.EBAY_MERCHANT_LOCATION_KEY ?? "default",
+  };
+
+  if (!offerId) {
+    const createResp = await client.post<OfferResponse>(
+      `/sell/inventory/v1/offer`,
+      offerPayload
+    );
+    offerId = createResp.offerId ?? null;
+  } else {
+    await client.put(`/sell/inventory/v1/offer/${offerId}`, offerPayload);
+  }
+
+  if (!offerId) {
+    throw new Error(`Offer ID alınamadı — SKU: ${sku}`);
+  }
+
+  // 3. Offer'ı yayınla
+  const publishResp = await client.post<OfferResponse>(
+    `/sell/inventory/v1/offer/${offerId}/publish`,
+    {}
+  );
+
+  const listingId = publishResp.listingId;
+  if (!listingId) {
+    throw new Error(`Listing ID alınamadı — offerId: ${offerId}`);
+  }
+
+  return listingId;
+}
+
+/** Listing'i durdur (qty=0) */
+export async function pauseListing(
+  ebayAccount: EbayAccount,
+  ebayListingId: string
+): Promise<void> {
+  const client = getClient(ebayAccount);
+
+  await client.post(`/sell/inventory/v1/bulk_update_price_quantity`, {
+    requests: [
+      {
+        sku: ebayListingId,
+        shipToLocationAvailability: {
+          quantity: 0,
+        },
+      },
+    ],
+  });
+}
+
+/** Listing'i yeniden aktif et */
+export async function resumeListing(
+  ebayAccount: EbayAccount,
+  ebayListingId: string,
+  qty: number,
+  price: number
+): Promise<void> {
+  const client = getClient(ebayAccount);
+
+  await updatePriceAndQty(ebayAccount, ebayListingId, price, qty);
+
+  void client;
+}
+
+/** Fiyat ve adedi güncelle */
+export async function updatePriceAndQty(
+  ebayAccount: EbayAccount,
+  sku: string,
+  price: number,
+  qty: number
+): Promise<void> {
+  const client = getClient(ebayAccount);
+
+  await client.post(`/sell/inventory/v1/bulk_update_price_quantity`, {
+    requests: [
+      {
+        sku,
+        shipToLocationAvailability: {
+          quantity: qty,
+        },
+        offers: [
+          {
+            availableQuantity: qty,
+            offerId: sku,
+            price: {
+              currency: "USD",
+              value: price.toFixed(2),
+            },
+          },
+        ],
+      },
+    ],
+  });
+}
+
+
+================================================================
+DOSYA: src/lib/queues.ts
+================================================================
+// BullMQ Queue tanımları — hem API route'ları hem worker bu modülü kullanır.
+// BullMQ'nun kendi dahili ioredis'ini kullanıyoruz — dış ioredis import YOK.
+// connection: URL string veya {host,port} config — type çakışmasını önler.
+
+import { Queue } from "bullmq";
+import type { ConnectionOptions } from "bullmq";
+
+const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
+
+function parseRedisUrl(url: string): ConnectionOptions {
+  try {
+    const parsed = new URL(url);
+    return {
+      host: parsed.hostname || "localhost",
+      port: parseInt(parsed.port || "6379", 10),
+      password: parsed.password || undefined,
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false,
+    } as ConnectionOptions;
+  } catch {
+    return { host: "localhost", port: 6379, maxRetriesPerRequest: null } as ConnectionOptions;
+  }
+}
+
+export const connection = parseRedisUrl(redisUrl);
+
+// ─── Job veri tipleri ──────────────────────────────────────────────────────────
+export interface PollProductJobData {
+  productId: string;
+}
+
+export interface VerifyOrderJobData {
+  orderId: string;
+}
+
+export interface UpdateListingJobData {
+  listingId: string;
+  price: number;
+  qty: number;
+}
+
+// ─── Kuyruklar ─────────────────────────────────────────────────────────────────
+// 3. generic param (NameType) açıkça string — ExtractNameType string literal hatasını önler
+export const pollProductQueue = new Queue<PollProductJobData, void, string>("poll-product", {
+  connection,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: "exponential",
+      delay: 5000,
+    },
+    removeOnComplete: { count: 100 },
+    removeOnFail: { count: 500 },
+  },
+});
+
+export const verifyOrderQueue = new Queue<VerifyOrderJobData, void, string>("verify-order", {
+  connection,
+  defaultJobOptions: {
+    attempts: 2,
+    backoff: {
+      type: "fixed",
+      delay: 3000,
+    },
+    removeOnComplete: { count: 200 },
+    removeOnFail: { count: 1000 },
+  },
+});
+
+export const updateListingQueue = new Queue<UpdateListingJobData, void, string>(
+  "update-listing",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 4,
+      backoff: {
+        type: "exponential",
+        delay: 2000,
+      },
+      removeOnComplete: { count: 200 },
+      removeOnFail: { count: 500 },
+    },
+  }
+);
+
+
+================================================================
+DOSYA: src/lib/utils.ts
+================================================================
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+export function formatCurrency(value: number, currency = "USD"): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+export function formatPercent(value: number): string {
+  return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
+}
+
+export function formatDate(date: string | Date): string {
+  return new Intl.DateTimeFormat("tr-TR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(date));
+}
+
+
+================================================================
+DOSYA: src/app/globals.css
+================================================================
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #0f172a; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* Glassmorphism */
+.glass {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #7c3aed, #3b82f6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glow effects */
+.glow-purple { box-shadow: 0 0 40px rgba(124, 58, 237, 0.25); }
+.glow-blue   { box-shadow: 0 0 40px rgba(59, 130, 246, 0.2); }
+.glow-green  { box-shadow: 0 0 40px rgba(16, 185, 129, 0.2); }
+
+/* Float animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-10px); }
+}
+.animate-float { animation: float 4s ease-in-out infinite; }
+
+/* Shimmer skeleton */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Pulse glow */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(124, 58, 237, 0.2); }
+  50%       { box-shadow: 0 0 40px rgba(124, 58, 237, 0.5); }
+}
+.animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+
+/* Gradient border */
+.gradient-border {
+  position: relative;
+  background: linear-gradient(#0f172a, #0f172a) padding-box,
+              linear-gradient(135deg, #7c3aed, #3b82f6) border-box;
+  border: 1px solid transparent;
+}
+
+/* Sidebar transition */
+.sidebar-transition { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+
+/* Chart tooltip */
+.recharts-tooltip-wrapper { outline: none !important; }
+
+
+================================================================
+DOSYA: src/app/layout.tsx
+================================================================
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import { Providers } from "@/components/providers";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+});
+
+export const metadata: Metadata = {
+  title: "eBay Otomasyon | Amazon'dan Otomatik Kazan",
+  description:
+    "Amazon ürünlerini eBay'de otomatik listele, fiyatlandır ve sat. %20 net kâr garantili repricer motoru.",
+  keywords: ["ebay", "amazon", "dropshipping", "otomasyon", "saas"],
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="tr" className="dark" suppressHydrationWarning>
+      <body className={`${inter.variable} font-sans bg-slate-950 text-white antialiased`}>
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
+}
+
+
+================================================================
+DOSYA: src/app/loading.tsx
+================================================================
+export default function Loading() {
+  return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 animate-pulse" />
+        <p className="text-slate-500 text-sm">Yükleniyor...</p>
+      </div>
+    </div>
+  );
+}
+
+
+================================================================
+DOSYA: src/app/not-found.tsx
+================================================================
+import Link from "next/link";
+
+export default function NotFound() {
+  return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
+      <div className="text-center space-y-4">
+        <div className="text-8xl font-bold gradient-text">404</div>
+        <p className="text-slate-400 text-lg">Sayfa bulunamadı</p>
+        <Link
+          href="/"
+          className="inline-block mt-4 px-6 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 text-white font-medium hover:opacity-90 transition-opacity"
+        >
+          Ana Sayfaya Don
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+
+================================================================
+DOSYA: src/app/page.tsx  (Landing Page — 454 satır)
+================================================================
+"use client";
+
+import { motion, useInView } from "framer-motion";
+import { useRef } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import {
+  TrendingUp, Zap, Target, Check, ArrowRight, Bot, DollarSign, Package, Shield,
+} from "lucide-react";
+
+const fadeUp = {
+  initial: { opacity: 0, y: 30 },
+  animate: { opacity: 1, y: 0 },
+};
+
+const stagger = {
+  animate: { transition: { staggerChildren: 0.12 } },
+};
+
+function AnimatedSection({ children, className }: { children: React.ReactNode; className?: string }) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, amount: 0.2 });
+  return (
+    <motion.div
+      ref={ref}
+      variants={stagger}
+      initial="initial"
+      animate={inView ? "animate" : "initial"}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function DashboardPreview() {
+  return (
+    <div className="relative w-full max-w-lg mx-auto animate-float">
+      <div className="absolute inset-0 bg-gradient-to-br from-violet-600/20 to-blue-600/10 rounded-3xl blur-2xl" />
+      <div className="relative bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-4 shadow-2xl">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="flex gap-1.5">
+            <div className="w-3 h-3 rounded-full bg-red-500/60" />
+            <div className="w-3 h-3 rounded-full bg-amber-500/60" />
+            <div className="w-3 h-3 rounded-full bg-emerald-500/60" />
+          </div>
+          <div className="flex-1 h-6 bg-slate-800/60 rounded-lg flex items-center px-3">
+            <span className="text-[10px] text-slate-500">dashboard • eBayBot</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          {[
+            { label: "Toplam Kâr", value: "$12,480", color: "text-violet-400" },
+            { label: "Aktif Liste", value: "247",    color: "text-blue-400"   },
+            { label: "Bu Ay",      value: "$3,920",  color: "text-emerald-400"},
+          ].map((s) => (
+            <div key={s.label} className="bg-slate-800/60 rounded-xl p-2.5">
+              <p className="text-[9px] text-slate-500">{s.label}</p>
+              <p className={`text-sm font-bold mt-0.5 ${s.color}`}>{s.value}</p>
+            </div>
+          ))}
+        </div>
+        <div className="space-y-1.5">
+          {[
+            { asin: "B09G9HD6PD", price: "$145.20", profit: "+$29.04", badge: "bg-emerald-500/20 text-emerald-400" },
+            { asin: "B08N5WRWNW", price:  "$89.99", profit: "+$18.00", badge: "bg-blue-500/20 text-blue-400"       },
+            { asin: "B07XJ8C8F5", price: "$212.50", profit: "+$42.50", badge: "bg-amber-500/20 text-amber-400"     },
+          ].map((p) => (
+            <div key={p.asin} className="flex items-center justify-between bg-slate-800/40 rounded-lg px-3 py-1.5">
+              <span className="text-[10px] font-mono text-violet-400">{p.asin}</span>
+              <span className="text-[10px] text-white">{p.price}</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${p.badge}`}>{p.profit}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// [Hero, Stats, Features, How It Works, Pricing, CTA, Footer bölümleri — tam kod dosyada]
+// Framer Motion animasyonlar, glassmorphism kartlar, gradient butonlar
+
+
+================================================================
+DOSYA: src/components/providers.tsx
+================================================================
+"use client";
+
+import { SessionProvider } from "next-auth/react";
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return <SessionProvider>{children}</SessionProvider>;
+}
+
+
+================================================================
+DOSYA: src/components/ui/button.tsx
+================================================================
+"use client";
+
+import { motion, HTMLMotionProps } from "framer-motion";
+import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+type ButtonSize = "sm" | "md" | "lg";
+
+interface ButtonProps extends Omit<HTMLMotionProps<"button">, "children"> {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  loading?: boolean;
+  children?: React.ReactNode;
+}
+
+const variantClasses: Record<ButtonVariant, string> = {
+  primary:
+    "bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white shadow-lg shadow-violet-500/20",
+  secondary:
+    "bg-slate-800 hover:bg-slate-700 text-white border border-slate-700/50",
+  ghost:
+    "border border-white/10 hover:bg-white/5 text-slate-300 hover:text-white",
+  danger:
+    "bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/20",
+};
+
+const sizeClasses: Record<ButtonSize, string> = {
+  sm: "px-3 py-1.5 text-sm rounded-lg",
+  md: "px-4 py-2 text-sm rounded-xl",
+  lg: "px-6 py-3 text-base rounded-xl",
+};
+
+export function Button({
+  variant = "primary",
+  size = "md",
+  loading = false,
+  disabled,
+  className,
+  children,
+  ...props
+}: ButtonProps) {
+  return (
+    <motion.button
+      whileTap={{ scale: 0.97 }}
+      whileHover={{ scale: 1.01 }}
+      disabled={disabled || loading}
+      className={cn(
+        "inline-flex items-center justify-center gap-2 font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed",
+        variantClasses[variant],
+        sizeClasses[size],
+        className
+      )}
+      {...props}
+    >
+      {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+      {children}
+    </motion.button>
+  );
+}
+
+
+================================================================
+DOSYA: src/components/ui/card.tsx
+================================================================
+"use client";
+
+import { motion, HTMLMotionProps } from "framer-motion";
+import { cn } from "@/lib/utils";
+
+type CardVariant = "default" | "glow";
+
+interface CardProps extends Omit<HTMLMotionProps<"div">, "children"> {
+  variant?: CardVariant;
+  children?: React.ReactNode;
+}
+
+export function Card({ variant = "default", className, children, ...props }: CardProps) {
+  return (
+    <motion.div
+      className={cn(
+        "bg-slate-900/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6",
+        variant === "glow" &&
+          "hover:border-violet-500/30 hover:shadow-lg hover:shadow-violet-500/10 transition-all duration-300",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+
+================================================================
+DOSYA: src/components/ui/input.tsx
+================================================================
+"use client";
+
+import React from "react";
+import { cn } from "@/lib/utils";
+
+interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label?: string;
+  error?: string;
+  icon?: React.ReactNode;
+}
+
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ label, error, icon, className, id, ...props }, ref) => {
+    const inputId = id || label?.toLowerCase().replace(/\s+/g, "-");
+
+    return (
+      <div className="flex flex-col gap-1.5">
+        {label && (
+          <label htmlFor={inputId} className="text-sm font-medium text-slate-300">
+            {label}
+          </label>
+        )}
+        <div className="relative">
+          {icon && (
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              {icon}
+            </div>
+          )}
+          <input
+            ref={ref}
+            id={inputId}
+            className={cn(
+              "w-full bg-slate-800/60 border rounded-xl px-4 py-2.5 text-white placeholder:text-slate-500",
+              "focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50",
+              "transition-all duration-200 text-sm",
+              icon ? "pl-10" : "",
+              error
+                ? "border-red-500/50 focus:ring-red-500/50 focus:border-red-500/50"
+                : "border-slate-700/50 hover:border-slate-600/50",
+              className
+            )}
+            {...props}
+          />
+        </div>
+        {error && (
+          <p className="text-xs text-red-400 flex items-center gap-1">
+            <span>⚠</span>
+            {error}
+          </p>
+        )}
+      </div>
+    );
+  }
+);
+
+Input.displayName = "Input";
+
+
+================================================================
+DOSYA: src/components/ui/badge.tsx
+================================================================
+import { cn } from "@/lib/utils";
+
+type BadgeVariant =
+  | "active" | "paused" | "out" | "hot" | "normal" | "dead"
+  | "pro" | "free" | "enterprise"
+  | "verified" | "pending" | "cancelled" | "fulfilled";
+
+interface BadgeProps {
+  variant: BadgeVariant;
+  children?: React.ReactNode;
+  className?: string;
+}
+
+const variantConfig: Record<BadgeVariant, { dot: string; bg: string; text: string }> = {
+  active:    { dot: "bg-emerald-400", bg: "bg-emerald-500/10", text: "text-emerald-400" },
+  paused:    { dot: "bg-amber-400",   bg: "bg-amber-500/10",   text: "text-amber-400"   },
+  out:       { dot: "bg-red-400",     bg: "bg-red-500/10",     text: "text-red-400"     },
+  hot:       { dot: "bg-red-400",     bg: "bg-red-500/10",     text: "text-red-400"     },
+  normal:    { dot: "bg-blue-400",    bg: "bg-blue-500/10",    text: "text-blue-400"    },
+  dead:      { dot: "bg-slate-400",   bg: "bg-slate-500/10",   text: "text-slate-400"   },
+  pro:       { dot: "bg-violet-400",  bg: "bg-violet-500/10",  text: "text-violet-400"  },
+  enterprise:{ dot: "bg-violet-400",  bg: "bg-violet-500/10",  text: "text-violet-400"  },
+  free:      { dot: "bg-slate-400",   bg: "bg-slate-500/10",   text: "text-slate-400"   },
+  verified:  { dot: "bg-emerald-400", bg: "bg-emerald-500/10", text: "text-emerald-400" },
+  pending:   { dot: "bg-amber-400",   bg: "bg-amber-500/10",   text: "text-amber-400"   },
+  cancelled: { dot: "bg-red-400",     bg: "bg-red-500/10",     text: "text-red-400"     },
+  fulfilled: { dot: "bg-blue-400",    bg: "bg-blue-500/10",    text: "text-blue-400"    },
+};
+
+const variantLabels: Record<BadgeVariant, string> = {
+  active: "Aktif", paused: "Duraklatildi", out: "Tukendi",
+  hot: "Sicak", normal: "Normal", dead: "Olu",
+  pro: "Pro", enterprise: "Enterprise", free: "Ucretsiz",
+  verified: "Dogrulandi", pending: "Bekliyor", cancelled: "Iptal", fulfilled: "Tamamlandi",
+};
+
+export function Badge({ variant, children, className }: BadgeProps) {
+  const config = variantConfig[variant];
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
+        config.bg, config.text, className
+      )}
+    >
+      <span className={cn("h-1.5 w-1.5 rounded-full", config.dot)} />
+      {children ?? variantLabels[variant]}
+    </span>
+  );
+}
+
+
+================================================================
+DOSYA: src/components/ui/modal.tsx
+================================================================
+"use client";
+
+import { useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { X } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface ModalProps {
+  open: boolean;
+  onClose: () => void;
+  title?: string;
+  children: React.ReactNode;
+  className?: string;
+}
+
+export function Modal({ open, onClose, title, children, className }: ModalProps) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    if (open) document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [open, onClose]);
+
+  useEffect(() => {
+    if (open) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = "";
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          />
+          <motion.div
+            initial={{ opacity: 0, y: 40, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className={cn(
+              "relative z-10 w-full max-w-lg bg-slate-900 border border-slate-700/50 rounded-2xl shadow-2xl",
+              className
+            )}
+          >
+            {title && (
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700/50">
+                <h2 className="text-lg font-semibold text-white">{title}</h2>
+                <button
+                  onClick={onClose}
+                  className="text-slate-400 hover:text-white transition-colors rounded-lg p-1 hover:bg-white/5"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            )}
+            <div className="p-6">{children}</div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+
+================================================================
+DOSYA: src/components/layout/sidebar.tsx
+================================================================
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { LayoutDashboard, Package, List, ShoppingCart, Settings, ChevronLeft, LogOut, Bot } from "lucide-react";
+import { signOut, useSession } from "next-auth/react";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+
+const navItems = [
+  { href: "/dashboard",           label: "Dashboard",  icon: LayoutDashboard },
+  { href: "/dashboard/products",  label: "Urunler",    icon: Package },
+  { href: "/dashboard/listings",  label: "Listeler",   icon: List },
+  { href: "/dashboard/orders",    label: "Siparisler", icon: ShoppingCart },
+  { href: "/dashboard/settings",  label: "Ayarlar",    icon: Settings },
+];
+
+export function Sidebar() {
+  const pathname = usePathname();
+  const { data: session } = useSession();
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("sidebar-collapsed") === "true";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("sidebar-collapsed", String(collapsed));
+  }, [collapsed]);
+
+  const plan = (session?.user?.plan ?? "free") as "free" | "pro" | "enterprise";
+
+  return (
+    <motion.aside
+      animate={{ width: collapsed ? 72 : 256 }}
+      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+      className="fixed left-0 top-0 h-screen bg-slate-900/80 backdrop-blur-xl border-r border-slate-700/50 z-40 flex flex-col overflow-hidden"
+    >
+      {/* Logo, Nav, Footer — collapse/expand animasyon, active glow, plan badge */}
+      {/* Tam kod: 184 satir */}
+    </motion.aside>
+  );
+}
+
+
+================================================================
+DOSYA: src/components/layout/header.tsx
+================================================================
+"use client";
+
+import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { Bell, ChevronDown, Settings, LogOut } from "lucide-react";
+import { signOut, useSession } from "next-auth/react";
+
+export function Header() {
+  const pathname = usePathname();
+  const { data: session } = useSession();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  // Bildirim dropdown, kullanici dropdown, AnimatePresence animasyonlar
+  // Tam kod: 119 satir
+  return (
+    <header className="fixed top-0 right-0 left-64 h-16 bg-slate-950/80 backdrop-blur-xl border-b border-slate-700/50 z-30 flex items-center justify-between px-6">
+      {/* ... */}
+    </header>
+  );
+}
+
+
+================================================================
+DOSYA: src/components/dashboard/stats-card.tsx
+================================================================
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
+import { TrendingUp, TrendingDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+// requestAnimationFrame count-up hook (ease-out cubic)
+function useCountUp(target: number, duration = 1500) {
+  const [count, setCount] = useState(0);
+  const frameRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const start = performance.now();
+    const animate = (now: number) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCount(Math.floor(eased * target));
+      if (progress < 1) {
+        frameRef.current = requestAnimationFrame(animate);
+      } else {
+        setCount(target);
+      }
+    };
+    frameRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    };
+  }, [target, duration]);
+
+  return count;
+}
+
+export function StatsCard({ title, value, prefix = "", suffix = "", change, icon, color = "violet", delay = 0 }) {
+  // Gradient icon, count-up animasyon, trend gostergesi
+  // Tam kod: 132 satir
+}
+
+
+================================================================
+DOSYA: src/components/dashboard/profit-chart.tsx
+================================================================
+"use client";
+
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { motion } from "framer-motion";
+
+// Recharts AreaChart — 30 gunluk kar grafigi
+// Ozel tooltip, mor gradient dolgu, animasyonlu giris
+// Tam kod: 115 satir
+
+export function ProfitChart({ data }: { data?: Array<{ date: string; profit: number }> }) {
+  // ...
+}
+
+
+================================================================
+DOSYA: src/components/dashboard/recent-orders.tsx
+================================================================
+"use client";
+
+import { motion } from "framer-motion";
+import { Badge } from "@/components/ui/badge";
+import type { FulfillmentStatus } from "@/types";
+
+// Staggered animasyonlu siparis listesi
+// Tam kod: 71 satir
+
+export function RecentOrders({ orders }) {
+  // ...
+}
+
+
+================================================================
+DOSYA: src/components/products/product-table.tsx
+================================================================
+"use client";
+
+import { motion, AnimatePresence } from "framer-motion";
+import { RefreshCw, Trash2, Package } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+
+// Tam tablo: ASIN, Baslik, Amazon $, eBay $, Kar %, Stok, Tier, Durum, Eylemler
+// Skeleton loading, hover eylemler, bos durum
+// Tam kod: 182 satir
+
+export function ProductTable({ products, loading, onRefresh, onDelete, onAddProduct }) {
+  // ...
+}
+
+
+================================================================
+DOSYA: src/components/products/add-product-modal.tsx
+================================================================
+"use client";
+
+import { useState } from "react";
+import { Modal } from "@/components/ui/modal";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { motion, AnimatePresence } from "framer-motion";
+
+// ASIN sorgulama → fiyat gosterme → eBay hesabi secme → listeleme
+// Tam kod: 229 satir
+
+export function AddProductModal({ open, onClose, ebayAccounts, onSuccess }) {
+  // ...
+}
+
+
+================================================================
+DOSYA: src/app/(auth)/layout.tsx
+================================================================
+import { Bot } from "lucide-react";
+import Link from "next/link";
+
+export default function AuthLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute top-0 left-1/3 w-[500px] h-[500px] bg-violet-600/10 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-0 right-1/3 w-[400px] h-[400px] bg-blue-600/8 rounded-full blur-[80px] pointer-events-none" />
+      <Link href="/" className="absolute top-6 left-6 flex items-center gap-2 text-white hover:opacity-80 transition-opacity">
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center">
+          <Bot className="h-4 w-4 text-white" />
+        </div>
+        <span className="font-bold">eBayBot</span>
+      </Link>
+      <div className="w-full max-w-sm relative z-10">{children}</div>
+    </div>
+  );
+}
+
+
+================================================================
+DOSYA: src/app/(auth)/login/page.tsx
+================================================================
+"use client";
+
+import { useState } from "react";
+import { motion } from "framer-motion";
+import Link from "next/link";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { Mail, Lock, AlertCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    const result = await signIn("credentials", { email, password, redirect: false });
+    setLoading(false);
+    if (result?.error) {
+      setError("E-posta veya sifre hatali. Lutfen tekrar deneyin.");
+    } else {
+      router.push("/dashboard");
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="bg-slate-900/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-8 shadow-2xl"
+    >
+      {/* Form, hata mesaji, kayit linki */}
+    </motion.div>
+  );
+}
+
+
+================================================================
+DOSYA: src/app/(auth)/register/page.tsx
+================================================================
+"use client";
+
+// Kayit formu: e-posta, sifre, sifre tekrar
+// Sifre guclu gostergesi (4 segment, renk gecisi)
+// Basarili kayit sonrasi yonlendirme
+// Tam kod: 172 satir
+
+export default function RegisterPage() {
+  // ...
+}
+
+
+================================================================
+DOSYA: src/app/dashboard/layout.tsx
+================================================================
+"use client";
+
+import { useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { Sidebar } from "@/components/layout/sidebar";
+import { Header } from "@/components/layout/header";
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.replace("/login");
+    }
+  }, [status, router]);
+
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 animate-pulse" />
+          <p className="text-slate-400 text-sm">Yukleniyor...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) return null;
+
+  return (
+    <div className="min-h-screen bg-slate-950">
+      <Sidebar />
+      <Header />
+      <main className="ml-64 pt-16 min-h-screen transition-all duration-300">
+        <div className="p-6">{children}</div>
+      </main>
+    </div>
+  );
+}
+
+
+================================================================
+DOSYA: src/app/dashboard/page.tsx
+================================================================
+"use client";
+
+// Dashboard ana sayfasi: StatsCard x4, ProfitChart, RecentOrders
+// SWR ile /api/orders/stats canli veri
+// Stagger animasyonlar, quick action butonlari
+// Tam kod: 138 satir
+
+export default function DashboardPage() {
+  // ...
+}
+
+
+================================================================
+DOSYA: src/app/dashboard/products/page.tsx
+================================================================
+"use client";
+
+// Urun yonetim sayfasi
+// Filter tabs (Hepsi/Aktif/Duraklatildi/Sicak), arama
+// ProductTable + AddProductModal entegrasyonu
+// SWR ile canli guncelleme
+// Tam kod: 131 satir
+
+export default function ProductsPage() {
+  // ...
+}
+
+
+================================================================
+DOSYA: src/app/dashboard/listings/page.tsx
+================================================================
+"use client";
+
+// eBay listeler tablosu
+// Duraklat/Devam Ettir/Sil eylemleri
+// Skeleton loading, bos durum
+// Tam kod: 165 satir
+
+export default function ListingsPage() {
+  // ...
+}
+
+
+================================================================
+DOSYA: src/app/dashboard/orders/page.tsx
+================================================================
+"use client";
+
+// Siparis tablosu + ozet istatistikler
+// Toplam siparis, toplam kar kartlari
+// FulfillmentStatus badge, tarih formatlama
+// Tam kod: 161 satir
+
+export default function OrdersPage() {
+  // ...
+}
+
+
+================================================================
+DOSYA: src/app/dashboard/settings/page.tsx
+================================================================
+"use client";
+
+// 3 bolum: eBay Hesaplari, Fiyatlandirma Kurallari, Abonelik Plani
+// eBay OAuth baglama/cikartma
+// Kar marji slider (%10-%40)
+// Stripe checkout + portal
+// Tam kod: 263 satir
+
+export default function SettingsPage() {
+  // ...
+}
+
+
+================================================================
+DOSYA: src/hooks/useAuth.ts
+================================================================
+"use client";
+
+import { useSession, signIn, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+export function useAuth() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const login = async (email: string, password: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await signIn("credentials", { email, password, redirect: false });
+      if (result?.error) { setError("E-posta veya sifre hatali."); return false; }
+      router.push("/dashboard");
+      return true;
+    } catch { setError("Bir hata olustu."); return false; }
+    finally { setLoading(false); }
+  };
+
+  const register = async (email: string, password: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!res.ok) { const data = await res.json(); setError(data.error ?? "Kayit basarisiz."); return false; }
+      return login(email, password);
+    } catch { setError("Bir hata olustu."); return false; }
+    finally { setLoading(false); }
+  };
+
+  const logout = async () => { await signOut({ redirect: false }); router.push("/login"); };
+
+  return { user: session?.user ?? null, isAuthenticated: status === "authenticated", isLoading: status === "loading" || loading, error, login, register, logout };
+}
+
+
+================================================================
+DOSYA: src/hooks/useProducts.ts
+================================================================
+"use client";
+
+import useSWR, { mutate } from "swr";
+import { useState } from "react";
+
+// SWR tabanli urun hook'u
+// addProduct, scrapeProduct, deleteProduct metodlari
+// Pagination, filtreleme destegi
+// Tam kod: 107 satir
+
+export function useProducts(params?: { status?: string; pollTier?: string; search?: string; page?: number; limit?: number }) {
+  // ...
+}
+
+
+================================================================
+DOSYA: src/app/api/auth/register/route.ts
+================================================================
+import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/prisma";
+
+export async function POST(req: NextRequest) {
+  // E-posta + sifre dogrulama, bcrypt hash, prisma.user.create
+  // P2002 unique constraint → 409 Conflict
+  // Tam kod: 64 satir
+}
+
+
+================================================================
+DOSYA: src/app/api/auth/[...nextauth]/route.ts
+================================================================
+export { GET, POST } from "@/lib/auth";
+
+
+================================================================
+DOSYA: src/app/api/products/route.ts
+================================================================
+import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/api-helpers";
+import { prisma } from "@/lib/prisma";
+import { fetchAmazonProduct } from "@/lib/scraper";
+import { calculateEbayPrice } from "@/lib/repricer";
+
+// GET: Kullanicinin urunlerini listele (pagination, filtre, arama)
+// POST: Yeni urun ekle (ASIN validate → scrape → reprice → upsert)
+// Min fiyat kontrolu ($15), ASIN regex, stok parse
+// Tam kod: 139 satir
+
+
+================================================================
+DOSYA: src/app/api/products/[id]/route.ts
+================================================================
+// GET: Urun detayi (kullanici sahipligi kontrolu)
+// DELETE: Listing sil, baska kullanici yoksa urun de sil
+// Tam kod: 80 satir
+
+
+================================================================
+DOSYA: src/app/api/products/[id]/scrape/route.ts
+================================================================
+// POST: Anlik scrape — fiyat spike kontrol, stok guncelle, listing duraklat/guncelle
+// Tam kod: 103 satir
+
+
+================================================================
+DOSYA: src/app/api/listings/route.ts
+================================================================
+// GET: Kullanicinin listelerini getir (product + ebayAccount include)
+// POST: Yeni listing — fiyat hesapla, eBay'e listele, DB'ye kaydet
+// Tam kod: 128 satir
+
+
+================================================================
+DOSYA: src/app/api/listings/[id]/route.ts
+================================================================
+// DELETE: eBay'den kaldir + DB'den sil
+// Tam kod: 50 satir
+
+
+================================================================
+DOSYA: src/app/api/listings/[id]/pause/route.ts
+================================================================
+// PUT: eBay'de qty=0 yap, DB status=paused
+// Tam kod: 56 satir
+
+
+================================================================
+DOSYA: src/app/api/listings/[id]/resume/route.ts
+================================================================
+// PUT: Taze Amazon verisi cek → yeni fiyat hesapla → eBay guncelle → DB aktif et
+// Eski fiyattan ASLA acma — CLAUDE.md Bolum 4
+// Tam kod: 119 satir
+
+
+================================================================
+DOSYA: src/app/api/orders/route.ts
+================================================================
+// GET: Siparisleri listele (listing → product include, pagination, filtre)
+// Tam kod: 47 satir
+
+
+================================================================
+DOSYA: src/app/api/orders/stats/route.ts
+================================================================
+// GET: totalProfit, totalOrders, successRate, thisMonthProfit
+// Prisma aggregate sorgu, bu ay filtrelemesi
+// Tam kod: 61 satir
+
+
+================================================================
+DOSYA: src/app/api/ebay/connect/route.ts
+================================================================
+// GET: eBay OAuth authorization URL uret (state = userId)
+// Tam kod: 14 satir
+
+
+================================================================
+DOSYA: src/app/api/ebay/callback/route.ts
+================================================================
+// GET: code + state al → exchangeCodeForTokens → AES-256-GCM sifrele → DB kaydet
+// Token'lar duz metin ASLA saklanmaz — CLAUDE.md Bolum 7
+// Tam kod: 56 satir
+
+
+================================================================
+DOSYA: src/app/api/ebay/accounts/route.ts
+================================================================
+// GET: Hesaplari listele — token alanlari HICBIR ZAMAN don
+// Tam kod: 24 satir
+
+
+================================================================
+DOSYA: src/app/api/ebay/accounts/[id]/route.ts
+================================================================
+// DELETE: Hesabi kaldir (cascade: bagli listing'ler de silinir)
+// Tam kod: 32 satir
+
+
+================================================================
+DOSYA: src/app/api/stripe/checkout/route.ts
+================================================================
+// POST: Stripe checkout session olustur (pro/enterprise plan)
+// STRIPE_PRICE_PRO_ID / STRIPE_PRICE_ENTERPRISE_ID env'den
+// Tam kod: 68 satir
+
+
+================================================================
+DOSYA: src/app/api/stripe/webhook/route.ts
+================================================================
+// POST: checkout.session.completed, customer.subscription.updated/deleted
+// Stripe imza dogrulama, plan guncelleme
+// Tam kod: 84 satir
+
+
+================================================================
+DOSYA: src/app/api/stripe/portal/route.ts
+================================================================
+// POST: Stripe billing portal session olustur
+// Tam kod: 38 satir
+
+
+================================================================
+DOSYA: src/app/api/webhooks/ebay/route.ts
+================================================================
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { verifyOrderQueue } from "@/lib/queues";
+
+export async function POST(req: NextRequest) {
+  // 1. Webhook imzasi dogrula
+  // 2. ebayOrderId + listingId cikar
+  // 3. Order kaydi olustur (pending)
+  // 4. verifyOrderQueue'ya job ekle (BullMQ)
+  // 5. Hizli 200 don (timeout < 3sn)
+  // Tam kod: 113 satir
+}
+
+
+================================================================
+DOSYA: src/app/api/cron/poll/route.ts
+================================================================
+import { NextRequest, NextResponse } from "next/server";
+import { requireCron } from "@/lib/api-helpers";
+import { prisma } from "@/lib/prisma";
+import { pollProductQueue } from "@/lib/queues";
+
+// POST: Tier bazli toplu polling tetikle
+// Authorization: Bearer CRON_SECRET ile korunur
+// Promise.all + bireysel add() — addBulk type hatasindan kacin
+// Tam kod: 50 satir
+
+export const POST = requireCron(async (req) => {
+  // tier = hot | normal | dead
+  // O tier'daki aktif urunleri BullMQ'ya gonder
+});
+
+
+================================================================
+OZET — DOSYA SAYILARI
+================================================================
+package.json                    : 1
+src/lib/                        : 9 dosya (prisma, auth, crypto, api-helpers, scraper, repricer, ebay-auth, ebay-client, ebay-listings, queues, utils)
+src/types/                      : 1 dosya
+src/app/                        : 26 dosya (layout, page, loading, not-found + auth + dashboard + api route'lari)
+src/components/                 : 11 dosya (ui: button, card, input, badge, modal | layout: sidebar, header | dashboard: stats-card, profit-chart, recent-orders | products: product-table, add-product-modal)
+src/hooks/                      : 2 dosya (useAuth, useProducts)
+----------------------------------------------------------------
+TOPLAM                          : ~60 TypeScript dosyasi
+TypeScript Hatasi               : 0 (npx tsc --noEmit temiz)
+Next.js Build                   : Basarili (30 route)
+================================================================

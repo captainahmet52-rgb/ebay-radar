@@ -1,0 +1,27 @@
+# Gizli veriler — ASLA commit'leme
+.env
+.env.local
+.env.*.local
+backups/
+
+# Next.js
+.next/
+out/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Prisma (migrations commit'lenir — VPS'te migrate deploy için gerekli)
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# BullMQ / Redis
+*.rdb

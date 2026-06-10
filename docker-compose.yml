@@ -1,0 +1,157 @@
+version: "3.9"
+
+services:
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: ebay_postgres
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_DB: ebay_db
+      POSTGRES_USER: ebay_user
+      POSTGRES_PASSWORD: ebay_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ebay_user -d ebay_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - ebay_net
+
+  # ── Redis ──────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: ebay_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - ebay_net
+
+  # ── Prisma Migrate (app/worker'dan önce çalışır, bir kez) ─────────────────
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ebay_migrate
+    command: sh -c "npx prisma migrate deploy"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://ebay_user:ebay_pass@postgres:5432/ebay_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ebay_net
+    restart: "no"
+
+  # ── Next.js App ────────────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ebay_app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://ebay_user:ebay_pass@postgres:5432/ebay_db
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - ebay_net
+    expose:
+      - "3000"
+
+  # ── BullMQ Worker ──────────────────────────────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: ebay_worker
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://ebay_user:ebay_pass@postgres:5432/ebay_db
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - ebay_net
+
+  # ── Nginx ──────────────────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: ebay_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - app
+    networks:
+      - ebay_net
+
+  # ── Günlük Yedek (PostgreSQL) ──────────────────────────────────────────────
+  backup:
+    image: postgres:16-alpine
+    container_name: ebay_backup
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PGPASSWORD: ebay_pass
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup.sh:/backup.sh:ro
+    entrypoint: >
+      sh -c "
+        echo '0 3 * * * sh /backup.sh' | crontab - &&
+        crond -f -l 2
+      "
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ebay_net
+
+# ── Volumes ────────────────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# ── Network ────────────────────────────────────────────────────────────────
+networks:
+  ebay_net:
+    driver: bridge
