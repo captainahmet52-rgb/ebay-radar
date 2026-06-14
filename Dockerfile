@@ -17,6 +17,16 @@ COPY . .
 RUN npx prisma generate
 RUN npm run build
 
+# ── migrate: prisma migrate deploy için minimal stage ──────────────────────
+FROM base AS migrate
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY prisma ./prisma
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+USER nextjs
+CMD ["node_modules/.bin/prisma", "migrate", "deploy"]
+
 # ── runner: minimal üretim imajı ───────────────────────────────────────────
 FROM base AS runner
 WORKDIR /app
