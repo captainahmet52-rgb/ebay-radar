@@ -15,9 +15,10 @@ model User {
   id                   String   @id @default(cuid())
   email                String   @unique
   passwordHash         String
-  plan                 String   @default("free") // free | pro | enterprise
+  // starter | basic | growth | pro | enterprise
+  plan                 String   @default("starter")
   role                 String   @default("user") // user | admin
-  productLimit         Int      @default(100)    // aylık ürün paketi limiti
+  productLimit         Int      @default(300)    // pakete göre atanır
   stripeCustomerId     String?
   stripeSubscriptionId String?
   createdAt            DateTime @default(now())
