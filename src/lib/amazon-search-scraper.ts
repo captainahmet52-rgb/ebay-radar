@@ -9,14 +9,21 @@ export interface AmazonSearchResult {
   imageUrl: string | null;
 }
 
+const AMAZON_SEARCH_DOMAINS: Record<string, { domain: string; country: string }> = {
+  US: { domain: "https://www.amazon.com",    country: "us" },
+  UK: { domain: "https://www.amazon.co.uk", country: "gb" },
+};
+
 export async function searchAmazonProducts(
   keyword: string,
-  page = 1
+  page = 1,
+  market: "US" | "UK" = "US"
 ): Promise<AmazonSearchResult[]> {
   const apiKey = process.env.SCRAPINGBEE_API_KEY;
   if (!apiKey) throw new Error("SCRAPINGBEE_API_KEY tanımlı değil");
 
-  const searchUrl = `https://www.amazon.com/s?k=${encodeURIComponent(keyword)}&page=${page}`;
+  const { domain, country } = AMAZON_SEARCH_DOMAINS[market] ?? AMAZON_SEARCH_DOMAINS.US;
+  const searchUrl = `${domain}/s?k=${encodeURIComponent(keyword)}&page=${page}`;
 
   const extractRules = JSON.stringify({
     products: {
@@ -35,7 +42,7 @@ export async function searchAmazonProducts(
     api_key: apiKey,
     url: searchUrl,
     render_js: "false",
-    country_code: "us",
+    country_code: country,
     extract_rules: extractRules,
   });
 

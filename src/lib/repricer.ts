@@ -1,6 +1,7 @@
 // Fiyat hesaplama motoru — CLAUDE.md Bölüm 3 & 4
 import type { RepricerResult, StockStatus } from "@/types";
 import type { Product } from "@prisma/client";
+import { convertCurrency, MARKET_CURRENCY, EBAY_SITE_CURRENCY } from "@/lib/exchange-rate";
 
 // CLAUDE.md: >=10$ → 0.40, <10$ → 0.30
 function getFixedFee(amazonPrice: number): number {
@@ -10,12 +11,14 @@ function getFixedFee(amazonPrice: number): number {
 /**
  * eBay satış fiyatı hesaplama.
  * Formül: eBay_fiyatı = (amazon_fiyatı + sabit_ücret) / (1 - komisyon - margin)
+ * amazonPriceInEbayCurrency: Amazon fiyatı zaten eBay para birimine çevrilmiş olmalı.
  */
 export function calculateEbayPrice(
-  amazonPrice: number,
+  amazonPriceInEbayCurrency: number,
   commission: number = 0.136,
   margin: number = 0.20
 ): RepricerResult {
+  const amazonPrice = amazonPriceInEbayCurrency;
   const fixedFee = getFixedFee(amazonPrice);
   const divisor = 1 - commission - margin;
 
@@ -42,6 +45,23 @@ export function calculateEbayPrice(
     marginPct: Math.round(marginPct * 10000) / 10000,
     recommendedQty: 2, // varsayılan, aşağıda determineQty ile güncellenir
   };
+}
+
+/**
+ * Cross-marketplace fiyat hesaplama.
+ * Amazon fiyatını eBay para birimine çevirir, sonra repricer formülünü uygular.
+ */
+export async function calculateEbayPriceForMarket(
+  amazonPrice: number,
+  amazonMarket: string,
+  ebaySite: string,
+  commission = 0.136,
+  margin = 0.20
+): Promise<RepricerResult> {
+  const fromCurrency = MARKET_CURRENCY[amazonMarket] ?? "USD";
+  const toCurrency = EBAY_SITE_CURRENCY[ebaySite] ?? "USD";
+  const convertedPrice = await convertCurrency(amazonPrice, fromCurrency, toCurrency);
+  return calculateEbayPrice(convertedPrice, commission, margin);
 }
 
 /**

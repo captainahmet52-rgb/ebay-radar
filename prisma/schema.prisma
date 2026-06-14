@@ -78,6 +78,8 @@ model Product {
   title               String?
   category            String?
   imageUrl            String?
+  // US | UK
+  amazonMarket        String    @default("US")
   amazonPrice         Float?
   // in_stock | low | out
   amazonStockStatus   String    @default("in_stock")
@@ -105,6 +107,8 @@ model Listing {
   ebayListingId String?  // eBay marketplace listing ID (publish sonrası döner)
   ebaySku       String?  // Inventory item SKU — bulk_update_price_quantity için
   ebayOfferId   String?  // Offer ID — fiyat güncellemesi için
+  // EBAY_US | EBAY_GB
+  ebaySite      String   @default("EBAY_US")
   currentQty    Int      @default(2)
   currentPrice  Float?
   publishStage  String?
@@ -211,6 +215,8 @@ model DepotProduct {
   title               String?
   imageUrl            String?
   category            String?
+  // US | UK
+  amazonMarket        String    @default("US")
   amazonPrice         Float?
   amazonStockStatus   String    @default("in_stock")
   amazonStockQty      Int?

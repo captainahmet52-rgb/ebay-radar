@@ -3,7 +3,7 @@ import { Worker, Job } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
 import { prisma } from "@/lib/prisma";
 import { fetchAmazonProduct } from "@/lib/scraper";
-import { calculateEbayPrice, isPriceSpike } from "@/lib/repricer";
+import { calculateEbayPriceForMarket, isPriceSpike } from "@/lib/repricer";
 import { updateListingQueue, type PollProductJobData } from "@/lib/queues";
 
 // ─── Kuyruktaki tüm aktif listing'leri duraklat ────────────────────────────────
@@ -26,6 +26,7 @@ async function processPollProduct(
     include: {
       listings: {
         where: { status: "active" },
+        select: { id: true, ebaySite: true },
       },
     },
   });
@@ -40,7 +41,8 @@ async function processPollProduct(
   }
 
   // 2. ScrapingBee ile Amazon verisini çek
-  const scraped = await fetchAmazonProduct(product.asin);
+  const market = (product.amazonMarket ?? "US") as "US" | "UK";
+  const scraped = await fetchAmazonProduct(product.asin, market);
 
   if (scraped.price === null) {
     throw new Error(
@@ -72,9 +74,12 @@ async function processPollProduct(
     return;
   }
 
-  // 4. Yeni eBay fiyatı hesapla
-  const { ebayPrice: newEbayPrice } = calculateEbayPrice(
+  // 4. Yeni eBay fiyatı hesapla (marketplace'e göre kur dönüşümü dahil)
+  const ebaySite = product.listings[0]?.ebaySite ?? "EBAY_US";
+  const { ebayPrice: newEbayPrice } = await calculateEbayPriceForMarket(
     newAmazonPrice,
+    product.amazonMarket ?? "US",
+    ebaySite,
     product.ebayFeeRate,
     product.targetMargin
   );

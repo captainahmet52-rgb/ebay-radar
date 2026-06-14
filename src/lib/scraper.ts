@@ -59,13 +59,22 @@ function parseStock(availability: string | null | undefined): {
   return { stockStatus: "unknown", stockQty: null };
 }
 
-export async function fetchAmazonProduct(asin: string): Promise<ScraperResult> {
+const AMAZON_DOMAINS: Record<string, { url: string; country: string }> = {
+  US: { url: "https://www.amazon.com",    country: "us" },
+  UK: { url: "https://www.amazon.co.uk", country: "gb" },
+};
+
+export async function fetchAmazonProduct(
+  asin: string,
+  market: "US" | "UK" = "US"
+): Promise<ScraperResult> {
   const apiKey = process.env.SCRAPINGBEE_API_KEY;
   if (!apiKey) {
     throw new Error("SCRAPINGBEE_API_KEY .env'de tanımlı değil");
   }
 
-  const targetUrl = `https://www.amazon.com/dp/${asin}`;
+  const { url: domain, country } = AMAZON_DOMAINS[market] ?? AMAZON_DOMAINS.US;
+  const targetUrl = `${domain}/dp/${asin}`;
 
   // Fiyat seçici öncelik sırası (Amazon sayfa yapısı versiyonlarına göre):
   //   1. .apexPriceToPay — güncel buy-box (JS render sonrası görünür)
@@ -83,8 +92,8 @@ export async function fetchAmazonProduct(asin: string): Promise<ScraperResult> {
   const params = new URLSearchParams({
     api_key: apiKey,
     url: targetUrl,
-    render_js: "true",   // Amazon fiyatları JS ile yükleniyor
-    country_code: "us",
+    render_js: "true",
+    country_code: country,
     extract_rules: extractRules,
   });
 
