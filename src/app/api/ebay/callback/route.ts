@@ -66,7 +66,10 @@ export async function GET(req: NextRequest) {
     }
 
     // Kullanıcı var mı?
-    const user = await prisma.user.findUnique({ where: { id: state } });
+    const user = await prisma.user.findUnique({
+      where: { id: state },
+      select: { id: true, trialEndsAt: true },
+    });
     if (!user) {
       return NextResponse.redirect(
         new URL("/dashboard/settings?error=invalid_state", req.url)
@@ -110,6 +113,17 @@ export async function GET(req: NextRequest) {
         tokenExpiresAt,
       },
     });
+
+    // İlk mağaza bağlandıysa trial başlat
+    if (!user.trialEndsAt) {
+      const accountCount = await prisma.ebayAccount.count({ where: { userId: state } });
+      if (accountCount === 1) {
+        await prisma.user.update({
+          where: { id: state },
+          data: { trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
+        });
+      }
+    }
 
     return NextResponse.redirect(
       new URL("/dashboard/settings?success=ebay_connected", req.url)

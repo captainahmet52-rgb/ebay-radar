@@ -57,3 +57,26 @@ export const PADDLE_PRICE_TO_PLAN: Record<string, PlanId> = {
   // "pri_yyy": "basic",
   // ...
 };
+
+// ─── Trial Sistemi ────────────────────────────────────────────────────────────
+
+export const TRIAL_DAYS = 7;
+export const TRIAL_PRODUCT_LIMIT = 50;
+
+export function isOnTrial(trialEndsAt: Date | null | undefined): boolean {
+  if (!trialEndsAt) return false;
+  return trialEndsAt > new Date();
+}
+
+export function trialDaysLeft(trialEndsAt: Date | null | undefined): number {
+  if (!trialEndsAt) return 0;
+  const diff = trialEndsAt.getTime() - Date.now();
+  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+}
+
+export function hasActiveAccess(
+  trialEndsAt: Date | null | undefined,
+  subscriptionId: string | null | undefined
+): boolean {
+  return isOnTrial(trialEndsAt) || !!subscriptionId;
+}

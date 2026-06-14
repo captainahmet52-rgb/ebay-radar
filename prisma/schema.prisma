@@ -45,6 +45,9 @@ model User {
   uploadQuantity        Int      @default(1)
   uploadAutoPublish     Boolean  @default(true)
 
+  // Trial
+  trialEndsAt DateTime?
+
   // NextAuth
   accounts Account[]
   sessions Session[]

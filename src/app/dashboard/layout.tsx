@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { TrialBanner } from "@/components/layout/trial-banner";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
@@ -34,6 +35,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <Sidebar />
       <Header />
       <main className="ml-64 pt-16 min-h-screen transition-all duration-300">
+        <TrialBanner />
         <div className="p-6">{children}</div>
       </main>
     </div>
