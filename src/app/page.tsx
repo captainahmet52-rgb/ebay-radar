@@ -84,9 +84,10 @@ function Cube3D({
     position: "absolute",
     width: CUBE_SIZE,
     height: CUBE_SIZE,
-    borderRadius: 16,
-    border: `1px solid ${accent}66`,
-    boxShadow: `inset 0 0 26px ${accent}22`,
+    borderRadius: 4,
+    border: `1px solid ${accent}88`,
+    boxShadow: `inset 0 0 34px ${accent}33`,
+    overflow: "hidden",
   };
 
   return (
@@ -97,30 +98,30 @@ function Cube3D({
       {/* Zemin parlaması (dolgu) */}
       <div
         style={{
-          position: "absolute", bottom: -22, left: "50%",
-          width: CUBE_SIZE * 1.35, height: 32, transform: "translateX(-50%)",
+          position: "absolute", bottom: -24, left: "50%",
+          width: CUBE_SIZE * 1.5, height: 38, transform: "translateX(-50%)",
           borderRadius: "50%",
-          background: `radial-gradient(ellipse, ${accent}aa 0%, ${accent}33 45%, transparent 72%)`,
-          filter: "blur(8px)",
+          background: `radial-gradient(ellipse, ${accent}dd 0%, ${accent}55 42%, transparent 72%)`,
+          filter: "blur(9px)",
         }}
       />
       {/* Zemin halkası (çember) */}
       <div
         style={{
-          position: "absolute", bottom: -14, left: "50%",
-          width: CUBE_SIZE * 0.98, height: 16, transform: "translateX(-50%)",
+          position: "absolute", bottom: -15, left: "50%",
+          width: CUBE_SIZE * 1.02, height: 18, transform: "translateX(-50%)",
           borderRadius: "50%",
           border: `2px solid ${accent}`,
-          boxShadow: `0 0 18px 1px ${accent}`,
-          opacity: 0.5,
+          boxShadow: `0 0 24px 2px ${accent}, inset 0 0 12px ${accent}`,
+          opacity: 0.7,
         }}
       />
       {/* Ortam parlaması — küpün arkasında (filter'ı küpe koyamayız, 3D'yi düzleştirir) */}
       <div
         style={{
-          position: "absolute", inset: 0, transform: "scale(1.45)",
-          background: `radial-gradient(circle, ${accent}55 0%, transparent 68%)`,
-          filter: "blur(20px)",
+          position: "absolute", inset: 0, transform: "scale(1.6)",
+          background: `radial-gradient(circle, ${accent}77 0%, transparent 66%)`,
+          filter: "blur(22px)",
           zIndex: 0,
         }}
       />
@@ -146,30 +147,38 @@ function Cube3D({
             style={{
               ...face,
               transform: `translateZ(${CUBE_HALF}px)`,
-              background: "linear-gradient(150deg, rgba(42,38,56,0.94), rgba(8,8,14,0.96))",
+              background: `linear-gradient(150deg, rgba(48,44,64,1) 0%, rgba(14,13,22,1) 55%, rgba(6,6,11,1) 100%)`,
               display: "flex", alignItems: "center", justifyContent: "center",
             }}
           >
+            {/* cam parlaması (gloss) */}
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.04) 26%, transparent 52%)", pointerEvents: "none" }} />
+            {/* iç renk halesi */}
+            <div style={{ position: "absolute", inset: 0, background: `radial-gradient(circle at 50% 60%, ${accent}33 0%, transparent 60%)`, pointerEvents: "none" }} />
             {/* üst kenar ışık */}
-            <div style={{ position: "absolute", top: 0, left: 12, right: 12, height: 1, background: `linear-gradient(90deg, transparent, ${accent}, transparent)`, opacity: 0.8 }} />
-            <div style={{ filter: `drop-shadow(0 0 14px ${accent})` }}>{children}</div>
+            <div style={{ position: "absolute", top: 0, left: 6, right: 6, height: 2, background: `linear-gradient(90deg, transparent, ${accent}, transparent)`, opacity: 0.9 }} />
+            <div style={{ position: "relative", filter: `drop-shadow(0 0 18px ${accent}) drop-shadow(0 0 7px ${accent})` }}>{children}</div>
           </div>
-          {/* Sağ yüz */}
+          {/* Sağ yüz (gölge tarafı) */}
           <div
             style={{
               ...face,
               transform: `rotateY(90deg) translateZ(${CUBE_HALF}px)`,
-              background: "linear-gradient(150deg, rgba(22,20,32,0.97), rgba(3,3,6,0.98))",
+              background: `linear-gradient(150deg, rgba(20,18,30,1) 0%, rgba(2,2,5,1) 100%)`,
             }}
-          />
-          {/* Üst yüz */}
+          >
+            <div style={{ position: "absolute", inset: 0, background: `linear-gradient(90deg, ${accent}22, transparent 70%)`, pointerEvents: "none" }} />
+          </div>
+          {/* Üst yüz (ışık alan taraf) */}
           <div
             style={{
               ...face,
               transform: `rotateX(90deg) translateZ(${CUBE_HALF}px)`,
-              background: `linear-gradient(150deg, ${accent}3a, rgba(24,22,34,0.96))`,
+              background: `linear-gradient(150deg, ${accent}66 0%, rgba(30,28,42,1) 70%)`,
             }}
-          />
+          >
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(255,255,255,0.18), transparent 50%)", pointerEvents: "none" }} />
+          </div>
         </div>
       </motion.div>
     </div>
