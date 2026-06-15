@@ -1,300 +1,300 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { motion, useMotionValue } from "framer-motion";
 import Link from "next/link";
-import { Shield, Lock, Server, Headphones, ArrowRight, Star } from "lucide-react";
+import {
+  RefreshCcw, ShoppingCart, Cpu, Target, BarChart2,
+  Upload, DollarSign, RotateCcw, FileBarChart,
+  Package, MessageSquare, TrendingUp, Zap, HeartHandshake,
+  Shield, Lock, Server, Headphones, Star, ArrowRight,
+} from "lucide-react";
 
-// ─── Nav ─────────────────────────────────────────────────────────────────────
+// ─── Feature ikonları ─────────────────────────────────────────────────────────
 
-const NAV_LINKS = [
-  { label: "Ana Sayfa",      href: "#" },
-  { label: "Özellikler",    href: "#ozellikler" },
-  { label: "Fiyatlandırma", href: "#fiyatlandirma" },
-  { label: "Entegrasyonlar",href: "#entegrasyonlar" },
-  { label: "Kaynaklar",     href: "#kaynaklar" },
+const AMAZON_FEATURES = [
+  { icon: RefreshCcw,  label: "Stok Senkronizasyonu"  },
+  { icon: ShoppingCart,label: "Sipariş Otomasyonu"    },
+  { icon: Cpu,         label: "AI Ürün Yönetimi"      },
+  { icon: Target,      label: "Buy Box Takibi"         },
+  { icon: BarChart2,   label: "Kâr Analitiği"          },
 ];
 
-// ─── Platform verileri ───────────────────────────────────────────────────────
-
-interface Platform {
-  id: string;
-  badge: string | null;
-  glowBorder: string;
-  boxShadow: string;
-  cubeGlow: string;
-  btnGradient: string;
-  btnColor: string;
-  btnLabel: string;
-  logo: React.ReactNode;
-  cubeContent: React.ReactNode;
-  features: string[];
-  href: string;
-}
-
-const PLATFORMS: Platform[] = [
-  {
-    id: "amazon",
-    badge: "EN POPÜLER",
-    glowBorder: "rgba(245,158,11,0.35)",
-    boxShadow: "0 0 40px rgba(245,158,11,0.12), inset 0 0 40px rgba(245,158,11,0.03)",
-    cubeGlow: "rgba(245,158,11,0.5)",
-    btnGradient: "linear-gradient(135deg,#f59e0b,#d97706)",
-    btnColor: "#000",
-    btnLabel: "Amazon'u Bağla",
-    logo: (
-      <div className="flex flex-col items-start">
-        <span className="text-3xl font-black text-white tracking-tighter leading-none">amazon</span>
-        <div
-          className="mt-1 h-0.5 w-16 rounded-full"
-          style={{ background: "linear-gradient(90deg, #f59e0b, #fb923c)" }}
-        />
-      </div>
-    ),
-    cubeContent: <span className="text-3xl font-black text-amber-400">a</span>,
-    features: [
-      "Stok Senkronizasyonu",
-      "Sipariş Otomasyonu",
-      "AI Ürün Yönetimi",
-      "Buy Box Takibi",
-      "Kâr Analitiği",
-    ],
-    href: "/dashboard/amazon",
-  },
-  {
-    id: "ebay",
-    badge: null,
-    glowBorder: "rgba(59,130,246,0.35)",
-    boxShadow: "0 0 40px rgba(59,130,246,0.15), inset 0 0 40px rgba(59,130,246,0.04)",
-    cubeGlow: "rgba(59,130,246,0.5)",
-    btnGradient: "linear-gradient(135deg,#2563eb,#1d4ed8)",
-    btnColor: "#fff",
-    btnLabel: "eBay'i Bağla",
-    logo: (
-      <span className="text-4xl font-black tracking-tight leading-none">
-        <span className="text-red-500">e</span>
-        <span className="text-blue-400">b</span>
-        <span className="text-yellow-400">a</span>
-        <span className="text-green-400">y</span>
-      </span>
-    ),
-    cubeContent: (
-      <span className="text-lg font-black leading-none">
-        <span className="text-red-500">e</span>
-        <span className="text-blue-400">b</span>
-        <span className="text-yellow-400">a</span>
-        <span className="text-green-400">y</span>
-      </span>
-    ),
-    features: [
-      "Otomatik Listeleme",
-      "Akıllı Fiyatlandırma",
-      "Sipariş Takibi",
-      "İade Yönetimi",
-      "Performans Raporları",
-    ],
-    href: "/dashboard/listings",
-  },
-  {
-    id: "etsy",
-    badge: null,
-    glowBorder: "rgba(249,115,22,0.35)",
-    boxShadow: "0 0 40px rgba(249,115,22,0.12), inset 0 0 40px rgba(249,115,22,0.03)",
-    cubeGlow: "rgba(249,115,22,0.5)",
-    btnGradient: "linear-gradient(135deg,#f97316,#ea580c)",
-    btnColor: "#fff",
-    btnLabel: "Etsy'i Bağla",
-    logo: <span className="text-4xl font-black text-orange-500 tracking-tight leading-none">Etsy</span>,
-    cubeContent: <span className="text-3xl font-black text-orange-400">E</span>,
-    features: [
-      "Ürün Yayınlama",
-      "Mesaj Otomasyonu",
-      "Stok Yönetimi",
-      "Mağaza Analitiği",
-      "Müşteri Destek AI",
-    ],
-    href: "/dashboard/etsy",
-  },
+const EBAY_FEATURES = [
+  { icon: Upload,       label: "Otomatik Listeleme"   },
+  { icon: DollarSign,   label: "Akıllı Fiyatlandırma" },
+  { icon: ShoppingCart, label: "Sipariş Takibi"       },
+  { icon: RotateCcw,    label: "İade Yönetimi"        },
+  { icon: FileBarChart, label: "Performans Raporları" },
 ];
 
-// ─── Stats ───────────────────────────────────────────────────────────────────
+const ETSY_FEATURES = [
+  { icon: Package,        label: "Ürün Yayınlama"    },
+  { icon: MessageSquare,  label: "Mesaj Otomasyonu"  },
+  { icon: TrendingUp,     label: "Stok Yönetimi"     },
+  { icon: BarChart2,      label: "Mağaza Analitiği"  },
+  { icon: HeartHandshake, label: "Müşteri Destek AI" },
+];
 
 const STATS = [
-  { Icon: Shield,     title: "%99.9 Uptime",       sub: "Kurumsal Güvenilirlik" },
-  { Icon: Lock,       title: "Güvenli API",         sub: "Banka Düzeyinde Güvenlik" },
-  { Icon: Server,     title: "Kurumsal Altyapı",    sub: "Ölçeklenebilir & Güvenilir" },
-  { Icon: Headphones, title: "7/24 Destek",         sub: "Gerçek İnsanlar, Hızlı Çözüm" },
+  { icon: Shield,     title: "%99.9 Uptime",     sub: "Kurumsal Güvenilirlik"   },
+  { icon: Lock,       title: "Güvenli API",       sub: "Banka Düzeyinde Güvenlik" },
+  { icon: Server,     title: "Kurumsal Altyapı",  sub: "Ölçeklenebilir & Güvenilir" },
+  { icon: Headphones, title: "7/24 Destek",       sub: "Gerçek İnsanlar, Hızlı Çözüm" },
 ];
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Feature satırı ───────────────────────────────────────────────────────────
 
-function PlatformCube({ glow, children }: { glow: string; children: React.ReactNode }) {
+function FeatureRow({
+  icon: Icon,
+  label,
+  color,
+}: {
+  icon: React.ElementType;
+  label: string;
+  color: string;
+}) {
   return (
-    <div className="relative w-24 h-24 animate-float flex-shrink-0" style={{ perspective: "600px" }}>
-      {/* Glow blob behind */}
+    <li className="flex items-center gap-3">
+      <span
+        className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+        style={{ border: `1px solid ${color}40`, background: `${color}15` }}
+      >
+        <Icon style={{ color }} className="h-3.5 w-3.5" />
+      </span>
+      <span className="text-slate-300 text-sm">{label}</span>
+    </li>
+  );
+}
+
+// ─── 3D Küp ───────────────────────────────────────────────────────────────────
+
+function Cube3D({
+  glow,
+  children,
+}: {
+  glow: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="relative w-32 h-32 flex-shrink-0" style={{ perspective: "500px" }}>
+      {/* Alt glow yansıma */}
       <div
-        className="absolute inset-0 rounded-2xl scale-150"
-        style={{ background: glow, filter: "blur(18px)", opacity: 0.6 }}
+        className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-24 h-4 rounded-full"
+        style={{ background: glow, filter: "blur(12px)", opacity: 0.7 }}
       />
-      {/* Cube face */}
+      {/* Arka glow blob */}
       <div
-        className="relative w-full h-full flex items-center justify-center rounded-2xl border border-white/10"
+        className="absolute inset-0 rounded-2xl scale-125"
+        style={{ background: `radial-gradient(circle, ${glow} 0%, transparent 70%)`, filter: "blur(20px)", opacity: 0.5 }}
+      />
+      {/* Küp yüzeyi */}
+      <div
+        className="relative w-full h-full rounded-2xl flex items-center justify-center animate-float"
         style={{
-          background: "linear-gradient(145deg, rgba(30,30,50,0.95), rgba(10,10,20,0.98))",
-          transform: "rotateX(-10deg) rotateY(-14deg)",
-          boxShadow: `0 20px 40px ${glow}, inset 0 1px 0 rgba(255,255,255,0.08)`,
+          background: "linear-gradient(145deg, rgba(35,30,50,0.95) 0%, rgba(8,8,16,0.98) 100%)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          transform: "rotateX(-12deg) rotateY(-18deg)",
+          boxShadow: `0 30px 60px ${glow}, inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.5)`,
         }}
       >
+        {/* Üst kenar ışık */}
+        <div
+          className="absolute top-0 left-4 right-4 h-px rounded-full opacity-60"
+          style={{ background: `linear-gradient(90deg, transparent, ${glow}, transparent)` }}
+        />
         {children}
       </div>
     </div>
   );
 }
 
-function CheckIcon({ color }: { color: string }) {
+// ─── Platform kartı ───────────────────────────────────────────────────────────
+
+interface CardProps {
+  logo: React.ReactNode;
+  badge?: boolean;
+  features: { icon: React.ElementType; label: string }[];
+  featureColor: string;
+  borderColor: string;
+  glowColor: string;
+  btnLabel: string;
+  btnStyle: React.CSSProperties;
+  cubeGlow: string;
+  cubeContent: React.ReactNode;
+  href: string;
+  delay?: number;
+}
+
+function PlatformCard({
+  logo, badge, features, featureColor, borderColor,
+  glowColor, btnLabel, btnStyle, cubeGlow, cubeContent, href, delay = 0,
+}: CardProps) {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="flex-shrink-0">
-      <circle cx="8" cy="8" r="7" stroke={color} strokeWidth="1.2" strokeOpacity="0.5" />
-      <path d="M5.5 8l2 2 3-3" stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <motion.div
+      initial={{ opacity: 0, y: 50 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={{ y: -6, transition: { duration: 0.25 } }}
+      className="relative rounded-2xl p-7 flex flex-col"
+      style={{
+        background: "rgba(6,6,14,0.92)",
+        border: `1px solid ${borderColor}`,
+        boxShadow: `0 0 50px ${glowColor}, inset 0 0 60px rgba(0,0,0,0.3)`,
+        backdropFilter: "blur(24px)",
+      }}
+    >
+      {badge && (
+        <div
+          className="absolute top-5 right-5 flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full"
+          style={{ background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.4)", color: "#fbbf24" }}
+        >
+          <Star className="h-3 w-3 fill-current" />
+          EN POPÜLER
+        </div>
+      )}
+
+      {/* Logo + Küp */}
+      <div className="flex items-start justify-between mb-7 gap-4">
+        <div className="pt-1">{logo}</div>
+        <Cube3D glow={cubeGlow}>{cubeContent}</Cube3D>
+      </div>
+
+      {/* Özellikler */}
+      <ul className="space-y-3.5 flex-1 mb-8">
+        {features.map((f) => (
+          <FeatureRow key={f.label} icon={f.icon} label={f.label} color={featureColor} />
+        ))}
+      </ul>
+
+      {/* CTA */}
+      <Link
+        href={href}
+        className="flex items-center justify-center gap-2 w-full py-4 rounded-xl text-sm font-bold transition-all duration-200 hover:opacity-90 hover:scale-[1.01] active:scale-[0.99]"
+        style={btnStyle}
+      >
+        {btnLabel}
+        <ArrowRight className="h-4 w-4" />
+      </Link>
+    </motion.div>
   );
 }
 
-const FEATURE_COLORS: Record<string, string> = {
-  amazon: "#f59e0b",
-  ebay: "#60a5fa",
-  etsy: "#f97316",
-};
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── Ana sayfa ────────────────────────────────────────────────────────────────
 
 export default function LandingPage() {
-  const mouseX = useMotionValue(-1000);
-  const mouseY = useMotionValue(-1000);
+  const mouseX = useMotionValue(-9999);
+  const mouseY = useMotionValue(-9999);
 
   useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      mouseX.set(e.clientX);
-      mouseY.set(e.clientY);
-    };
+    const onMove = (e: MouseEvent) => { mouseX.set(e.clientX); mouseY.set(e.clientY); };
     window.addEventListener("mousemove", onMove);
     return () => window.removeEventListener("mousemove", onMove);
   }, [mouseX, mouseY]);
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-x-hidden">
+    <div className="min-h-screen text-white overflow-x-hidden" style={{ background: "#050508" }}>
 
-      {/* ══ Arka Plan Efektleri ══ */}
+      {/* ══ Arka plan ══ */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         {/* Mor gradient — sağ üst */}
         <div
-          className="absolute -top-40 -right-40 w-[700px] h-[700px] rounded-full"
-          style={{ background: "radial-gradient(circle, rgba(109,40,217,0.4) 0%, transparent 70%)" }}
+          className="absolute -top-20 right-0 w-[55vw] h-[70vh]"
+          style={{ background: "radial-gradient(ellipse at top right, rgba(88,28,220,0.45) 0%, rgba(60,20,180,0.15) 40%, transparent 70%)" }}
         />
-        {/* Turuncu yatay çizgi — sol orta */}
+        {/* Işık şeridi — sağ üst köşe */}
         <div
-          className="absolute top-1/2 -left-10 w-[60vw] h-px opacity-60"
-          style={{ background: "linear-gradient(90deg, transparent, rgba(245,158,11,0.5), transparent)", boxShadow: "0 0 30px 6px rgba(245,158,11,0.1)" }}
+          className="absolute top-0 right-0 w-1 h-[70vh] opacity-60"
+          style={{
+            background: "linear-gradient(180deg, rgba(168,85,247,0.8) 0%, rgba(139,92,246,0.3) 50%, transparent 100%)",
+            boxShadow: "0 0 30px 8px rgba(139,92,246,0.3)",
+            transform: "translateX(-60px) rotate(8deg) translateY(-50px)",
+          }}
         />
-        {/* Hafif mavi çizgi — sağ alt */}
+        {/* Turuncu çizgi sol-orta */}
         <div
-          className="absolute bottom-1/3 -right-10 w-[40vw] h-px opacity-40"
-          style={{ background: "linear-gradient(270deg, transparent, rgba(59,130,246,0.4), transparent)", boxShadow: "0 0 20px 4px rgba(59,130,246,0.08)" }}
+          className="absolute top-1/2 -translate-y-1/2 left-0 w-[45vw] h-px"
+          style={{ background: "linear-gradient(90deg, rgba(245,158,11,0.6), rgba(245,158,11,0.1), transparent)", boxShadow: "0 0 20px 4px rgba(245,158,11,0.08)" }}
         />
         {/* Mouse spotlight */}
         <motion.div
-          className="absolute w-[500px] h-[500px] rounded-full"
+          className="absolute w-[700px] h-[700px] rounded-full"
           style={{
-            background: "radial-gradient(circle, rgba(109,40,217,0.18) 0%, transparent 70%)",
-            x: mouseX,
-            y: mouseY,
-            translateX: "-50%",
-            translateY: "-50%",
-            pointerEvents: "none",
+            background: "radial-gradient(circle, rgba(109,40,217,0.12) 0%, transparent 70%)",
+            x: mouseX, y: mouseY, translateX: "-50%", translateY: "-50%",
           }}
         />
       </div>
 
       {/* ══ Navbar ══ */}
-      <nav className="relative z-20 flex items-center justify-between px-8 md:px-16 py-5 border-b border-white/5">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-3 group">
+      <nav className="relative z-20 flex items-center justify-between px-8 md:px-16 py-5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+        <Link href="/" className="flex items-center gap-3">
           <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm text-white shadow-lg"
-            style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)", boxShadow: "0 4px 20px rgba(124,58,237,0.4)" }}
+            className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm text-white"
+            style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)", boxShadow: "0 4px 20px rgba(124,58,237,0.45)" }}
           >
             LA
           </div>
           <div className="leading-none">
-            <p className="font-black text-white text-sm tracking-[0.2em]">LEAN</p>
-            <p className="text-slate-500 text-[10px] tracking-[0.2em] mt-0.5">AUTOMATION</p>
+            <p className="font-black text-white text-sm tracking-[0.22em]">LEAN</p>
+            <p className="text-[#6b7280] text-[10px] tracking-[0.22em] mt-0.5">AUTOMATION</p>
           </div>
         </Link>
 
-        {/* Linkler */}
-        <div className="hidden md:flex items-center gap-8">
-          {NAV_LINKS.map((l) => (
+        <div className="hidden md:flex items-center gap-10">
+          {["Ana Sayfa", "Özellikler", "Fiyatlandırma", "Entegrasyonlar", "Kaynaklar"].map((l, i) => (
             <a
-              key={l.label}
-              href={l.href}
-              className="relative text-slate-400 hover:text-white text-sm transition-colors duration-200 group"
+              key={l}
+              href="#"
+              className="relative text-[#9ca3af] hover:text-white text-sm transition-colors duration-200 group"
             >
-              {l.label}
-              <span className="absolute -bottom-0.5 left-0 w-0 h-px bg-violet-500 group-hover:w-full transition-all duration-300 rounded-full" />
+              {l}
+              {i === 0 && (
+                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-violet-500" />
+              )}
             </a>
           ))}
         </div>
 
-        {/* Dashboard Butonu */}
         <Link
           href="/dashboard"
-          className="hidden md:flex items-center gap-2 border text-sm font-semibold px-5 py-2.5 rounded-xl transition-all duration-200 hover:bg-violet-600/20"
-          style={{ borderColor: "rgba(124,58,237,0.5)", background: "rgba(124,58,237,0.08)" }}
+          className="flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl transition-all duration-200 hover:bg-violet-600/20"
+          style={{ border: "1px solid rgba(124,58,237,0.5)", background: "rgba(124,58,237,0.1)" }}
         >
           <span className="grid grid-cols-2 gap-0.5 w-3.5 h-3.5">
             {[...Array(4)].map((_, i) => (
-              <span key={i} className="bg-current rounded-[1px] opacity-80" />
+              <span key={i} className="bg-current rounded-[1px]" />
             ))}
           </span>
           Panel
         </Link>
-
-        {/* Mobile login */}
-        <Link href="/login" className="md:hidden text-sm text-slate-400 hover:text-white transition-colors">
-          Giriş
-        </Link>
       </nav>
 
       {/* ══ Hero ══ */}
-      <section className="relative z-10 text-center pt-16 pb-12 px-6">
-        {/* Rozet */}
+      <section className="relative z-10 text-center pt-14 pb-10 px-6">
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="inline-flex items-center gap-2 text-xs font-bold tracking-widest px-4 py-2 rounded-full mb-8 border"
-          style={{
-            color: "#a78bfa",
-            borderColor: "rgba(124,58,237,0.3)",
-            background: "rgba(124,58,237,0.08)",
-          }}
+          className="inline-flex items-center gap-2 text-xs font-semibold tracking-widest px-4 py-2 rounded-full mb-8"
+          style={{ border: "1px solid rgba(124,58,237,0.4)", background: "rgba(124,58,237,0.1)", color: "#a78bfa" }}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
           YAPAY ZEKA DESTEKLİ PAZAR YERİ OTOMASYONU
         </motion.div>
 
-        {/* Başlık */}
         <motion.h1
-          initial={{ opacity: 0, y: 24 }}
+          initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          className="text-5xl sm:text-6xl md:text-7xl font-black leading-[1.1] mb-6"
+          transition={{ duration: 0.65, delay: 0.1 }}
+          className="font-black leading-[1.08] mb-5"
+          style={{ fontSize: "clamp(2.8rem, 7vw, 5.5rem)" }}
         >
           Pazar Yeri İşinizi
           <br />
           <span
             style={{
-              background: "linear-gradient(135deg, #60a5fa 0%, #818cf8 40%, #a78bfa 100%)",
+              background: "linear-gradient(135deg, #818cf8 0%, #a78bfa 35%, #c084fc 70%, #e879f9 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               backgroundClip: "text",
@@ -304,12 +304,11 @@ export default function LandingPage() {
           </span>
         </motion.h1>
 
-        {/* Açıklama */}
         <motion.p
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="text-slate-400 text-lg md:text-xl max-w-xl mx-auto leading-relaxed"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.25 }}
+          className="text-[#9ca3af] text-lg md:text-xl max-w-xl mx-auto leading-relaxed"
         >
           Amazon, eBay ve Etsy satıcıları için tam otomasyonlu çözümler.
           <br />
@@ -318,79 +317,112 @@ export default function LandingPage() {
       </section>
 
       {/* ══ Platform Kartları ══ */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 pb-8">
+      <section className="relative z-10 max-w-7xl mx-auto px-6 pb-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {PLATFORMS.map((p, i) => (
-            <motion.div
-              key={p.id}
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: 0.15 * i + 0.3, ease: [0.22, 1, 0.36, 1] }}
-              whileHover={{ y: -6, transition: { duration: 0.25 } }}
-              className="relative rounded-2xl p-6 flex flex-col"
-              style={{
-                background: "rgba(8,8,16,0.85)",
-                border: `1px solid ${p.glowBorder}`,
-                boxShadow: p.boxShadow,
-                backdropFilter: "blur(24px)",
-              }}
-            >
-              {/* Üst köşe rozeti */}
-              {p.badge && (
-                <div
-                  className="absolute top-4 right-4 flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full"
-                  style={{ background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.35)", color: "#fbbf24" }}
-                >
-                  <Star className="h-3 w-3 fill-current" />
-                  {p.badge}
+
+          {/* Amazon */}
+          <PlatformCard
+            delay={0.25}
+            badge
+            logo={
+              <div>
+                <p className="text-[2.2rem] font-black text-white leading-none tracking-tight" style={{ fontFamily: "Georgia, serif" }}>
+                  amazon
+                </p>
+                <div className="mt-1 flex items-center">
+                  <div className="h-0.5 w-[52%] rounded-full" style={{ background: "linear-gradient(90deg, #f59e0b, #fb923c 60%, transparent)" }} />
+                  <div className="w-2 h-2 rounded-full border-2 border-amber-400 -ml-1 flex items-center justify-center">
+                    <div className="w-0.5 h-0.5 bg-amber-400 rounded-full" />
+                  </div>
                 </div>
-              )}
-
-              {/* Logo + 3D Kutu */}
-              <div className="flex items-start justify-between mb-7">
-                <div className="pt-1">{p.logo}</div>
-                <PlatformCube glow={p.cubeGlow}>{p.cubeContent}</PlatformCube>
               </div>
+            }
+            features={AMAZON_FEATURES}
+            featureColor="#f59e0b"
+            borderColor="rgba(245,158,11,0.35)"
+            glowColor="rgba(245,158,11,0.1)"
+            btnLabel="Amazon'u Bağla"
+            btnStyle={{ background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "#000" }}
+            cubeGlow="rgba(245,158,11,0.6)"
+            cubeContent={
+              <span className="text-5xl font-black text-amber-400" style={{ fontFamily: "Georgia, serif" }}>
+                a
+              </span>
+            }
+            href="/dashboard/amazon"
+          />
 
-              {/* Özellikler */}
-              <ul className="space-y-3.5 flex-1 mb-8">
-                {p.features.map((f) => (
-                  <li key={f} className="flex items-center gap-3 text-slate-300 text-sm">
-                    <CheckIcon color={FEATURE_COLORS[p.id]} />
-                    {f}
-                  </li>
-                ))}
-              </ul>
+          {/* eBay */}
+          <PlatformCard
+            delay={0.35}
+            logo={
+              <span className="text-[2.6rem] font-black leading-none tracking-tight">
+                <span style={{ color: "#ef4444" }}>e</span>
+                <span style={{ color: "#3b82f6" }}>b</span>
+                <span style={{ color: "#f59e0b" }}>a</span>
+                <span style={{ color: "#22c55e" }}>y</span>
+              </span>
+            }
+            features={EBAY_FEATURES}
+            featureColor="#3b82f6"
+            borderColor="rgba(59,130,246,0.4)"
+            glowColor="rgba(59,130,246,0.12)"
+            btnLabel="eBay'i Bağla"
+            btnStyle={{ background: "linear-gradient(135deg,#2563eb,#1d4ed8)", color: "#fff" }}
+            cubeGlow="rgba(59,130,246,0.6)"
+            cubeContent={
+              <span className="text-2xl font-black leading-none">
+                <span style={{ color: "#ef4444" }}>e</span>
+                <span style={{ color: "#60a5fa" }}>b</span>
+                <span style={{ color: "#fbbf24" }}>a</span>
+                <span style={{ color: "#4ade80" }}>y</span>
+              </span>
+            }
+            href="/dashboard/listings"
+          />
 
-              {/* CTA Butonu */}
-              <Link
-                href={p.href}
-                className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-sm font-bold transition-all duration-200 hover:opacity-90 hover:scale-[1.01] active:scale-[0.99]"
-                style={{ background: p.btnGradient, color: p.btnColor }}
+          {/* Etsy */}
+          <PlatformCard
+            delay={0.45}
+            logo={
+              <span
+                className="text-[2.6rem] font-black leading-none tracking-tight"
+                style={{ color: "#f97316" }}
               >
-                {p.btnLabel}
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </motion.div>
-          ))}
+                Etsy
+              </span>
+            }
+            features={ETSY_FEATURES}
+            featureColor="#f97316"
+            borderColor="rgba(249,115,22,0.35)"
+            glowColor="rgba(249,115,22,0.1)"
+            btnLabel="Etsy'i Bağla"
+            btnStyle={{ background: "linear-gradient(135deg,#f97316,#ea580c)", color: "#fff" }}
+            cubeGlow="rgba(249,115,22,0.6)"
+            cubeContent={
+              <span
+                className="text-5xl font-black"
+                style={{ color: "#f97316", fontFamily: "Georgia, serif" }}
+              >
+                E
+              </span>
+            }
+            href="/dashboard/etsy"
+          />
         </div>
       </section>
 
-      {/* ══ Alt Stats Bar ══ */}
-      <section className="relative z-10 max-w-5xl mx-auto px-6 pb-16 pt-2">
+      {/* ══ Stats Bar ══ */}
+      <section className="relative z-10 max-w-5xl mx-auto px-6 pb-16 pt-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.7 }}
+          transition={{ duration: 0.5, delay: 0.65 }}
           className="rounded-2xl overflow-hidden"
-          style={{
-            background: "rgba(255,255,255,0.02)",
-            border: "1px solid rgba(255,255,255,0.06)",
-            backdropFilter: "blur(20px)",
-          }}
+          style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}
         >
-          <div className="grid grid-cols-2 md:grid-cols-4 divide-white/5" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
-            {STATS.map(({ Icon, title, sub }, i) => (
+          <div className="grid grid-cols-2 md:grid-cols-4">
+            {STATS.map(({ icon: Icon, title, sub }, i) => (
               <div
                 key={title}
                 className="flex items-center gap-4 px-6 py-5"
@@ -399,10 +431,7 @@ export default function LandingPage() {
                   borderBottom: i < 2 ? "1px solid rgba(255,255,255,0.05)" : undefined,
                 }}
               >
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: "rgba(255,255,255,0.04)" }}
-                >
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.05)" }}>
                   <Icon className="h-5 w-5 text-slate-400" />
                 </div>
                 <div>
@@ -416,16 +445,10 @@ export default function LandingPage() {
       </section>
 
       {/* ══ Footer ══ */}
-      <footer
-        className="relative z-10 px-6 md:px-16 py-6 border-t"
-        style={{ borderColor: "rgba(255,255,255,0.05)" }}
-      >
+      <footer className="relative z-10 px-8 md:px-16 py-6" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div
-              className="w-6 h-6 rounded-lg flex items-center justify-center font-black text-[10px] text-white"
-              style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)" }}
-            >
+            <div className="w-6 h-6 rounded-lg flex items-center justify-center font-black text-[10px] text-white" style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)" }}>
               LA
             </div>
             <span className="font-bold text-slate-400 text-sm">Lean Automation</span>
