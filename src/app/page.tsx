@@ -223,11 +223,11 @@ export default function LandingPage() {
             className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm text-white shadow-lg"
             style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)", boxShadow: "0 4px 20px rgba(124,58,237,0.4)" }}
           >
-            OB
+            LA
           </div>
           <div className="leading-none">
-            <p className="font-black text-white text-sm tracking-[0.2em]">OTO</p>
-            <p className="text-slate-500 text-[10px] tracking-[0.2em] mt-0.5">OTOMASYON</p>
+            <p className="font-black text-white text-sm tracking-[0.2em]">LEAN</p>
+            <p className="text-slate-500 text-[10px] tracking-[0.2em] mt-0.5">AUTOMATION</p>
           </div>
         </Link>
 
@@ -426,11 +426,11 @@ export default function LandingPage() {
               className="w-6 h-6 rounded-lg flex items-center justify-center font-black text-[10px] text-white"
               style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)" }}
             >
-              OB
+              LA
             </div>
-            <span className="font-bold text-slate-400 text-sm">OtoBot</span>
+            <span className="font-bold text-slate-400 text-sm">Lean Automation</span>
           </div>
-          <p className="text-xs text-slate-600">© 2026 OtoBot. Tüm hakları saklıdır.</p>
+          <p className="text-xs text-slate-600">© 2026 Lean Automation. Tüm hakları saklıdır.</p>
           <div className="flex items-center gap-6 text-xs text-slate-500">
             <a href="#" className="hover:text-white transition-colors">Gizlilik</a>
             <a href="#" className="hover:text-white transition-colors">Kullanım Şartları</a>

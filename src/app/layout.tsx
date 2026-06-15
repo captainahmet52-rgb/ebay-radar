@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "OtoBot | Amazon, eBay ve Etsy Pazar Yeri Otomasyonu",
+  title: "Lean Automation | Amazon, eBay ve Etsy Pazar Yeri Otomasyonu",
   description:
     "Amazon, eBay ve Etsy satıcıları için tam otomasyonlu yapay zeka destekli platform. Listeleme, sipariş, stok ve müşteri iletişimini tek yerden yönetin.",
   keywords: ["ebay", "amazon", "etsy", "otomasyon", "pazar yeri", "saas", "dropshipping"],
