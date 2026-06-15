@@ -12,7 +12,6 @@ import {
   Settings,
   ChevronLeft,
   LogOut,
-  Bot,
   Upload,
   CreditCard,
   ShieldCheck,
@@ -20,6 +19,7 @@ import {
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { LogoMark } from "@/components/logo";
 
 const navItems = [
   { href: "/dashboard",                label: "Dashboard",   icon: LayoutDashboard },
@@ -57,9 +57,7 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-700/50 min-h-[72px]">
-        <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center shadow-lg shadow-violet-500/30">
-          <Bot className="h-5 w-5 text-white" />
-        </div>
+        <LogoMark size={36} className="flex-shrink-0" />
         <AnimatePresence>
           {!collapsed && (
             <motion.div
@@ -67,10 +65,10 @@ export function Sidebar() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -10 }}
               transition={{ duration: 0.2 }}
-              className="overflow-hidden"
+              className="overflow-hidden leading-none"
             >
-              <p className="font-bold text-white leading-none">eBayBot</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Otomasyon SaaS</p>
+              <p className="font-black text-white text-sm tracking-[0.18em]">LEAN</p>
+              <p className="text-[10px] text-slate-400 tracking-[0.18em] mt-1">AUTOMATION</p>
             </motion.div>
           )}
         </AnimatePresence>

@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { motion, useMotionValue } from "framer-motion";
 import Link from "next/link";
 import {
   RefreshCcw, ShoppingCart, Cpu, Target, BarChart2,
   Upload, DollarSign, RotateCcw, FileBarChart,
-  Package, MessageSquare, TrendingUp, Zap, HeartHandshake,
+  Package, MessageSquare, TrendingUp, HeartHandshake,
   Shield, Lock, Server, Headphones, Star, ArrowRight,
 } from "lucide-react";
+import { Logo, LogoMark } from "@/components/logo";
 
 // ─── Feature ikonları ─────────────────────────────────────────────────────────
 
@@ -228,17 +229,8 @@ export default function LandingPage() {
 
       {/* ══ Navbar ══ */}
       <nav className="relative z-20 flex items-center justify-between px-8 md:px-16 py-5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-        <Link href="/" className="flex items-center gap-3">
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm text-white"
-            style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)", boxShadow: "0 4px 20px rgba(124,58,237,0.45)" }}
-          >
-            LA
-          </div>
-          <div className="leading-none">
-            <p className="font-black text-white text-sm tracking-[0.22em]">LEAN</p>
-            <p className="text-[#6b7280] text-[10px] tracking-[0.22em] mt-0.5">AUTOMATION</p>
-          </div>
+        <Link href="/">
+          <Logo size={40} />
         </Link>
 
         <div className="hidden md:flex items-center gap-10">
@@ -447,9 +439,7 @@ export default function LandingPage() {
       <footer className="relative z-10 px-8 md:px-16 py-6" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg flex items-center justify-center font-black text-[10px] text-white" style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)" }}>
-              LA
-            </div>
+            <LogoMark size={24} />
             <span className="font-bold text-slate-400 text-sm">Lean Automation</span>
           </div>
           <p className="text-xs text-slate-600">© 2026 Lean Automation. Tüm hakları saklıdır.</p>
