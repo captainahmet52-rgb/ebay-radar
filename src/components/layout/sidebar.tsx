@@ -15,6 +15,7 @@ import {
   Bot,
   Upload,
   CreditCard,
+  ShieldCheck,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -22,8 +23,10 @@ import { Badge } from "@/components/ui/badge";
 
 const navItems = [
   { href: "/dashboard",                label: "Dashboard",   icon: LayoutDashboard },
+  { href: "/dashboard/amazon",         label: "Amazon",      icon: Package,        color: "text-amber-400" },
+  { href: "/dashboard/listings",       label: "eBay",        icon: List,           color: "text-blue-400"  },
+  { href: "/dashboard/etsy",           label: "Etsy",        icon: ShoppingCart,   color: "text-orange-400"},
   { href: "/dashboard/products",       label: "Ürünler",     icon: Package },
-  { href: "/dashboard/listings",       label: "Listeler",    icon: List },
   { href: "/dashboard/orders",         label: "Siparişler",  icon: ShoppingCart },
   { href: "/dashboard/auto-upload",    label: "Oto Yükleme", icon: Upload },
   { href: "/dashboard/pricing",        label: "Paketler",    icon: CreditCard },
@@ -44,6 +47,7 @@ export function Sidebar() {
   }, [collapsed]);
 
   const plan = (session?.user?.plan ?? "starter") as "free" | "starter" | "basic" | "growth" | "pro" | "enterprise";
+  const isAdmin = session?.user?.role === "admin";
 
   return (
     <motion.aside
@@ -74,7 +78,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {navItems.map(({ href, label, icon: Icon }) => {
+        {navItems.map(({ href, label, icon: Icon, color }) => {
           const isActive =
             href === "/dashboard"
               ? pathname === "/dashboard"
@@ -95,7 +99,7 @@ export function Sidebar() {
                 <Icon
                   className={cn(
                     "h-5 w-5 flex-shrink-0",
-                    isActive ? "text-violet-400" : "group-hover:text-slate-200"
+                    isActive ? "text-violet-400" : color ?? "group-hover:text-slate-200"
                   )}
                 />
                 <AnimatePresence>
@@ -122,6 +126,44 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {/* Admin Link */}
+      {isAdmin && (
+        <div className="px-3 pb-1">
+          <Link href="/admin">
+            <motion.div
+              whileHover={{ x: 2 }}
+              whileTap={{ scale: 0.97 }}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group cursor-pointer",
+                pathname.startsWith("/admin")
+                  ? "bg-gradient-to-r from-red-600/20 to-orange-600/10 border border-red-500/20 text-white shadow-lg shadow-red-500/10"
+                  : "text-red-400 hover:text-red-300 hover:bg-red-500/10"
+              )}
+            >
+              <ShieldCheck
+                className={cn(
+                  "h-5 w-5 flex-shrink-0",
+                  pathname.startsWith("/admin") ? "text-red-400" : "text-red-500"
+                )}
+              />
+              <AnimatePresence>
+                {!collapsed && (
+                  <motion.span
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -8 }}
+                    transition={{ duration: 0.2 }}
+                    className="text-sm font-medium truncate"
+                  >
+                    Admin Panel
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          </Link>
+        </div>
+      )}
 
       {/* Footer */}
       <div className="p-3 border-t border-slate-700/50 space-y-2">

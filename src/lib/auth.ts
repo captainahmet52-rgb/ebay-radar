@@ -33,7 +33,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         );
         if (!valid) return null;
 
-        return { id: user.id, email: user.email, plan: user.plan };
+        return { id: user.id, email: user.email, plan: user.plan, role: user.role };
       },
     }),
   ],
@@ -41,7 +41,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id   = user.id;
-        token.plan = (user as { plan?: string }).plan ?? "free";
+        token.plan = (user as { plan?: string }).plan ?? "starter";
+        token.role = (user as { role?: string }).role ?? "user";
       }
       return token;
     },
@@ -49,6 +50,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (token) {
         session.user.id   = token.id as string;
         session.user.plan = token.plan as string;
+        session.user.role = token.role as string;
       }
       return session;
     },

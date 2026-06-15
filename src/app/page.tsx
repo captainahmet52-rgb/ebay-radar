@@ -59,7 +59,7 @@ const PLATFORMS: Platform[] = [
       "Buy Box Takibi",
       "Kâr Analitiği",
     ],
-    href: "/register",
+    href: "/dashboard/amazon",
   },
   {
     id: "ebay",
@@ -93,7 +93,7 @@ const PLATFORMS: Platform[] = [
       "İade Yönetimi",
       "Performans Raporları",
     ],
-    href: "/register",
+    href: "/dashboard/listings",
   },
   {
     id: "etsy",
@@ -113,7 +113,7 @@ const PLATFORMS: Platform[] = [
       "Mağaza Analitiği",
       "Müşteri Destek AI",
     ],
-    href: "/register",
+    href: "/dashboard/etsy",
   },
 ];
 
