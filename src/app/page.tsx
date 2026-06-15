@@ -77,30 +77,30 @@ function Cube3D({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative w-32 h-32 flex-shrink-0" style={{ perspective: "500px" }}>
+    <div className="relative w-24 h-24 flex-shrink-0" style={{ perspective: "500px" }}>
       {/* Alt glow yansıma */}
       <div
-        className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-24 h-4 rounded-full"
-        style={{ background: glow, filter: "blur(12px)", opacity: 0.7 }}
+        className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-16 h-3 rounded-full"
+        style={{ background: glow, filter: "blur(10px)", opacity: 0.7 }}
       />
       {/* Arka glow blob */}
       <div
         className="absolute inset-0 rounded-2xl scale-125"
-        style={{ background: `radial-gradient(circle, ${glow} 0%, transparent 70%)`, filter: "blur(20px)", opacity: 0.5 }}
+        style={{ background: `radial-gradient(circle, ${glow} 0%, transparent 70%)`, filter: "blur(16px)", opacity: 0.5 }}
       />
       {/* Küp yüzeyi */}
       <div
-        className="relative w-full h-full rounded-2xl flex items-center justify-center animate-float"
+        className="relative w-full h-full rounded-2xl flex items-center justify-center"
         style={{
           background: "linear-gradient(145deg, rgba(35,30,50,0.95) 0%, rgba(8,8,16,0.98) 100%)",
           border: "1px solid rgba(255,255,255,0.08)",
           transform: "rotateX(-12deg) rotateY(-18deg)",
-          boxShadow: `0 30px 60px ${glow}, inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.5)`,
+          boxShadow: `0 20px 40px ${glow}, inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.5)`,
         }}
       >
         {/* Üst kenar ışık */}
         <div
-          className="absolute top-0 left-4 right-4 h-px rounded-full opacity-60"
+          className="absolute top-0 left-3 right-3 h-px rounded-full opacity-60"
           style={{ background: `linear-gradient(90deg, transparent, ${glow}, transparent)` }}
         />
         {children}
@@ -135,8 +135,8 @@ function PlatformCard({
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
-      whileHover={{ y: -6, transition: { duration: 0.25 } }}
-      className="relative rounded-2xl p-7 flex flex-col"
+      whileHover={{ y: -4, transition: { duration: 0.25 } }}
+      className="relative rounded-2xl p-5 flex flex-col"
       style={{
         background: "rgba(6,6,14,0.92)",
         border: `1px solid ${borderColor}`,
@@ -146,22 +146,22 @@ function PlatformCard({
     >
       {badge && (
         <div
-          className="absolute top-5 right-5 flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full"
+          className="absolute top-4 right-4 flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full"
           style={{ background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.4)", color: "#fbbf24" }}
         >
-          <Star className="h-3 w-3 fill-current" />
+          <Star className="h-2.5 w-2.5 fill-current" />
           EN POPÜLER
         </div>
       )}
 
       {/* Logo + Küp */}
-      <div className="flex items-start justify-between mb-7 gap-4">
+      <div className="flex items-start justify-between mb-5 gap-4">
         <div className="pt-1">{logo}</div>
         <Cube3D glow={cubeGlow}>{cubeContent}</Cube3D>
       </div>
 
       {/* Özellikler */}
-      <ul className="space-y-3.5 flex-1 mb-8">
+      <ul className="space-y-2.5 flex-1 mb-5">
         {features.map((f) => (
           <FeatureRow key={f.label} icon={f.icon} label={f.label} color={featureColor} />
         ))}
@@ -170,7 +170,7 @@ function PlatformCard({
       {/* CTA */}
       <Link
         href={href}
-        className="flex items-center justify-center gap-2 w-full py-4 rounded-xl text-sm font-bold transition-all duration-200 hover:opacity-90 hover:scale-[1.01] active:scale-[0.99]"
+        className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-sm font-bold transition-all duration-200 hover:opacity-90 hover:scale-[1.01] active:scale-[0.99]"
         style={btnStyle}
       >
         {btnLabel}
@@ -271,12 +271,12 @@ export default function LandingPage() {
       </nav>
 
       {/* ══ Hero ══ */}
-      <section className="relative z-10 text-center pt-14 pb-10 px-6">
+      <section className="relative z-10 text-center pt-8 pb-6 px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="inline-flex items-center gap-2 text-xs font-semibold tracking-widest px-4 py-2 rounded-full mb-8"
+          className="inline-flex items-center gap-2 text-xs font-semibold tracking-widest px-4 py-2 rounded-full mb-5"
           style={{ border: "1px solid rgba(124,58,237,0.4)", background: "rgba(124,58,237,0.1)", color: "#a78bfa" }}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
@@ -287,8 +287,8 @@ export default function LandingPage() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.65, delay: 0.1 }}
-          className="font-black leading-[1.08] mb-5"
-          style={{ fontSize: "clamp(2.8rem, 7vw, 5.5rem)" }}
+          className="font-black leading-[1.08] mb-4"
+          style={{ fontSize: "clamp(2.2rem, 5.5vw, 4.2rem)" }}
         >
           Pazar Yeri İşinizi
           <br />
@@ -308,10 +308,9 @@ export default function LandingPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.25 }}
-          className="text-[#9ca3af] text-lg md:text-xl max-w-xl mx-auto leading-relaxed"
+          className="text-[#9ca3af] text-base max-w-xl mx-auto leading-relaxed"
         >
           Amazon, eBay ve Etsy satıcıları için tam otomasyonlu çözümler.
-          <br />
           Listeleme, sipariş, stok ve müşteriyi tek platformdan yönetin.
         </motion.p>
       </section>
@@ -345,7 +344,7 @@ export default function LandingPage() {
             btnStyle={{ background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "#000" }}
             cubeGlow="rgba(245,158,11,0.6)"
             cubeContent={
-              <span className="text-5xl font-black text-amber-400" style={{ fontFamily: "Georgia, serif" }}>
+              <span className="text-4xl font-black text-amber-400" style={{ fontFamily: "Georgia, serif" }}>
                 a
               </span>
             }
@@ -401,7 +400,7 @@ export default function LandingPage() {
             cubeGlow="rgba(249,115,22,0.6)"
             cubeContent={
               <span
-                className="text-5xl font-black"
+                className="text-4xl font-black"
                 style={{ color: "#f97316", fontFamily: "Georgia, serif" }}
               >
                 E
