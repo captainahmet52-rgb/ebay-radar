@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion, useMotionValue } from "framer-motion";
 import Link from "next/link";
 import {
@@ -68,118 +68,77 @@ function FeatureRow({
   );
 }
 
-// ─── 3D Küp ───────────────────────────────────────────────────────────────────
+// ─── 3D Küp (görsel tabanlı) ────────────────────────────────────────────────────
 
-const CUBE_SIZE = 96;
-const CUBE_HALF = CUBE_SIZE / 2;
+const CUBE_SIZE = 130;
 
 function Cube3D({
+  src,
   accent,
-  children,
+  fallback,
 }: {
-  accent: string;   // hex renk, örn "#f59e0b"
-  children: React.ReactNode;
+  src: string;            // /cubes/amazon.png gibi
+  accent: string;         // hex renk, örn "#f59e0b"
+  fallback: React.ReactNode;
 }) {
-  const face: React.CSSProperties = {
-    position: "absolute",
-    width: CUBE_SIZE,
-    height: CUBE_SIZE,
-    borderRadius: 4,
-    border: `1px solid ${accent}88`,
-    boxShadow: `inset 0 0 34px ${accent}33`,
-    overflow: "hidden",
-  };
+  const [imgOk, setImgOk] = useState(true);
 
   return (
     <div
       className="relative flex-shrink-0"
-      style={{ width: CUBE_SIZE, height: CUBE_SIZE, perspective: 650 }}
+      style={{ width: CUBE_SIZE, height: CUBE_SIZE }}
     >
-      {/* Zemin parlaması (dolgu) */}
+      {/* Ortam parlaması — görselin arkasında */}
       <div
         style={{
-          position: "absolute", bottom: -24, left: "50%",
-          width: CUBE_SIZE * 1.5, height: 38, transform: "translateX(-50%)",
-          borderRadius: "50%",
-          background: `radial-gradient(ellipse, ${accent}dd 0%, ${accent}55 42%, transparent 72%)`,
-          filter: "blur(9px)",
-        }}
-      />
-      {/* Zemin halkası (çember) */}
-      <div
-        style={{
-          position: "absolute", bottom: -15, left: "50%",
-          width: CUBE_SIZE * 1.02, height: 18, transform: "translateX(-50%)",
-          borderRadius: "50%",
-          border: `2px solid ${accent}`,
-          boxShadow: `0 0 24px 2px ${accent}, inset 0 0 12px ${accent}`,
-          opacity: 0.7,
-        }}
-      />
-      {/* Ortam parlaması — küpün arkasında (filter'ı küpe koyamayız, 3D'yi düzleştirir) */}
-      <div
-        style={{
-          position: "absolute", inset: 0, transform: "scale(1.6)",
-          background: `radial-gradient(circle, ${accent}77 0%, transparent 66%)`,
+          position: "absolute", inset: 0, transform: "scale(1.4)",
+          background: `radial-gradient(circle, ${accent}55 0%, transparent 66%)`,
           filter: "blur(22px)",
           zIndex: 0,
         }}
       />
-      {/* Küp gövdesi — dış katman: yüzme (float) */}
-      <motion.div
-        animate={{ y: [0, -6, 0] }}
-        transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
+      {/* Zemin parlaması — görsel kendi gölgesini içermiyorsa yardımcı olur */}
+      <div
         style={{
-          width: CUBE_SIZE, height: CUBE_SIZE, position: "relative", zIndex: 1,
-          transformStyle: "preserve-3d",
+          position: "absolute", bottom: 4, left: "50%",
+          width: CUBE_SIZE * 0.8, height: 16, transform: "translateX(-50%)",
+          borderRadius: "50%",
+          background: `radial-gradient(ellipse, ${accent}99 0%, transparent 70%)`,
+          filter: "blur(7px)",
+          zIndex: 0,
         }}
+      />
+      {/* Yüzen görsel */}
+      <motion.div
+        animate={{ y: [0, -7, 0] }}
+        transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
+        style={{ position: "relative", width: CUBE_SIZE, height: CUBE_SIZE, zIndex: 1 }}
       >
-        {/* İç katman: 3D dönüş (düz CSS — framer dokunmuyor) */}
-        <div
-          style={{
-            width: CUBE_SIZE, height: CUBE_SIZE, position: "absolute", inset: 0,
-            transformStyle: "preserve-3d",
-            transform: "rotateX(-24deg) rotateY(-34deg)",
-          }}
-        >
-          {/* Ön yüz */}
-          <div
+        {imgOk ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={src}
+            alt=""
+            onError={() => setImgOk(false)}
             style={{
-              ...face,
-              transform: `translateZ(${CUBE_HALF}px)`,
-              background: `linear-gradient(150deg, rgba(48,44,64,1) 0%, rgba(14,13,22,1) 55%, rgba(6,6,11,1) 100%)`,
-              display: "flex", alignItems: "center", justifyContent: "center",
+              width: "100%", height: "100%", objectFit: "contain",
+              filter: `drop-shadow(0 10px 26px ${accent}aa)`,
+            }}
+          />
+        ) : (
+          // Görsel henüz yüklenmediyse: basit kutu + harf
+          <div
+            className="w-full h-full rounded-2xl flex items-center justify-center"
+            style={{
+              background: "linear-gradient(145deg, rgba(35,30,50,0.95), rgba(8,8,16,0.98))",
+              border: `1px solid ${accent}55`,
+              boxShadow: `0 20px 40px ${accent}55, inset 0 0 30px ${accent}22`,
+              transform: "rotateX(-12deg) rotateY(-18deg)",
             }}
           >
-            {/* cam parlaması (gloss) */}
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.04) 26%, transparent 52%)", pointerEvents: "none" }} />
-            {/* iç renk halesi */}
-            <div style={{ position: "absolute", inset: 0, background: `radial-gradient(circle at 50% 60%, ${accent}33 0%, transparent 60%)`, pointerEvents: "none" }} />
-            {/* üst kenar ışık */}
-            <div style={{ position: "absolute", top: 0, left: 6, right: 6, height: 2, background: `linear-gradient(90deg, transparent, ${accent}, transparent)`, opacity: 0.9 }} />
-            <div style={{ position: "relative", filter: `drop-shadow(0 0 18px ${accent}) drop-shadow(0 0 7px ${accent})` }}>{children}</div>
+            <div style={{ filter: `drop-shadow(0 0 14px ${accent})` }}>{fallback}</div>
           </div>
-          {/* Sağ yüz (gölge tarafı) */}
-          <div
-            style={{
-              ...face,
-              transform: `rotateY(90deg) translateZ(${CUBE_HALF}px)`,
-              background: `linear-gradient(150deg, rgba(20,18,30,1) 0%, rgba(2,2,5,1) 100%)`,
-            }}
-          >
-            <div style={{ position: "absolute", inset: 0, background: `linear-gradient(90deg, ${accent}22, transparent 70%)`, pointerEvents: "none" }} />
-          </div>
-          {/* Üst yüz (ışık alan taraf) */}
-          <div
-            style={{
-              ...face,
-              transform: `rotateX(90deg) translateZ(${CUBE_HALF}px)`,
-              background: `linear-gradient(150deg, ${accent}66 0%, rgba(30,28,42,1) 70%)`,
-            }}
-          >
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(255,255,255,0.18), transparent 50%)", pointerEvents: "none" }} />
-          </div>
-        </div>
+        )}
       </motion.div>
     </div>
   );
@@ -197,6 +156,7 @@ interface CardProps {
   btnLabel: string;
   btnStyle: React.CSSProperties;
   cubeAccent: string;
+  cubeImage: string;
   cubeContent: React.ReactNode;
   href: string;
   delay?: number;
@@ -204,7 +164,7 @@ interface CardProps {
 
 function PlatformCard({
   logo, badge, features, featureColor, borderColor,
-  glowColor, btnLabel, btnStyle, cubeAccent, cubeContent, href, delay = 0,
+  glowColor, btnLabel, btnStyle, cubeAccent, cubeImage, cubeContent, href, delay = 0,
 }: CardProps) {
   return (
     <motion.div
@@ -231,9 +191,9 @@ function PlatformCard({
       )}
 
       {/* Logo + Küp */}
-      <div className="flex items-start justify-between mb-6 gap-4">
+      <div className="flex items-start justify-between mb-6 gap-3">
         <div className="pt-1">{logo}</div>
-        <Cube3D accent={cubeAccent}>{cubeContent}</Cube3D>
+        <Cube3D src={cubeImage} accent={cubeAccent} fallback={cubeContent} />
       </div>
 
       {/* Özellikler */}
@@ -410,6 +370,7 @@ export default function LandingPage() {
             btnLabel="Amazon'u Bağla"
             btnStyle={{ background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "#000" }}
             cubeAccent="#f59e0b"
+            cubeImage="/cubes/amazon.png"
             cubeContent={
               <span className="text-4xl font-black text-amber-400" style={{ fontFamily: "Georgia, serif" }}>
                 a
@@ -436,6 +397,7 @@ export default function LandingPage() {
             btnLabel="eBay'i Bağla"
             btnStyle={{ background: "linear-gradient(135deg,#2563eb,#1d4ed8)", color: "#fff" }}
             cubeAccent="#3b82f6"
+            cubeImage="/cubes/ebay.png"
             cubeContent={
               <span className="text-2xl font-black leading-none">
                 <span style={{ color: "#ef4444" }}>e</span>
@@ -465,6 +427,7 @@ export default function LandingPage() {
             btnLabel="Etsy'i Bağla"
             btnStyle={{ background: "linear-gradient(135deg,#f97316,#ea580c)", color: "#fff" }}
             cubeAccent="#f97316"
+            cubeImage="/cubes/etsy.png"
             cubeContent={
               <span
                 className="text-4xl font-black"
