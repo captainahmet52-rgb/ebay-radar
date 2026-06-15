@@ -88,23 +88,12 @@ function Cube3D({
       className="relative flex-shrink-0"
       style={{ width: CUBE_SIZE, height: CUBE_SIZE }}
     >
-      {/* Ortam parlaması — görselin arkasında */}
+      {/* Hafif ortam parlaması — görselin kendi glow'unu desteklemek için (abartısız) */}
       <div
         style={{
-          position: "absolute", inset: 0, transform: "scale(1.4)",
-          background: `radial-gradient(circle, ${accent}55 0%, transparent 66%)`,
-          filter: "blur(22px)",
-          zIndex: 0,
-        }}
-      />
-      {/* Zemin parlaması — görsel kendi gölgesini içermiyorsa yardımcı olur */}
-      <div
-        style={{
-          position: "absolute", bottom: 4, left: "50%",
-          width: CUBE_SIZE * 0.8, height: 16, transform: "translateX(-50%)",
-          borderRadius: "50%",
-          background: `radial-gradient(ellipse, ${accent}99 0%, transparent 70%)`,
-          filter: "blur(7px)",
+          position: "absolute", inset: 0, transform: "scale(1.25)",
+          background: `radial-gradient(circle, ${accent}33 0%, transparent 68%)`,
+          filter: "blur(20px)",
           zIndex: 0,
         }}
       />
