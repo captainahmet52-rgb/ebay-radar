@@ -1,144 +1,465 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+import { motion, useMotionValue } from "framer-motion";
 import Link from "next/link";
+import {
+  RefreshCcw, ShoppingCart, Cpu, Target, BarChart2,
+  Upload, DollarSign, RotateCcw, FileBarChart,
+  Package, MessageSquare, TrendingUp, Zap, HeartHandshake,
+  Shield, Lock, Server, Headphones, Star, ArrowRight,
+} from "lucide-react";
 
-const CARDS = [
-  {
-    title: "amazon",
-    titleClass: "text-white",
-    features: ["Stok Senkronizasyonu", "Sipariş Otomasyonu", "AI Ürün Yönetimi", "Kâr Analitiği"],
-    btn: "Amazon'u Bağla",
-    btnStyle: "bg-gradient-to-r from-amber-500 to-orange-500",
-    border: "border-amber-500/30",
-    href: "/dashboard/amazon",
-    popular: true,
-  },
-  {
-    title: "ebay",
-    titleClass: "",
-    titleColored: true,
-    features: ["Otomatik Listeleme", "Akıllı Fiyatlandırma", "Sipariş Takibi", "Performans Raporları"],
-    btn: "eBay'i Bağla",
-    btnStyle: "bg-gradient-to-r from-blue-600 to-blue-500",
-    border: "border-blue-500/30",
-    href: "/dashboard/listings",
-  },
-  {
-    title: "Etsy",
-    titleClass: "text-orange-500",
-    features: ["Ürün Yayınlama", "Mesaj Otomasyonu", "Stok Yönetimi", "Müşteri Destek AI"],
-    btn: "Etsy'i Bağla",
-    btnStyle: "bg-gradient-to-r from-orange-500 to-orange-600",
-    border: "border-orange-500/30",
-    href: "/dashboard/etsy",
-  },
+// ─── Feature ikonları ─────────────────────────────────────────────────────────
+
+const AMAZON_FEATURES = [
+  { icon: RefreshCcw,  label: "Stok Senkronizasyonu"  },
+  { icon: ShoppingCart,label: "Sipariş Otomasyonu"    },
+  { icon: Cpu,         label: "AI Ürün Yönetimi"      },
+  { icon: Target,      label: "Buy Box Takibi"         },
+  { icon: BarChart2,   label: "Kâr Analitiği"          },
+];
+
+const EBAY_FEATURES = [
+  { icon: Upload,       label: "Otomatik Listeleme"   },
+  { icon: DollarSign,   label: "Akıllı Fiyatlandırma" },
+  { icon: ShoppingCart, label: "Sipariş Takibi"       },
+  { icon: RotateCcw,    label: "İade Yönetimi"        },
+  { icon: FileBarChart, label: "Performans Raporları" },
+];
+
+const ETSY_FEATURES = [
+  { icon: Package,        label: "Ürün Yayınlama"    },
+  { icon: MessageSquare,  label: "Mesaj Otomasyonu"  },
+  { icon: TrendingUp,     label: "Stok Yönetimi"     },
+  { icon: BarChart2,      label: "Mağaza Analitiği"  },
+  { icon: HeartHandshake, label: "Müşteri Destek AI" },
 ];
 
 const STATS = [
-  { value: "%99.9", label: "Uptime" },
-  { value: "Güvenli", label: "API Entegrasyonu" },
-  { value: "Kurumsal", label: "Altyapı" },
-  { value: "7/24", label: "Destek" },
+  { icon: Shield,     title: "%99.9 Uptime",     sub: "Kurumsal Güvenilirlik"   },
+  { icon: Lock,       title: "Güvenli API",       sub: "Banka Düzeyinde Güvenlik" },
+  { icon: Server,     title: "Kurumsal Altyapı",  sub: "Ölçeklenebilir & Güvenilir" },
+  { icon: Headphones, title: "7/24 Destek",       sub: "Gerçek İnsanlar, Hızlı Çözüm" },
 ];
 
-export default function Home() {
-  return (
-    <div className="min-h-screen bg-black text-white overflow-hidden">
-      {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-950 via-black to-black" />
+// ─── Feature satırı ───────────────────────────────────────────────────────────
 
-      {/* Navbar */}
-      <nav className="relative z-10 flex items-center justify-between px-12 py-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500 flex items-center justify-center font-black text-sm">
+function FeatureRow({
+  icon: Icon,
+  label,
+  color,
+}: {
+  icon: React.ElementType;
+  label: string;
+  color: string;
+}) {
+  return (
+    <li className="flex items-center gap-3">
+      <span
+        className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+        style={{ border: `1px solid ${color}40`, background: `${color}15` }}
+      >
+        <Icon style={{ color }} className="h-3.5 w-3.5" />
+      </span>
+      <span className="text-slate-300 text-sm">{label}</span>
+    </li>
+  );
+}
+
+// ─── 3D Küp ───────────────────────────────────────────────────────────────────
+
+function Cube3D({
+  glow,
+  children,
+}: {
+  glow: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="relative w-24 h-24 flex-shrink-0" style={{ perspective: "500px" }}>
+      {/* Alt glow yansıma */}
+      <div
+        className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-16 h-3 rounded-full"
+        style={{ background: glow, filter: "blur(10px)", opacity: 0.7 }}
+      />
+      {/* Arka glow blob */}
+      <div
+        className="absolute inset-0 rounded-2xl scale-125"
+        style={{ background: `radial-gradient(circle, ${glow} 0%, transparent 70%)`, filter: "blur(16px)", opacity: 0.5 }}
+      />
+      {/* Küp yüzeyi */}
+      <div
+        className="relative w-full h-full rounded-2xl flex items-center justify-center"
+        style={{
+          background: "linear-gradient(145deg, rgba(35,30,50,0.95) 0%, rgba(8,8,16,0.98) 100%)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          transform: "rotateX(-12deg) rotateY(-18deg)",
+          boxShadow: `0 20px 40px ${glow}, inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.5)`,
+        }}
+      >
+        {/* Üst kenar ışık */}
+        <div
+          className="absolute top-0 left-3 right-3 h-px rounded-full opacity-60"
+          style={{ background: `linear-gradient(90deg, transparent, ${glow}, transparent)` }}
+        />
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ─── Platform kartı ───────────────────────────────────────────────────────────
+
+interface CardProps {
+  logo: React.ReactNode;
+  badge?: boolean;
+  features: { icon: React.ElementType; label: string }[];
+  featureColor: string;
+  borderColor: string;
+  glowColor: string;
+  btnLabel: string;
+  btnStyle: React.CSSProperties;
+  cubeGlow: string;
+  cubeContent: React.ReactNode;
+  href: string;
+  delay?: number;
+}
+
+function PlatformCard({
+  logo, badge, features, featureColor, borderColor,
+  glowColor, btnLabel, btnStyle, cubeGlow, cubeContent, href, delay = 0,
+}: CardProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 50 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={{ y: -4, transition: { duration: 0.25 } }}
+      className="relative rounded-2xl p-5 flex flex-col"
+      style={{
+        background: "rgba(6,6,14,0.92)",
+        border: `1px solid ${borderColor}`,
+        boxShadow: `0 0 50px ${glowColor}, inset 0 0 60px rgba(0,0,0,0.3)`,
+        backdropFilter: "blur(24px)",
+      }}
+    >
+      {badge && (
+        <div
+          className="absolute top-4 right-4 flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full"
+          style={{ background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.4)", color: "#fbbf24" }}
+        >
+          <Star className="h-2.5 w-2.5 fill-current" />
+          EN POPÜLER
+        </div>
+      )}
+
+      {/* Logo + Küp */}
+      <div className="flex items-start justify-between mb-5 gap-4">
+        <div className="pt-1">{logo}</div>
+        <Cube3D glow={cubeGlow}>{cubeContent}</Cube3D>
+      </div>
+
+      {/* Özellikler */}
+      <ul className="space-y-2.5 flex-1 mb-5">
+        {features.map((f) => (
+          <FeatureRow key={f.label} icon={f.icon} label={f.label} color={featureColor} />
+        ))}
+      </ul>
+
+      {/* CTA */}
+      <Link
+        href={href}
+        className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-sm font-bold transition-all duration-200 hover:opacity-90 hover:scale-[1.01] active:scale-[0.99]"
+        style={btnStyle}
+      >
+        {btnLabel}
+        <ArrowRight className="h-4 w-4" />
+      </Link>
+    </motion.div>
+  );
+}
+
+// ─── Ana sayfa ────────────────────────────────────────────────────────────────
+
+export default function LandingPage() {
+  const mouseX = useMotionValue(-9999);
+  const mouseY = useMotionValue(-9999);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => { mouseX.set(e.clientX); mouseY.set(e.clientY); };
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, [mouseX, mouseY]);
+
+  return (
+    <div className="min-h-screen text-white overflow-x-hidden" style={{ background: "#050508" }}>
+
+      {/* ══ Arka plan ══ */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        {/* Mor gradient — sağ üst */}
+        <div
+          className="absolute -top-20 right-0 w-[55vw] h-[70vh]"
+          style={{ background: "radial-gradient(ellipse at top right, rgba(88,28,220,0.45) 0%, rgba(60,20,180,0.15) 40%, transparent 70%)" }}
+        />
+        {/* Işık şeridi — sağ üst köşe */}
+        <div
+          className="absolute top-0 right-0 w-1 h-[70vh] opacity-60"
+          style={{
+            background: "linear-gradient(180deg, rgba(168,85,247,0.8) 0%, rgba(139,92,246,0.3) 50%, transparent 100%)",
+            boxShadow: "0 0 30px 8px rgba(139,92,246,0.3)",
+            transform: "translateX(-60px) rotate(8deg) translateY(-50px)",
+          }}
+        />
+        {/* Turuncu çizgi sol-orta */}
+        <div
+          className="absolute top-1/2 -translate-y-1/2 left-0 w-[45vw] h-px"
+          style={{ background: "linear-gradient(90deg, rgba(245,158,11,0.6), rgba(245,158,11,0.1), transparent)", boxShadow: "0 0 20px 4px rgba(245,158,11,0.08)" }}
+        />
+        {/* Mouse spotlight */}
+        <motion.div
+          className="absolute w-[700px] h-[700px] rounded-full"
+          style={{
+            background: "radial-gradient(circle, rgba(109,40,217,0.12) 0%, transparent 70%)",
+            x: mouseX, y: mouseY, translateX: "-50%", translateY: "-50%",
+          }}
+        />
+      </div>
+
+      {/* ══ Navbar ══ */}
+      <nav className="relative z-20 flex items-center justify-between px-8 md:px-16 py-5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+        <Link href="/" className="flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm text-white"
+            style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)", boxShadow: "0 4px 20px rgba(124,58,237,0.45)" }}
+          >
             LA
           </div>
-          <div>
-            <h1 className="font-bold text-xl leading-none">LEAN</h1>
-            <p className="text-sm text-gray-400 leading-none mt-0.5">AUTOMATION</p>
+          <div className="leading-none">
+            <p className="font-black text-white text-sm tracking-[0.22em]">LEAN</p>
+            <p className="text-[#6b7280] text-[10px] tracking-[0.22em] mt-0.5">AUTOMATION</p>
           </div>
+        </Link>
+
+        <div className="hidden md:flex items-center gap-10">
+          {["Ana Sayfa", "Özellikler", "Fiyatlandırma", "Entegrasyonlar", "Kaynaklar"].map((l, i) => (
+            <a
+              key={l}
+              href="#"
+              className="relative text-[#9ca3af] hover:text-white text-sm transition-colors duration-200 group"
+            >
+              {l}
+              {i === 0 && (
+                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-violet-500" />
+              )}
+            </a>
+          ))}
         </div>
 
         <Link
           href="/dashboard"
-          className="border border-purple-500 px-6 py-3 rounded-xl hover:bg-purple-600 transition font-semibold"
+          className="flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl transition-all duration-200 hover:bg-violet-600/20"
+          style={{ border: "1px solid rgba(124,58,237,0.5)", background: "rgba(124,58,237,0.1)" }}
         >
-          Dashboard
+          <span className="grid grid-cols-2 gap-0.5 w-3.5 h-3.5">
+            {[...Array(4)].map((_, i) => (
+              <span key={i} className="bg-current rounded-[1px]" />
+            ))}
+          </span>
+          Panel
         </Link>
       </nav>
 
-      {/* Hero */}
-      <section className="relative z-10 text-center pt-16">
-        <span className="border border-purple-600 px-4 py-2 rounded-full text-purple-400 text-sm font-semibold tracking-widest">
-          • YAPAY ZEKA DESTEKLİ PAZAR YERİ OTOMASYONU
-        </span>
+      {/* ══ Hero ══ */}
+      <section className="relative z-10 text-center pt-8 pb-6 px-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="inline-flex items-center gap-2 text-xs font-semibold tracking-widest px-4 py-2 rounded-full mb-5"
+          style={{ border: "1px solid rgba(124,58,237,0.4)", background: "rgba(124,58,237,0.1)", color: "#a78bfa" }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
+          YAPAY ZEKA DESTEKLİ PAZAR YERİ OTOMASYONU
+        </motion.div>
 
-        <h1 className="text-6xl md:text-7xl font-bold mt-8 leading-tight">
+        <motion.h1
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.65, delay: 0.1 }}
+          className="font-black leading-[1.08] mb-4"
+          style={{ fontSize: "clamp(2.2rem, 5.5vw, 4.2rem)" }}
+        >
           Pazar Yeri İşinizi
           <br />
-          <span className="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+          <span
+            style={{
+              background: "linear-gradient(135deg, #818cf8 0%, #a78bfa 35%, #c084fc 70%, #e879f9 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
             AI ile Ölçeklendirin
           </span>
-        </h1>
+        </motion.h1>
 
-        <p className="text-gray-400 mt-6 text-xl">
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.25 }}
+          className="text-[#9ca3af] text-base max-w-xl mx-auto leading-relaxed"
+        >
           Amazon, eBay ve Etsy satıcıları için tam otomasyonlu çözümler.
-          <br />
           Listeleme, sipariş, stok ve müşteriyi tek platformdan yönetin.
-        </p>
+        </motion.p>
       </section>
 
-      {/* Cards */}
-      <section className="relative z-10 max-w-7xl mx-auto mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 px-8">
-        {CARDS.map((card) => (
-          <div
-            key={card.title}
-            className={`backdrop-blur-xl bg-white/5 border ${card.border} rounded-3xl p-8 hover:scale-[1.03] transition duration-300 flex flex-col relative`}
-          >
-            {card.popular && (
-              <div className="absolute top-5 right-5 flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-400">
-                ★ EN POPÜLER
+      {/* ══ Platform Kartları ══ */}
+      <section className="relative z-10 max-w-7xl mx-auto px-6 pb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+          {/* Amazon */}
+          <PlatformCard
+            delay={0.25}
+            badge
+            logo={
+              <div>
+                <p className="text-[2.2rem] font-black text-white leading-none tracking-tight" style={{ fontFamily: "Georgia, serif" }}>
+                  amazon
+                </p>
+                <div className="mt-1 flex items-center">
+                  <div className="h-0.5 w-[52%] rounded-full" style={{ background: "linear-gradient(90deg, #f59e0b, #fb923c 60%, transparent)" }} />
+                  <div className="w-2 h-2 rounded-full border-2 border-amber-400 -ml-1 flex items-center justify-center">
+                    <div className="w-0.5 h-0.5 bg-amber-400 rounded-full" />
+                  </div>
+                </div>
               </div>
-            )}
+            }
+            features={AMAZON_FEATURES}
+            featureColor="#f59e0b"
+            borderColor="rgba(245,158,11,0.35)"
+            glowColor="rgba(245,158,11,0.1)"
+            btnLabel="Amazon'u Bağla"
+            btnStyle={{ background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "#000" }}
+            cubeGlow="rgba(245,158,11,0.6)"
+            cubeContent={
+              <span className="text-4xl font-black text-amber-400" style={{ fontFamily: "Georgia, serif" }}>
+                a
+              </span>
+            }
+            href="/dashboard/amazon"
+          />
 
-            {card.titleColored ? (
-              <h2 className="text-5xl font-bold">
-                <span className="text-red-500">e</span>
-                <span className="text-blue-500">b</span>
-                <span className="text-amber-500">a</span>
-                <span className="text-green-500">y</span>
-              </h2>
-            ) : (
-              <h2 className={`text-5xl font-bold ${card.titleClass}`}>{card.title}</h2>
-            )}
+          {/* eBay */}
+          <PlatformCard
+            delay={0.35}
+            logo={
+              <span className="text-[2.6rem] font-black leading-none tracking-tight">
+                <span style={{ color: "#ef4444" }}>e</span>
+                <span style={{ color: "#3b82f6" }}>b</span>
+                <span style={{ color: "#f59e0b" }}>a</span>
+                <span style={{ color: "#22c55e" }}>y</span>
+              </span>
+            }
+            features={EBAY_FEATURES}
+            featureColor="#3b82f6"
+            borderColor="rgba(59,130,246,0.4)"
+            glowColor="rgba(59,130,246,0.12)"
+            btnLabel="eBay'i Bağla"
+            btnStyle={{ background: "linear-gradient(135deg,#2563eb,#1d4ed8)", color: "#fff" }}
+            cubeGlow="rgba(59,130,246,0.6)"
+            cubeContent={
+              <span className="text-2xl font-black leading-none">
+                <span style={{ color: "#ef4444" }}>e</span>
+                <span style={{ color: "#60a5fa" }}>b</span>
+                <span style={{ color: "#fbbf24" }}>a</span>
+                <span style={{ color: "#4ade80" }}>y</span>
+              </span>
+            }
+            href="/dashboard/listings"
+          />
 
-            <ul className="mt-8 space-y-4 text-gray-300 flex-1">
-              {card.features.map((f) => (
-                <li key={f}>✓ {f}</li>
-              ))}
-            </ul>
-
-            <Link
-              href={card.href}
-              className={`mt-10 w-full ${card.btnStyle} py-4 rounded-xl font-semibold hover:opacity-90 transition text-center block`}
-            >
-              {card.btn}
-            </Link>
-          </div>
-        ))}
-      </section>
-
-      {/* Footer Stats */}
-      <section className="relative z-10 max-w-6xl mx-auto mt-16 mb-20 px-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {STATS.map((s) => (
-            <div key={s.value} className="bg-white/5 rounded-2xl p-6">
-              <h3 className="text-2xl font-bold">{s.value}</h3>
-              <p className="text-gray-400">{s.label}</p>
-            </div>
-          ))}
+          {/* Etsy */}
+          <PlatformCard
+            delay={0.45}
+            logo={
+              <span
+                className="text-[2.6rem] font-black leading-none tracking-tight"
+                style={{ color: "#f97316" }}
+              >
+                Etsy
+              </span>
+            }
+            features={ETSY_FEATURES}
+            featureColor="#f97316"
+            borderColor="rgba(249,115,22,0.35)"
+            glowColor="rgba(249,115,22,0.1)"
+            btnLabel="Etsy'i Bağla"
+            btnStyle={{ background: "linear-gradient(135deg,#f97316,#ea580c)", color: "#fff" }}
+            cubeGlow="rgba(249,115,22,0.6)"
+            cubeContent={
+              <span
+                className="text-4xl font-black"
+                style={{ color: "#f97316", fontFamily: "Georgia, serif" }}
+              >
+                E
+              </span>
+            }
+            href="/dashboard/etsy"
+          />
         </div>
       </section>
+
+      {/* ══ Stats Bar ══ */}
+      <section className="relative z-10 max-w-5xl mx-auto px-6 pb-16 pt-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.65 }}
+          className="rounded-2xl overflow-hidden"
+          style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}
+        >
+          <div className="grid grid-cols-2 md:grid-cols-4">
+            {STATS.map(({ icon: Icon, title, sub }, i) => (
+              <div
+                key={title}
+                className="flex items-center gap-4 px-6 py-5"
+                style={{
+                  borderRight: i < 3 ? "1px solid rgba(255,255,255,0.05)" : undefined,
+                  borderBottom: i < 2 ? "1px solid rgba(255,255,255,0.05)" : undefined,
+                }}
+              >
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.05)" }}>
+                  <Icon className="h-5 w-5 text-slate-400" />
+                </div>
+                <div>
+                  <p className="text-white font-bold text-sm">{title}</p>
+                  <p className="text-slate-500 text-xs mt-0.5">{sub}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      </section>
+
+      {/* ══ Footer ══ */}
+      <footer className="relative z-10 px-8 md:px-16 py-6" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg flex items-center justify-center font-black text-[10px] text-white" style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)" }}>
+              LA
+            </div>
+            <span className="font-bold text-slate-400 text-sm">Lean Automation</span>
+          </div>
+          <p className="text-xs text-slate-600">© 2026 Lean Automation. Tüm hakları saklıdır.</p>
+          <div className="flex items-center gap-6 text-xs text-slate-500">
+            <a href="#" className="hover:text-white transition-colors">Gizlilik</a>
+            <a href="#" className="hover:text-white transition-colors">Kullanım Şartları</a>
+            <a href="#" className="hover:text-white transition-colors">İletişim</a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
