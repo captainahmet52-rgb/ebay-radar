@@ -88,11 +88,11 @@ function Cube3D({
       className="relative flex-shrink-0"
       style={{ width: CUBE_SIZE, height: CUBE_SIZE }}
     >
-      {/* Hafif ortam parlaması — görselin kendi glow'unu desteklemek için (abartısız) */}
+      {/* Ortam parlaması — görsel screen blend ile birleşince halka görevi görür */}
       <div
         style={{
-          position: "absolute", inset: 0, transform: "scale(1.25)",
-          background: `radial-gradient(circle, ${accent}33 0%, transparent 68%)`,
+          position: "absolute", inset: 0, transform: "scale(1.3)",
+          background: `radial-gradient(circle, ${accent}55 0%, transparent 68%)`,
           filter: "blur(20px)",
           zIndex: 0,
         }}
@@ -111,7 +111,7 @@ function Cube3D({
             onError={() => setImgOk(false)}
             style={{
               width: "100%", height: "100%", objectFit: "contain",
-              filter: `drop-shadow(0 10px 26px ${accent}aa)`,
+              mixBlendMode: "screen",
             }}
           />
         ) : (
