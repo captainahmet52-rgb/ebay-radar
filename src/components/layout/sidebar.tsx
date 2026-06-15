@@ -43,7 +43,7 @@ export function Sidebar() {
     localStorage.setItem("sidebar-collapsed", String(collapsed));
   }, [collapsed]);
 
-  const plan = (session?.user?.plan ?? "free") as "free" | "pro" | "enterprise";
+  const plan = (session?.user?.plan ?? "starter") as "free" | "starter" | "basic" | "growth" | "pro" | "enterprise";
 
   return (
     <motion.aside

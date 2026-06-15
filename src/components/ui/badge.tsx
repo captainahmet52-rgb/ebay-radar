@@ -7,9 +7,12 @@ type BadgeVariant =
   | "hot"
   | "normal"
   | "dead"
+  | "starter"
+  | "basic"
+  | "growth"
   | "pro"
-  | "free"
   | "enterprise"
+  | "free"
   | "verified"
   | "pending"
   | "cancelled"
@@ -28,8 +31,11 @@ const variantConfig: Record<BadgeVariant, { dot: string; bg: string; text: strin
   hot:       { dot: "bg-red-400",     bg: "bg-red-500/10",     text: "text-red-400"     },
   normal:    { dot: "bg-blue-400",    bg: "bg-blue-500/10",    text: "text-blue-400"    },
   dead:      { dot: "bg-slate-400",   bg: "bg-slate-500/10",   text: "text-slate-400"   },
+  starter:   { dot: "bg-slate-400",   bg: "bg-slate-500/10",   text: "text-slate-400"   },
+  basic:     { dot: "bg-blue-400",    bg: "bg-blue-500/10",    text: "text-blue-400"    },
+  growth:    { dot: "bg-emerald-400", bg: "bg-emerald-500/10", text: "text-emerald-400" },
   pro:       { dot: "bg-violet-400",  bg: "bg-violet-500/10",  text: "text-violet-400"  },
-  enterprise:{ dot: "bg-violet-400",  bg: "bg-violet-500/10",  text: "text-violet-400"  },
+  enterprise:{ dot: "bg-amber-400",   bg: "bg-amber-500/10",   text: "text-amber-400"   },
   free:      { dot: "bg-slate-400",   bg: "bg-slate-500/10",   text: "text-slate-400"   },
   verified:  { dot: "bg-emerald-400", bg: "bg-emerald-500/10", text: "text-emerald-400" },
   pending:   { dot: "bg-amber-400",   bg: "bg-amber-500/10",   text: "text-amber-400"   },
@@ -44,6 +50,9 @@ const variantLabels: Record<BadgeVariant, string> = {
   hot:       "Sıcak",
   normal:    "Normal",
   dead:      "Ölü",
+  starter:   "Starter",
+  basic:     "Basic",
+  growth:    "Growth",
   pro:       "Pro",
   enterprise:"Enterprise",
   free:      "Ücretsiz",
