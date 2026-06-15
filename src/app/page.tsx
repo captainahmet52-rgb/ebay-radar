@@ -115,46 +115,62 @@ function Cube3D({
           opacity: 0.5,
         }}
       />
-      {/* Küp gövdesi */}
+      {/* Ortam parlaması — küpün arkasında (filter'ı küpe koyamayız, 3D'yi düzleştirir) */}
+      <div
+        style={{
+          position: "absolute", inset: 0, transform: "scale(1.45)",
+          background: `radial-gradient(circle, ${accent}55 0%, transparent 68%)`,
+          filter: "blur(20px)",
+          zIndex: 0,
+        }}
+      />
+      {/* Küp gövdesi — dış katman: yüzme (float) */}
       <motion.div
         animate={{ y: [0, -6, 0] }}
         transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
         style={{
-          width: CUBE_SIZE, height: CUBE_SIZE, position: "relative",
+          width: CUBE_SIZE, height: CUBE_SIZE, position: "relative", zIndex: 1,
           transformStyle: "preserve-3d",
-          rotateX: -24, rotateY: -34,
-          filter: `drop-shadow(0 16px 22px ${accent}99)`,
         }}
       >
-        {/* Ön yüz */}
+        {/* İç katman: 3D dönüş (düz CSS — framer dokunmuyor) */}
         <div
           style={{
-            ...face,
-            transform: `translateZ(${CUBE_HALF}px)`,
-            background: "linear-gradient(150deg, rgba(42,38,56,0.94), rgba(8,8,14,0.96))",
-            display: "flex", alignItems: "center", justifyContent: "center",
+            width: CUBE_SIZE, height: CUBE_SIZE, position: "absolute", inset: 0,
+            transformStyle: "preserve-3d",
+            transform: "rotateX(-24deg) rotateY(-34deg)",
           }}
         >
-          {/* üst kenar ışık */}
-          <div style={{ position: "absolute", top: 0, left: 12, right: 12, height: 1, background: `linear-gradient(90deg, transparent, ${accent}, transparent)`, opacity: 0.8 }} />
-          <div style={{ filter: `drop-shadow(0 0 14px ${accent})` }}>{children}</div>
+          {/* Ön yüz */}
+          <div
+            style={{
+              ...face,
+              transform: `translateZ(${CUBE_HALF}px)`,
+              background: "linear-gradient(150deg, rgba(42,38,56,0.94), rgba(8,8,14,0.96))",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            {/* üst kenar ışık */}
+            <div style={{ position: "absolute", top: 0, left: 12, right: 12, height: 1, background: `linear-gradient(90deg, transparent, ${accent}, transparent)`, opacity: 0.8 }} />
+            <div style={{ filter: `drop-shadow(0 0 14px ${accent})` }}>{children}</div>
+          </div>
+          {/* Sağ yüz */}
+          <div
+            style={{
+              ...face,
+              transform: `rotateY(90deg) translateZ(${CUBE_HALF}px)`,
+              background: "linear-gradient(150deg, rgba(22,20,32,0.97), rgba(3,3,6,0.98))",
+            }}
+          />
+          {/* Üst yüz */}
+          <div
+            style={{
+              ...face,
+              transform: `rotateX(90deg) translateZ(${CUBE_HALF}px)`,
+              background: `linear-gradient(150deg, ${accent}3a, rgba(24,22,34,0.96))`,
+            }}
+          />
         </div>
-        {/* Sağ yüz */}
-        <div
-          style={{
-            ...face,
-            transform: `rotateY(90deg) translateZ(${CUBE_HALF}px)`,
-            background: "linear-gradient(150deg, rgba(22,20,32,0.97), rgba(3,3,6,0.98))",
-          }}
-        />
-        {/* Üst yüz */}
-        <div
-          style={{
-            ...face,
-            transform: `rotateX(90deg) translateZ(${CUBE_HALF}px)`,
-            background: `linear-gradient(150deg, ${accent}3a, rgba(24,22,34,0.96))`,
-          }}
-        />
       </motion.div>
     </div>
   );
