@@ -9,10 +9,10 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "eBay Otomasyon | Amazon'dan Otomatik Kazan",
+  title: "OtoBot | Amazon, eBay ve Etsy Pazar Yeri Otomasyonu",
   description:
-    "Amazon ürünlerini eBay'de otomatik listele, fiyatlandır ve sat. %20 net kâr garantili repricer motoru.",
-  keywords: ["ebay", "amazon", "dropshipping", "otomasyon", "saas"],
+    "Amazon, eBay ve Etsy satıcıları için tam otomasyonlu yapay zeka destekli platform. Listeleme, sipariş, stok ve müşteri iletişimini tek yerden yönetin.",
+  keywords: ["ebay", "amazon", "etsy", "otomasyon", "pazar yeri", "saas", "dropshipping"],
 };
 
 export default function RootLayout({

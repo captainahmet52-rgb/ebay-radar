@@ -1,448 +1,437 @@
 "use client";
 
-import { motion, useInView } from "framer-motion";
-import { useRef } from "react";
+import { useEffect } from "react";
+import { motion, useMotionValue } from "framer-motion";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import {
-  TrendingUp,
-  Zap,
-  Target,
-  Check,
-  ArrowRight,
-  Bot,
-  DollarSign,
-  Package,
-  Shield,
-} from "lucide-react";
+import { Shield, Lock, Server, Headphones, ArrowRight, Star } from "lucide-react";
 
-// Animation helpers
-const fadeUp = {
-  initial: { opacity: 0, y: 30 },
-  animate: { opacity: 1, y: 0 },
-};
+// ─── Nav ─────────────────────────────────────────────────────────────────────
 
-const stagger = {
-  animate: { transition: { staggerChildren: 0.12 } },
-};
+const NAV_LINKS = [
+  { label: "Ana Sayfa",      href: "#" },
+  { label: "Özellikler",    href: "#ozellikler" },
+  { label: "Fiyatlandırma", href: "#fiyatlandirma" },
+  { label: "Entegrasyonlar",href: "#entegrasyonlar" },
+  { label: "Kaynaklar",     href: "#kaynaklar" },
+];
 
-function AnimatedSection({ children, className }: { children: React.ReactNode; className?: string }) {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, amount: 0.2 });
-  return (
-    <motion.div
-      ref={ref}
-      variants={stagger}
-      initial="initial"
-      animate={inView ? "animate" : "initial"}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  );
+// ─── Platform verileri ───────────────────────────────────────────────────────
+
+interface Platform {
+  id: string;
+  badge: string | null;
+  glowBorder: string;
+  boxShadow: string;
+  cubeGlow: string;
+  btnGradient: string;
+  btnColor: string;
+  btnLabel: string;
+  logo: React.ReactNode;
+  cubeContent: React.ReactNode;
+  features: string[];
+  href: string;
 }
 
-// Mock dashboard preview
-function DashboardPreview() {
+const PLATFORMS: Platform[] = [
+  {
+    id: "amazon",
+    badge: "EN POPÜLER",
+    glowBorder: "rgba(245,158,11,0.35)",
+    boxShadow: "0 0 40px rgba(245,158,11,0.12), inset 0 0 40px rgba(245,158,11,0.03)",
+    cubeGlow: "rgba(245,158,11,0.5)",
+    btnGradient: "linear-gradient(135deg,#f59e0b,#d97706)",
+    btnColor: "#000",
+    btnLabel: "Amazon'u Bağla",
+    logo: (
+      <div className="flex flex-col items-start">
+        <span className="text-3xl font-black text-white tracking-tighter leading-none">amazon</span>
+        <div
+          className="mt-1 h-0.5 w-16 rounded-full"
+          style={{ background: "linear-gradient(90deg, #f59e0b, #fb923c)" }}
+        />
+      </div>
+    ),
+    cubeContent: <span className="text-3xl font-black text-amber-400">a</span>,
+    features: [
+      "Stok Senkronizasyonu",
+      "Sipariş Otomasyonu",
+      "AI Ürün Yönetimi",
+      "Buy Box Takibi",
+      "Kâr Analitiği",
+    ],
+    href: "/register",
+  },
+  {
+    id: "ebay",
+    badge: null,
+    glowBorder: "rgba(59,130,246,0.35)",
+    boxShadow: "0 0 40px rgba(59,130,246,0.15), inset 0 0 40px rgba(59,130,246,0.04)",
+    cubeGlow: "rgba(59,130,246,0.5)",
+    btnGradient: "linear-gradient(135deg,#2563eb,#1d4ed8)",
+    btnColor: "#fff",
+    btnLabel: "eBay'i Bağla",
+    logo: (
+      <span className="text-4xl font-black tracking-tight leading-none">
+        <span className="text-red-500">e</span>
+        <span className="text-blue-400">b</span>
+        <span className="text-yellow-400">a</span>
+        <span className="text-green-400">y</span>
+      </span>
+    ),
+    cubeContent: (
+      <span className="text-lg font-black leading-none">
+        <span className="text-red-500">e</span>
+        <span className="text-blue-400">b</span>
+        <span className="text-yellow-400">a</span>
+        <span className="text-green-400">y</span>
+      </span>
+    ),
+    features: [
+      "Otomatik Listeleme",
+      "Akıllı Fiyatlandırma",
+      "Sipariş Takibi",
+      "İade Yönetimi",
+      "Performans Raporları",
+    ],
+    href: "/register",
+  },
+  {
+    id: "etsy",
+    badge: null,
+    glowBorder: "rgba(249,115,22,0.35)",
+    boxShadow: "0 0 40px rgba(249,115,22,0.12), inset 0 0 40px rgba(249,115,22,0.03)",
+    cubeGlow: "rgba(249,115,22,0.5)",
+    btnGradient: "linear-gradient(135deg,#f97316,#ea580c)",
+    btnColor: "#fff",
+    btnLabel: "Etsy'i Bağla",
+    logo: <span className="text-4xl font-black text-orange-500 tracking-tight leading-none">Etsy</span>,
+    cubeContent: <span className="text-3xl font-black text-orange-400">E</span>,
+    features: [
+      "Ürün Yayınlama",
+      "Mesaj Otomasyonu",
+      "Stok Yönetimi",
+      "Mağaza Analitiği",
+      "Müşteri Destek AI",
+    ],
+    href: "/register",
+  },
+];
+
+// ─── Stats ───────────────────────────────────────────────────────────────────
+
+const STATS = [
+  { Icon: Shield,     title: "%99.9 Uptime",       sub: "Kurumsal Güvenilirlik" },
+  { Icon: Lock,       title: "Güvenli API",         sub: "Banka Düzeyinde Güvenlik" },
+  { Icon: Server,     title: "Kurumsal Altyapı",    sub: "Ölçeklenebilir & Güvenilir" },
+  { Icon: Headphones, title: "7/24 Destek",         sub: "Gerçek İnsanlar, Hızlı Çözüm" },
+];
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function PlatformCube({ glow, children }: { glow: string; children: React.ReactNode }) {
   return (
-    <div className="relative w-full max-w-lg mx-auto animate-float">
-      {/* Outer glow */}
-      <div className="absolute inset-0 bg-gradient-to-br from-violet-600/20 to-blue-600/10 rounded-3xl blur-2xl" />
-      {/* Main card */}
-      <div className="relative bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-4 shadow-2xl">
-        {/* Header bar */}
-        <div className="flex items-center gap-2 mb-4">
-          <div className="flex gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-red-500/60" />
-            <div className="w-3 h-3 rounded-full bg-amber-500/60" />
-            <div className="w-3 h-3 rounded-full bg-emerald-500/60" />
-          </div>
-          <div className="flex-1 h-6 bg-slate-800/60 rounded-lg flex items-center px-3">
-            <span className="text-[10px] text-slate-500">dashboard • eBayBot</span>
-          </div>
-        </div>
-        {/* Stats row */}
-        <div className="grid grid-cols-3 gap-2 mb-3">
-          {[
-            { label: "Toplam Kâr", value: "$12,480", color: "text-violet-400" },
-            { label: "Aktif Liste", value: "247",    color: "text-blue-400"   },
-            { label: "Bu Ay",      value: "$3,920",  color: "text-emerald-400"},
-          ].map((s) => (
-            <div key={s.label} className="bg-slate-800/60 rounded-xl p-2.5">
-              <p className="text-[9px] text-slate-500">{s.label}</p>
-              <p className={`text-sm font-bold mt-0.5 ${s.color}`}>{s.value}</p>
-            </div>
-          ))}
-        </div>
-        {/* Chart mock */}
-        <div className="bg-slate-800/60 rounded-xl p-3 mb-3 h-20 relative overflow-hidden">
-          <p className="text-[9px] text-slate-500 mb-1">Kâr Grafiği</p>
-          <svg viewBox="0 0 200 40" className="w-full h-10">
-            <defs>
-              <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#7c3aed" stopOpacity="0.5" />
-                <stop offset="100%" stopColor="#7c3aed" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            <path
-              d="M0,35 C20,30 40,20 60,18 C80,16 100,25 120,15 C140,5 160,12 180,8 L180,40 L0,40 Z"
-              fill="url(#lg)"
-            />
-            <path
-              d="M0,35 C20,30 40,20 60,18 C80,16 100,25 120,15 C140,5 160,12 180,8"
-              fill="none"
-              stroke="#7c3aed"
-              strokeWidth="1.5"
-            />
-          </svg>
-        </div>
-        {/* Product rows */}
-        <div className="space-y-1.5">
-          {[
-            { asin: "B09G9HD6PD", price: "$145.20", profit: "+$29.04", badge: "bg-emerald-500/20 text-emerald-400" },
-            { asin: "B08N5WRWNW", price:  "$89.99", profit: "+$18.00", badge: "bg-blue-500/20 text-blue-400"       },
-            { asin: "B07XJ8C8F5", price: "$212.50", profit: "+$42.50", badge: "bg-amber-500/20 text-amber-400"     },
-          ].map((p) => (
-            <div key={p.asin} className="flex items-center justify-between bg-slate-800/40 rounded-lg px-3 py-1.5">
-              <span className="text-[10px] font-mono text-violet-400">{p.asin}</span>
-              <span className="text-[10px] text-white">{p.price}</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${p.badge}`}>{p.profit}</span>
-            </div>
-          ))}
-        </div>
+    <div className="relative w-24 h-24 animate-float flex-shrink-0" style={{ perspective: "600px" }}>
+      {/* Glow blob behind */}
+      <div
+        className="absolute inset-0 rounded-2xl scale-150"
+        style={{ background: glow, filter: "blur(18px)", opacity: 0.6 }}
+      />
+      {/* Cube face */}
+      <div
+        className="relative w-full h-full flex items-center justify-center rounded-2xl border border-white/10"
+        style={{
+          background: "linear-gradient(145deg, rgba(30,30,50,0.95), rgba(10,10,20,0.98))",
+          transform: "rotateX(-10deg) rotateY(-14deg)",
+          boxShadow: `0 20px 40px ${glow}, inset 0 1px 0 rgba(255,255,255,0.08)`,
+        }}
+      >
+        {children}
       </div>
     </div>
   );
 }
 
-const stats = [
-  { value: "10.000+", label: "Aktif Ürün" },
-  { value: "%20",     label: "Net Kâr Marjı" },
-  { value: "7/24",    label: "Otomasyon" },
-];
+function CheckIcon({ color }: { color: string }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="flex-shrink-0">
+      <circle cx="8" cy="8" r="7" stroke={color} strokeWidth="1.2" strokeOpacity="0.5" />
+      <path d="M5.5 8l2 2 3-3" stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
-const features = [
-  {
-    icon: <Target className="h-6 w-6" />,
-    title: "Akıllı Radar",
-    desc: "Kârlı ürünleri otomatik tespit eder, rakip analizi yapar ve size en iyi fırsatları sunar.",
-    color: "from-violet-600 to-violet-400",
-  },
-  {
-    icon: <DollarSign className="h-6 w-6" />,
-    title: "Repricer Motoru",
-    desc: "%20 net kâr garantili formül. Amazon fiyatı değişince eBay fiyatı saniyeler içinde güncellenir.",
-    color: "from-blue-600 to-blue-400",
-  },
-  {
-    icon: <Zap className="h-6 w-6" />,
-    title: "7/24 Otomasyon",
-    desc: "Stok ve fiyat değişimleri otomatik izlenir. Siz uyurken sistem çalışmaya devam eder.",
-    color: "from-emerald-600 to-emerald-400",
-  },
-];
+const FEATURE_COLORS: Record<string, string> = {
+  amazon: "#f59e0b",
+  ebay: "#60a5fa",
+  etsy: "#f97316",
+};
 
-const plans = [
-  {
-    name: "Ücretsiz",
-    price: "0",
-    period: "/ay",
-    description: "Başlangıç için ideal",
-    features: ["10 ürün", "Manuel tarama", "Temel repricer", "E-posta destek"],
-    cta: "Hemen Başla",
-    href: "/register",
-    highlight: false,
-  },
-  {
-    name: "Pro",
-    price: "29",
-    period: "/ay",
-    description: "Büyüyen işletmeler için",
-    features: ["200 ürün", "15 dk otomatik tarama", "Gelişmiş repricer", "Sipariş doğrulama", "Öncelikli destek"],
-    cta: "Pro'ya Geç",
-    href: "/register",
-    highlight: true,
-  },
-  {
-    name: "Enterprise",
-    price: "99",
-    period: "/ay",
-    description: "Büyük operasyonlar için",
-    features: ["Sınırsız ürün", "10 dk tarama", "Çoklu mağaza", "API erişimi", "Özel destek"],
-    cta: "İletişime Geç",
-    href: "/register",
-    highlight: false,
-  },
-];
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LandingPage() {
+  const mouseX = useMotionValue(-1000);
+  const mouseY = useMotionValue(-1000);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      mouseX.set(e.clientX);
+      mouseY.set(e.clientY);
+    };
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, [mouseX, mouseY]);
+
   return (
-    <div className="min-h-screen bg-slate-950 text-white overflow-x-hidden">
-      {/* Background blobs */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-violet-600/10 rounded-full blur-[120px]" />
-        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-blue-600/8 rounded-full blur-[100px]" />
+    <div className="min-h-screen bg-black text-white overflow-x-hidden">
+
+      {/* ══ Arka Plan Efektleri ══ */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        {/* Mor gradient — sağ üst */}
+        <div
+          className="absolute -top-40 -right-40 w-[700px] h-[700px] rounded-full"
+          style={{ background: "radial-gradient(circle, rgba(109,40,217,0.4) 0%, transparent 70%)" }}
+        />
+        {/* Turuncu yatay çizgi — sol orta */}
+        <div
+          className="absolute top-1/2 -left-10 w-[60vw] h-px opacity-60"
+          style={{ background: "linear-gradient(90deg, transparent, rgba(245,158,11,0.5), transparent)", boxShadow: "0 0 30px 6px rgba(245,158,11,0.1)" }}
+        />
+        {/* Hafif mavi çizgi — sağ alt */}
+        <div
+          className="absolute bottom-1/3 -right-10 w-[40vw] h-px opacity-40"
+          style={{ background: "linear-gradient(270deg, transparent, rgba(59,130,246,0.4), transparent)", boxShadow: "0 0 20px 4px rgba(59,130,246,0.08)" }}
+        />
+        {/* Mouse spotlight */}
+        <motion.div
+          className="absolute w-[500px] h-[500px] rounded-full"
+          style={{
+            background: "radial-gradient(circle, rgba(109,40,217,0.18) 0%, transparent 70%)",
+            x: mouseX,
+            y: mouseY,
+            translateX: "-50%",
+            translateY: "-50%",
+            pointerEvents: "none",
+          }}
+        />
       </div>
 
-      {/* Navbar */}
-      <nav className="relative z-10 flex items-center justify-between px-6 md:px-12 py-5 border-b border-white/5">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center">
-            <Bot className="h-4 w-4 text-white" />
+      {/* ══ Navbar ══ */}
+      <nav className="relative z-20 flex items-center justify-between px-8 md:px-16 py-5 border-b border-white/5">
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-3 group">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm text-white shadow-lg"
+            style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)", boxShadow: "0 4px 20px rgba(124,58,237,0.4)" }}
+          >
+            OB
           </div>
-          <span className="font-bold text-white text-lg">eBayBot</span>
+          <div className="leading-none">
+            <p className="font-black text-white text-sm tracking-[0.2em]">OTO</p>
+            <p className="text-slate-500 text-[10px] tracking-[0.2em] mt-0.5">OTOMASYON</p>
+          </div>
+        </Link>
+
+        {/* Linkler */}
+        <div className="hidden md:flex items-center gap-8">
+          {NAV_LINKS.map((l) => (
+            <a
+              key={l.label}
+              href={l.href}
+              className="relative text-slate-400 hover:text-white text-sm transition-colors duration-200 group"
+            >
+              {l.label}
+              <span className="absolute -bottom-0.5 left-0 w-0 h-px bg-violet-500 group-hover:w-full transition-all duration-300 rounded-full" />
+            </a>
+          ))}
         </div>
-        <div className="flex items-center gap-3">
-          <Link href="/login">
-            <Button variant="ghost" size="sm">Giriş Yap</Button>
-          </Link>
-          <Link href="/register">
-            <Button size="sm">Ücretsiz Başla</Button>
-          </Link>
-        </div>
+
+        {/* Dashboard Butonu */}
+        <Link
+          href="/dashboard"
+          className="hidden md:flex items-center gap-2 border text-sm font-semibold px-5 py-2.5 rounded-xl transition-all duration-200 hover:bg-violet-600/20"
+          style={{ borderColor: "rgba(124,58,237,0.5)", background: "rgba(124,58,237,0.08)" }}
+        >
+          <span className="grid grid-cols-2 gap-0.5 w-3.5 h-3.5">
+            {[...Array(4)].map((_, i) => (
+              <span key={i} className="bg-current rounded-[1px] opacity-80" />
+            ))}
+          </span>
+          Panel
+        </Link>
+
+        {/* Mobile login */}
+        <Link href="/login" className="md:hidden text-sm text-slate-400 hover:text-white transition-colors">
+          Giriş
+        </Link>
       </nav>
 
-      {/* Hero */}
-      <section className="relative z-10 px-6 md:px-12 pt-20 pb-24">
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
-          {/* Left */}
-          <motion.div
-            variants={stagger}
-            initial="initial"
-            animate="animate"
-            className="space-y-8"
+      {/* ══ Hero ══ */}
+      <section className="relative z-10 text-center pt-16 pb-12 px-6">
+        {/* Rozet */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="inline-flex items-center gap-2 text-xs font-bold tracking-widest px-4 py-2 rounded-full mb-8 border"
+          style={{
+            color: "#a78bfa",
+            borderColor: "rgba(124,58,237,0.3)",
+            background: "rgba(124,58,237,0.08)",
+          }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
+          YAPAY ZEKA DESTEKLİ PAZAR YERİ OTOMASYONU
+        </motion.div>
+
+        {/* Başlık */}
+        <motion.h1
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="text-5xl sm:text-6xl md:text-7xl font-black leading-[1.1] mb-6"
+        >
+          Pazar Yeri İşinizi
+          <br />
+          <span
+            style={{
+              background: "linear-gradient(135deg, #60a5fa 0%, #818cf8 40%, #a78bfa 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
           >
-            <motion.div variants={fadeUp}>
-              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-sm font-medium">
-                <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
-                Yeni — Sipariş-anı doğrulama aktif
-              </span>
-            </motion.div>
+            AI ile Ölçeklendirin
+          </span>
+        </motion.h1>
 
-            <motion.h1
-              variants={fadeUp}
-              className="text-5xl md:text-6xl font-extrabold leading-tight"
-            >
-              Amazon&apos;dan eBay&apos;e{" "}
-              <span className="gradient-text">Otomatik Para Kazan</span>
-            </motion.h1>
-
-            <motion.p variants={fadeUp} className="text-xl text-slate-400 leading-relaxed max-w-lg">
-              Ürünleri otomatik bul, fiyatlandır ve listele. Kârı sen topla.
-              <strong className="text-white"> %20 net kâr</strong> garantili repricer motoru.
-            </motion.p>
-
-            <motion.div variants={fadeUp} className="flex flex-wrap gap-4">
-              <Link href="/register">
-                <Button size="lg" className="shadow-lg shadow-violet-500/30">
-                  Ücretsiz Başla
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-              <Button variant="ghost" size="lg">
-                Demo İzle
-              </Button>
-            </motion.div>
-
-            <motion.div variants={fadeUp} className="flex items-center gap-4 text-sm text-slate-400">
-              <div className="flex items-center gap-1.5">
-                <Shield className="h-4 w-4 text-emerald-400" />
-                <span>Kredi kartı gerektirmez</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Zap className="h-4 w-4 text-violet-400" />
-                <span>2 dakikada kur</span>
-              </div>
-            </motion.div>
-          </motion.div>
-
-          {/* Right — dashboard preview */}
-          <motion.div
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, delay: 0.3 }}
-          >
-            <DashboardPreview />
-          </motion.div>
-        </div>
+        {/* Açıklama */}
+        <motion.p
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="text-slate-400 text-lg md:text-xl max-w-xl mx-auto leading-relaxed"
+        >
+          Amazon, eBay ve Etsy satıcıları için tam otomasyonlu çözümler.
+          <br />
+          Listeleme, sipariş, stok ve müşteriyi tek platformdan yönetin.
+        </motion.p>
       </section>
 
-      {/* Stats bar */}
-      <AnimatedSection className="relative z-10 px-6 md:px-12 pb-20">
-        <div className="max-w-3xl mx-auto grid grid-cols-3 gap-6">
-          {stats.map((s, i) => (
+      {/* ══ Platform Kartları ══ */}
+      <section className="relative z-10 max-w-7xl mx-auto px-6 pb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {PLATFORMS.map((p, i) => (
             <motion.div
-              key={s.label}
-              variants={fadeUp}
-              transition={{ delay: i * 0.1 }}
-              className="text-center bg-slate-900/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl py-6 px-4"
+              key={p.id}
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.15 * i + 0.3, ease: [0.22, 1, 0.36, 1] }}
+              whileHover={{ y: -6, transition: { duration: 0.25 } }}
+              className="relative rounded-2xl p-6 flex flex-col"
+              style={{
+                background: "rgba(8,8,16,0.85)",
+                border: `1px solid ${p.glowBorder}`,
+                boxShadow: p.boxShadow,
+                backdropFilter: "blur(24px)",
+              }}
             >
-              <p className="text-3xl font-extrabold gradient-text">{s.value}</p>
-              <p className="text-sm text-slate-400 mt-1">{s.label}</p>
+              {/* Üst köşe rozeti */}
+              {p.badge && (
+                <div
+                  className="absolute top-4 right-4 flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full"
+                  style={{ background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.35)", color: "#fbbf24" }}
+                >
+                  <Star className="h-3 w-3 fill-current" />
+                  {p.badge}
+                </div>
+              )}
+
+              {/* Logo + 3D Kutu */}
+              <div className="flex items-start justify-between mb-7">
+                <div className="pt-1">{p.logo}</div>
+                <PlatformCube glow={p.cubeGlow}>{p.cubeContent}</PlatformCube>
+              </div>
+
+              {/* Özellikler */}
+              <ul className="space-y-3.5 flex-1 mb-8">
+                {p.features.map((f) => (
+                  <li key={f} className="flex items-center gap-3 text-slate-300 text-sm">
+                    <CheckIcon color={FEATURE_COLORS[p.id]} />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              {/* CTA Butonu */}
+              <Link
+                href={p.href}
+                className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-sm font-bold transition-all duration-200 hover:opacity-90 hover:scale-[1.01] active:scale-[0.99]"
+                style={{ background: p.btnGradient, color: p.btnColor }}
+              >
+                {p.btnLabel}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </motion.div>
           ))}
         </div>
-      </AnimatedSection>
+      </section>
 
-      {/* Features */}
-      <AnimatedSection className="relative z-10 px-6 md:px-12 pb-24">
-        <div className="max-w-7xl mx-auto">
-          <motion.div variants={fadeUp} className="text-center mb-14">
-            <h2 className="text-3xl md:text-4xl font-bold text-white">
-              Neden <span className="gradient-text">eBayBot</span>?
-            </h2>
-            <p className="text-slate-400 mt-4 max-w-lg mx-auto">
-              Rakipleriniz hâlâ manuel çalışırken siz otomatik kazanın.
-            </p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {features.map((f, i) => (
-              <motion.div
-                key={f.title}
-                variants={fadeUp}
-                transition={{ delay: i * 0.1 }}
-                whileHover={{ y: -4 }}
-                className="group bg-slate-900/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 hover:border-slate-600/50 transition-all duration-300"
+      {/* ══ Alt Stats Bar ══ */}
+      <section className="relative z-10 max-w-5xl mx-auto px-6 pb-16 pt-2">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.7 }}
+          className="rounded-2xl overflow-hidden"
+          style={{
+            background: "rgba(255,255,255,0.02)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            backdropFilter: "blur(20px)",
+          }}
+        >
+          <div className="grid grid-cols-2 md:grid-cols-4 divide-white/5" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+            {STATS.map(({ Icon, title, sub }, i) => (
+              <div
+                key={title}
+                className="flex items-center gap-4 px-6 py-5"
+                style={{
+                  borderRight: i < 3 ? "1px solid rgba(255,255,255,0.05)" : undefined,
+                  borderBottom: i < 2 ? "1px solid rgba(255,255,255,0.05)" : undefined,
+                }}
               >
                 <div
-                  className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${f.color} flex items-center justify-center mb-4 shadow-lg`}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: "rgba(255,255,255,0.04)" }}
                 >
-                  <div className="text-white">{f.icon}</div>
+                  <Icon className="h-5 w-5 text-slate-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-white mb-2">{f.title}</h3>
-                <p className="text-slate-400 text-sm leading-relaxed">{f.desc}</p>
-              </motion.div>
+                <div>
+                  <p className="text-white font-bold text-sm">{title}</p>
+                  <p className="text-slate-500 text-xs mt-0.5">{sub}</p>
+                </div>
+              </div>
             ))}
           </div>
-        </div>
-      </AnimatedSection>
-
-      {/* How it works */}
-      <AnimatedSection className="relative z-10 px-6 md:px-12 pb-24">
-        <div className="max-w-4xl mx-auto">
-          <motion.div variants={fadeUp} className="text-center mb-14">
-            <h2 className="text-3xl md:text-4xl font-bold text-white">
-              Nasıl Çalışır?
-            </h2>
-          </motion.div>
-          <div className="grid md:grid-cols-4 gap-6">
-            {[
-              { step: "1", icon: <Package className="h-5 w-5" />, title: "ASIN Gir",     desc: "Amazon ürün kodunu sisteme gir" },
-              { step: "2", icon: <Target className="h-5 w-5" />,  title: "Fiyat Hesapla", desc: "%20 kârlı eBay fiyatı otomatik çıkar" },
-              { step: "3", icon: <Bot className="h-5 w-5" />,     title: "Listele",       desc: "eBay mağazana tek tıkla listele"  },
-              { step: "4", icon: <DollarSign className="h-5 w-5" />, title: "Kazan",     desc: "Sistem otomatik çalışır, sen kazanırsın" },
-            ].map((s, i) => (
-              <motion.div
-                key={s.step}
-                variants={fadeUp}
-                transition={{ delay: i * 0.1 }}
-                className="text-center"
-              >
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600/20 to-blue-600/20 border border-violet-500/20 flex items-center justify-center mx-auto mb-3">
-                  <div className="text-violet-400">{s.icon}</div>
-                </div>
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 text-white text-xs font-bold flex items-center justify-center mx-auto -mt-6 mb-3 relative">
-                  {s.step}
-                </div>
-                <h4 className="font-semibold text-white mb-1">{s.title}</h4>
-                <p className="text-xs text-slate-400">{s.desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </AnimatedSection>
-
-      {/* Pricing */}
-      <AnimatedSection className="relative z-10 px-6 md:px-12 pb-24">
-        <div className="max-w-5xl mx-auto">
-          <motion.div variants={fadeUp} className="text-center mb-14">
-            <h2 className="text-3xl md:text-4xl font-bold text-white">Fiyatlandırma</h2>
-            <p className="text-slate-400 mt-4">Büyüdükçe planınızı yükseltin.</p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {plans.map((plan, i) => (
-              <motion.div
-                key={plan.name}
-                variants={fadeUp}
-                transition={{ delay: i * 0.1 }}
-                whileHover={{ y: -4 }}
-                className={`relative rounded-2xl p-6 border transition-all duration-300 ${
-                  plan.highlight
-                    ? "bg-gradient-to-b from-violet-900/40 to-slate-900/60 border-violet-500/30 shadow-xl shadow-violet-500/10"
-                    : "bg-slate-900/50 border-slate-700/50 hover:border-slate-600/50"
-                }`}
-              >
-                {plan.highlight && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-gradient-to-r from-violet-600 to-blue-600 text-white text-xs font-semibold">
-                    En Popüler
-                  </div>
-                )}
-                <div className="mb-4">
-                  <p className="text-sm font-medium text-slate-400">{plan.name}</p>
-                  <p className="text-3xl font-extrabold text-white mt-1">
-                    ${plan.price}
-                    <span className="text-base text-slate-400 font-normal">{plan.period}</span>
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">{plan.description}</p>
-                </div>
-                <ul className="space-y-2.5 mb-6">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-center gap-2 text-sm text-slate-300">
-                      <Check className="h-4 w-4 text-emerald-400 flex-shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <Link href={plan.href}>
-                  <Button
-                    variant={plan.highlight ? "primary" : "ghost"}
-                    className="w-full justify-center"
-                  >
-                    {plan.cta}
-                  </Button>
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </AnimatedSection>
-
-      {/* CTA banner */}
-      <AnimatedSection className="relative z-10 px-6 md:px-12 pb-24">
-        <motion.div
-          variants={fadeUp}
-          className="max-w-3xl mx-auto text-center bg-gradient-to-br from-violet-600/20 to-blue-600/10 border border-violet-500/20 rounded-3xl p-12"
-        >
-          <h2 className="text-3xl font-bold text-white mb-4">
-            Hemen başlamaya hazır mısın?
-          </h2>
-          <p className="text-slate-400 mb-8">
-            Ücretsiz hesap oluştur, 10 ürünle dene. Kredi kartı gerektirmez.
-          </p>
-          <Link href="/register">
-            <Button size="lg" className="shadow-lg shadow-violet-500/30 mx-auto">
-              Ücretsiz Hesap Oluştur
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
         </motion.div>
-      </AnimatedSection>
+      </section>
 
-      {/* Footer */}
-      <footer className="relative z-10 border-t border-white/5 px-6 md:px-12 py-8">
+      {/* ══ Footer ══ */}
+      <footer
+        className="relative z-10 px-6 md:px-16 py-6 border-t"
+        style={{ borderColor: "rgba(255,255,255,0.05)" }}
+      >
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center">
-              <Bot className="h-3.5 w-3.5 text-white" />
+            <div
+              className="w-6 h-6 rounded-lg flex items-center justify-center font-black text-[10px] text-white"
+              style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)" }}
+            >
+              OB
             </div>
-            <span className="font-bold text-slate-300">eBayBot</span>
+            <span className="font-bold text-slate-400 text-sm">OtoBot</span>
           </div>
-          <p className="text-sm text-slate-500">
-            © 2026 eBayBot. Tüm hakları saklıdır.
-          </p>
-          <div className="flex items-center gap-6 text-sm text-slate-400">
+          <p className="text-xs text-slate-600">© 2026 OtoBot. Tüm hakları saklıdır.</p>
+          <div className="flex items-center gap-6 text-xs text-slate-500">
             <a href="#" className="hover:text-white transition-colors">Gizlilik</a>
             <a href="#" className="hover:text-white transition-colors">Kullanım Şartları</a>
             <a href="#" className="hover:text-white transition-colors">İletişim</a>
