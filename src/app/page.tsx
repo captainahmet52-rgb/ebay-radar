@@ -70,42 +70,92 @@ function FeatureRow({
 
 // ─── 3D Küp ───────────────────────────────────────────────────────────────────
 
+const CUBE_SIZE = 96;
+const CUBE_HALF = CUBE_SIZE / 2;
+
 function Cube3D({
-  glow,
+  accent,
   children,
 }: {
-  glow: string;
+  accent: string;   // hex renk, örn "#f59e0b"
   children: React.ReactNode;
 }) {
+  const face: React.CSSProperties = {
+    position: "absolute",
+    width: CUBE_SIZE,
+    height: CUBE_SIZE,
+    borderRadius: 16,
+    border: `1px solid ${accent}66`,
+    boxShadow: `inset 0 0 26px ${accent}22`,
+  };
+
   return (
-    <div className="relative w-24 h-24 flex-shrink-0" style={{ perspective: "500px" }}>
-      {/* Alt glow yansıma */}
+    <div
+      className="relative flex-shrink-0"
+      style={{ width: CUBE_SIZE, height: CUBE_SIZE, perspective: 650 }}
+    >
+      {/* Zemin parlaması (dolgu) */}
       <div
-        className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-16 h-3 rounded-full"
-        style={{ background: glow, filter: "blur(10px)", opacity: 0.7 }}
-      />
-      {/* Arka glow blob */}
-      <div
-        className="absolute inset-0 rounded-2xl scale-125"
-        style={{ background: `radial-gradient(circle, ${glow} 0%, transparent 70%)`, filter: "blur(16px)", opacity: 0.5 }}
-      />
-      {/* Küp yüzeyi */}
-      <div
-        className="relative w-full h-full rounded-2xl flex items-center justify-center"
         style={{
-          background: "linear-gradient(145deg, rgba(35,30,50,0.95) 0%, rgba(8,8,16,0.98) 100%)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          transform: "rotateX(-12deg) rotateY(-18deg)",
-          boxShadow: `0 20px 40px ${glow}, inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.5)`,
+          position: "absolute", bottom: -22, left: "50%",
+          width: CUBE_SIZE * 1.35, height: 32, transform: "translateX(-50%)",
+          borderRadius: "50%",
+          background: `radial-gradient(ellipse, ${accent}aa 0%, ${accent}33 45%, transparent 72%)`,
+          filter: "blur(8px)",
+        }}
+      />
+      {/* Zemin halkası (çember) */}
+      <div
+        style={{
+          position: "absolute", bottom: -14, left: "50%",
+          width: CUBE_SIZE * 0.98, height: 16, transform: "translateX(-50%)",
+          borderRadius: "50%",
+          border: `2px solid ${accent}`,
+          boxShadow: `0 0 18px 1px ${accent}`,
+          opacity: 0.5,
+        }}
+      />
+      {/* Küp gövdesi */}
+      <motion.div
+        animate={{ y: [0, -6, 0] }}
+        transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+          width: CUBE_SIZE, height: CUBE_SIZE, position: "relative",
+          transformStyle: "preserve-3d",
+          rotateX: -24, rotateY: -34,
+          filter: `drop-shadow(0 16px 22px ${accent}99)`,
         }}
       >
-        {/* Üst kenar ışık */}
+        {/* Ön yüz */}
         <div
-          className="absolute top-0 left-3 right-3 h-px rounded-full opacity-60"
-          style={{ background: `linear-gradient(90deg, transparent, ${glow}, transparent)` }}
+          style={{
+            ...face,
+            transform: `translateZ(${CUBE_HALF}px)`,
+            background: "linear-gradient(150deg, rgba(42,38,56,0.94), rgba(8,8,14,0.96))",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          {/* üst kenar ışık */}
+          <div style={{ position: "absolute", top: 0, left: 12, right: 12, height: 1, background: `linear-gradient(90deg, transparent, ${accent}, transparent)`, opacity: 0.8 }} />
+          <div style={{ filter: `drop-shadow(0 0 14px ${accent})` }}>{children}</div>
+        </div>
+        {/* Sağ yüz */}
+        <div
+          style={{
+            ...face,
+            transform: `rotateY(90deg) translateZ(${CUBE_HALF}px)`,
+            background: "linear-gradient(150deg, rgba(22,20,32,0.97), rgba(3,3,6,0.98))",
+          }}
         />
-        {children}
-      </div>
+        {/* Üst yüz */}
+        <div
+          style={{
+            ...face,
+            transform: `rotateX(90deg) translateZ(${CUBE_HALF}px)`,
+            background: `linear-gradient(150deg, ${accent}3a, rgba(24,22,34,0.96))`,
+          }}
+        />
+      </motion.div>
     </div>
   );
 }
@@ -121,7 +171,7 @@ interface CardProps {
   glowColor: string;
   btnLabel: string;
   btnStyle: React.CSSProperties;
-  cubeGlow: string;
+  cubeAccent: string;
   cubeContent: React.ReactNode;
   href: string;
   delay?: number;
@@ -129,7 +179,7 @@ interface CardProps {
 
 function PlatformCard({
   logo, badge, features, featureColor, borderColor,
-  glowColor, btnLabel, btnStyle, cubeGlow, cubeContent, href, delay = 0,
+  glowColor, btnLabel, btnStyle, cubeAccent, cubeContent, href, delay = 0,
 }: CardProps) {
   return (
     <motion.div
@@ -156,9 +206,9 @@ function PlatformCard({
       )}
 
       {/* Logo + Küp */}
-      <div className="flex items-start justify-between mb-5 gap-4">
+      <div className="flex items-start justify-between mb-6 gap-4">
         <div className="pt-1">{logo}</div>
-        <Cube3D glow={cubeGlow}>{cubeContent}</Cube3D>
+        <Cube3D accent={cubeAccent}>{cubeContent}</Cube3D>
       </div>
 
       {/* Özellikler */}
@@ -334,7 +384,7 @@ export default function LandingPage() {
             glowColor="rgba(245,158,11,0.1)"
             btnLabel="Amazon'u Bağla"
             btnStyle={{ background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "#000" }}
-            cubeGlow="rgba(245,158,11,0.6)"
+            cubeAccent="#f59e0b"
             cubeContent={
               <span className="text-4xl font-black text-amber-400" style={{ fontFamily: "Georgia, serif" }}>
                 a
@@ -360,7 +410,7 @@ export default function LandingPage() {
             glowColor="rgba(59,130,246,0.12)"
             btnLabel="eBay'i Bağla"
             btnStyle={{ background: "linear-gradient(135deg,#2563eb,#1d4ed8)", color: "#fff" }}
-            cubeGlow="rgba(59,130,246,0.6)"
+            cubeAccent="#3b82f6"
             cubeContent={
               <span className="text-2xl font-black leading-none">
                 <span style={{ color: "#ef4444" }}>e</span>
@@ -389,7 +439,7 @@ export default function LandingPage() {
             glowColor="rgba(249,115,22,0.1)"
             btnLabel="Etsy'i Bağla"
             btnStyle={{ background: "linear-gradient(135deg,#f97316,#ea580c)", color: "#fff" }}
-            cubeGlow="rgba(249,115,22,0.6)"
+            cubeAccent="#f97316"
             cubeContent={
               <span
                 className="text-4xl font-black"
