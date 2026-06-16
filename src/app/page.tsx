@@ -7,9 +7,11 @@ import {
   RefreshCcw, ShoppingCart, Cpu, Target, BarChart2,
   Upload, DollarSign, RotateCcw, FileBarChart,
   Package, MessageSquare, TrendingUp, HeartHandshake,
-  Shield, Lock, Server, Headphones, Star, ArrowRight,
+  Shield, Lock, Server, Headphones, Star, ArrowRight, ChevronDown,
 } from "lucide-react";
 import { Logo, LogoMark } from "@/components/logo";
+import { FAQ } from "@/lib/faq";
+import { FaqStructuredData } from "@/components/structured-data";
 
 // ─── Feature ikonları ─────────────────────────────────────────────────────────
 
@@ -393,6 +395,30 @@ export default function LandingPage() {
             ))}
           </div>
         </motion.div>
+      </section>
+
+      {/* ══ SSS (FAQ) ══ */}
+      <section className="relative z-10 max-w-3xl mx-auto px-6 pb-16">
+        <FaqStructuredData />
+        <h2 className="text-3xl md:text-4xl font-black text-center mb-3">Sık Sorulan Sorular</h2>
+        <p className="text-slate-400 text-center mb-10">
+          Amazon, eBay ve Etsy otomasyonu hakkında merak edilenler
+        </p>
+        <div className="space-y-3">
+          {FAQ.map((item) => (
+            <details
+              key={item.q}
+              className="group rounded-2xl px-5 py-4 [&_summary::-webkit-details-marker]:hidden"
+              style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)" }}
+            >
+              <summary className="flex items-center justify-between cursor-pointer list-none text-white font-semibold text-base">
+                {item.q}
+                <ChevronDown className="h-5 w-5 text-slate-400 transition-transform duration-200 group-open:rotate-180 flex-shrink-0 ml-4" />
+              </summary>
+              <p className="text-slate-400 text-sm leading-relaxed mt-3">{item.a}</p>
+            </details>
+          ))}
+        </div>
       </section>
 
       {/* ══ Footer ══ */}

@@ -1,0 +1,26 @@
+# Lean Automation
+
+> Amazon, eBay ve Etsy satıcıları için yapay zeka destekli pazar yeri otomasyon platformu. Ürün listeleme, fiyatlandırma, stok takibi ve sipariş yönetimini tek panelden otomatikleştirir.
+
+Lean Automation, e-ticaret satıcılarının birden fazla pazar yerindeki işlemlerini otomatikleştirmesini sağlar. Her pazar yeri kendi ayrı sistemine ("bot") sahiptir:
+
+- **eBayBot** (aktif): eBay mağazaları için otomatik listeleme, akıllı fiyatlandırma, stok senkronizasyonu, sipariş ve iade yönetimi, performans raporları.
+- **AmazonBot** (çok yakında): Amazon için stok senkronizasyonu, sipariş otomasyonu, AI ürün yönetimi, Buy Box takibi, kâr analitiği, otomatik yeniden fiyatlandırma.
+- **EtsyBot** (çok yakında): Etsy için ürün yayınlama, mesaj otomasyonu, stok yönetimi, mağaza analitiği, AI müşteri desteği.
+
+## Temel Bilgiler
+
+- Ücretsiz deneme: Mağaza bağlandığında 7 gün / 50 ürün ücretsiz, kredi kartı gerekmez.
+- Fiyatlandırma: Farklı ürün limitleri ve özelliklere sahip 5 paket.
+- Fiyat/stok takibi: Ürünler risk grubuna göre kademeli taranır (sık / saatlik / günlük).
+- Dil: Türkçe arayüz.
+
+## Önemli Sayfalar
+
+- Ana sayfa: /
+- AmazonBot: /amazon
+- EtsyBot: /etsy
+
+## İletişim
+
+- Web: https://lean-automation.com
