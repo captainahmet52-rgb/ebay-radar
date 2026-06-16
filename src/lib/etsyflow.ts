@@ -51,20 +51,55 @@ export async function resolveEtsyProfileId(email: string): Promise<string | null
 }
 
 /**
+ * Supabase Auth (auth.users) içinde e-postaya göre kullanıcı id'si bulur.
+ * profiles tablosu güvenilir değilse (email boş olabilir) bu kullanılır.
+ */
+async function findAuthUserIdByEmail(email: string): Promise<string | null> {
+  const db = etsyflowAdmin();
+  const target = email.trim().toLowerCase();
+  const perPage = 1000;
+
+  for (let page = 1; page <= 10; page++) {
+    const { data, error } = await db.auth.admin.listUsers({ page, perPage });
+    if (error || !data?.users?.length) break;
+    const found = data.users.find((u) => u.email?.toLowerCase() === target);
+    if (found) return found.id;
+    if (data.users.length < perPage) break;
+  }
+  return null;
+}
+
+/** id + email ile profiles satırını garanti altına alır (yoksa oluşturur/günceller). */
+async function ensureProfile(id: string, email: string, fullName?: string | null): Promise<void> {
+  const db = etsyflowAdmin();
+  await db.from("profiles").upsert(
+    { id, email, full_name: fullName ?? null },
+    { onConflict: "id" }
+  );
+}
+
+/**
  * Lean Automation kullanıcısını EtsyFlow'a eşler; yoksa OTOMATİK oluşturur.
  * Yani Lean Automation'da hesabı olan biri Etsy'e girince EtsyFlow Supabase'inde
- * de profili kendiliğinden açılır (tek kayıt, tek giriş).
+ * profili kendiliğinden açılır/eşlenir (tek kayıt, tek giriş).
  */
 export async function getOrCreateEtsyProfileId(
   email: string,
   fullName?: string | null
 ): Promise<string> {
-  const existing = await resolveEtsyProfileId(email);
-  if (existing) return existing;
+  // 1) profiles tablosunda e-posta ile ara
+  const byProfile = await resolveEtsyProfileId(email);
+  if (byProfile) return byProfile;
 
+  // 2) auth.users içinde zaten var mı? (varsa ona bağlan, profili garantile)
+  const existingAuthId = await findAuthUserIdByEmail(email);
+  if (existingAuthId) {
+    await ensureProfile(existingAuthId, email, fullName);
+    return existingAuthId;
+  }
+
+  // 3) Hiç yoksa yeni auth kullanıcısı oluştur
   const db = etsyflowAdmin();
-
-  // Supabase auth kullanıcısı oluştur — profiles satırı trigger ile oluşur.
   const { data: created, error } = await db.auth.admin.createUser({
     email,
     email_confirm: true,
@@ -72,20 +107,18 @@ export async function getOrCreateEtsyProfileId(
   });
 
   if (error) {
-    // Auth kullanıcısı zaten varsa profili tekrar çözmeyi dene
-    const retry = await resolveEtsyProfileId(email);
-    if (retry) return retry;
+    // Yarış durumu: oluşturma sırasında biri eklediyse tekrar bul
+    const retryId = await findAuthUserIdByEmail(email);
+    if (retryId) {
+      await ensureProfile(retryId, email, fullName);
+      return retryId;
+    }
     throw new Error(`EtsyFlow hesabı oluşturulamadı: ${error.message}`);
   }
 
   const id = created.user?.id;
   if (!id) throw new Error("EtsyFlow kullanıcı id'si alınamadı");
 
-  // Trigger profili oluşturmadıysa garanti altına al
-  await db.from("profiles").upsert(
-    { id, email, full_name: fullName ?? null },
-    { onConflict: "id" }
-  );
-
+  await ensureProfile(id, email, fullName);
   return id;
 }
