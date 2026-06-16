@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { motion, useMotionValue } from "framer-motion";
 import Link from "next/link";
 import {
@@ -68,135 +68,97 @@ function FeatureRow({
   );
 }
 
-// ─── 3D Küp (görsel tabanlı) ────────────────────────────────────────────────────
-
-const CUBE_SIZE = 130;
-
-function Cube3D({
-  src,
-  accent,
-  fallback,
-}: {
-  src: string;            // /cubes/amazon.png gibi
-  accent: string;         // hex renk, örn "#f59e0b"
-  fallback: React.ReactNode;
-}) {
-  const [imgOk, setImgOk] = useState(true);
-
-  return (
-    <div
-      className="relative flex-shrink-0"
-      style={{ width: CUBE_SIZE, height: CUBE_SIZE }}
-    >
-      {/* Ortam parlaması — görsel screen blend ile birleşince halka görevi görür */}
-      <div
-        style={{
-          position: "absolute", inset: 0, transform: "scale(1.3)",
-          background: `radial-gradient(circle, ${accent}55 0%, transparent 68%)`,
-          filter: "blur(20px)",
-          zIndex: 0,
-        }}
-      />
-      {/* Yüzen görsel */}
-      <motion.div
-        animate={{ y: [0, -7, 0] }}
-        transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
-        style={{ position: "relative", width: CUBE_SIZE, height: CUBE_SIZE, zIndex: 1 }}
-      >
-        {imgOk ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={src}
-            alt=""
-            onError={() => setImgOk(false)}
-            style={{
-              width: "100%", height: "100%", objectFit: "contain",
-              mixBlendMode: "screen",
-            }}
-          />
-        ) : (
-          // Görsel henüz yüklenmediyse: basit kutu + harf
-          <div
-            className="w-full h-full rounded-2xl flex items-center justify-center"
-            style={{
-              background: "linear-gradient(145deg, rgba(35,30,50,0.95), rgba(8,8,16,0.98))",
-              border: `1px solid ${accent}55`,
-              boxShadow: `0 20px 40px ${accent}55, inset 0 0 30px ${accent}22`,
-              transform: "rotateX(-12deg) rotateY(-18deg)",
-            }}
-          >
-            <div style={{ filter: `drop-shadow(0 0 14px ${accent})` }}>{fallback}</div>
-          </div>
-        )}
-      </motion.div>
-    </div>
-  );
-}
-
 // ─── Platform kartı ───────────────────────────────────────────────────────────
 
 interface CardProps {
   logo: React.ReactNode;
+  tagline: string;
   badge?: boolean;
   features: { icon: React.ElementType; label: string }[];
-  featureColor: string;
-  borderColor: string;
-  glowColor: string;
+  accent: string;        // ana marka rengi (hex)
+  accent2: string;       // koyu ton (buton degrade)
   btnLabel: string;
-  btnStyle: React.CSSProperties;
-  cubeAccent: string;
-  cubeImage: string;
-  cubeContent: React.ReactNode;
+  btnTextColor: string;
   href: string;
   delay?: number;
 }
 
 function PlatformCard({
-  logo, badge, features, featureColor, borderColor,
-  glowColor, btnLabel, btnStyle, cubeAccent, cubeImage, cubeContent, href, delay = 0,
+  logo, tagline, badge, features, accent, accent2,
+  btnLabel, btnTextColor, href, delay = 0,
 }: CardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
-      whileHover={{ y: -4, transition: { duration: 0.25 } }}
-      className="relative rounded-2xl p-5 flex flex-col"
+      whileHover={{ y: -6, transition: { duration: 0.25 } }}
+      className="relative rounded-3xl p-7 flex flex-col overflow-hidden"
       style={{
-        background: "rgba(6,6,14,0.92)",
-        border: `1px solid ${borderColor}`,
-        boxShadow: `0 0 50px ${glowColor}, inset 0 0 60px rgba(0,0,0,0.3)`,
-        backdropFilter: "blur(24px)",
+        background: "linear-gradient(180deg, rgba(16,15,26,0.92) 0%, rgba(6,6,12,0.96) 100%)",
+        border: `1px solid ${accent}33`,
+        boxShadow: `0 24px 60px rgba(0,0,0,0.55), 0 0 50px ${accent}1a, inset 0 1px 0 rgba(255,255,255,0.05)`,
+        backdropFilter: "blur(20px)",
       }}
     >
+      {/* Üst köşe parlaması */}
+      <div
+        className="pointer-events-none"
+        style={{
+          position: "absolute", top: -60, right: -40, width: 220, height: 220,
+          background: `radial-gradient(circle, ${accent}40 0%, transparent 70%)`,
+          filter: "blur(50px)",
+        }}
+      />
+
       {badge && (
         <div
-          className="absolute top-4 right-4 flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full"
-          style={{ background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.4)", color: "#fbbf24" }}
+          className="absolute top-5 right-5 z-10 flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full"
+          style={{ background: `${accent}22`, border: `1px solid ${accent}66`, color: accent }}
         >
           <Star className="h-2.5 w-2.5 fill-current" />
           EN POPÜLER
         </div>
       )}
 
-      {/* Logo + Küp */}
-      <div className="flex items-start justify-between mb-6 gap-3">
-        <div className="pt-1">{logo}</div>
-        <Cube3D src={cubeImage} accent={cubeAccent} fallback={cubeContent} />
+      {/* Logo bölgesi (parlayan hero) */}
+      <div className="relative flex flex-col items-center text-center pt-5 pb-7">
+        {/* logo arkası glow */}
+        <div
+          className="pointer-events-none"
+          style={{
+            position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)",
+            width: 220, height: 130,
+            background: `radial-gradient(ellipse, ${accent}55 0%, transparent 65%)`,
+            filter: "blur(34px)",
+          }}
+        />
+        <motion.div
+          animate={{ y: [0, -5, 0] }}
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+          className="relative"
+          style={{ filter: `drop-shadow(0 6px 22px ${accent}aa)` }}
+        >
+          {logo}
+        </motion.div>
+        <p className="relative text-slate-400 text-sm mt-4 max-w-[230px] leading-relaxed">{tagline}</p>
       </div>
 
+      {/* Ayraç */}
+      <div className="h-px w-full mb-6" style={{ background: `linear-gradient(90deg, transparent, ${accent}55, transparent)` }} />
+
       {/* Özellikler */}
-      <ul className="space-y-2.5 flex-1 mb-5">
+      <ul className="space-y-3 flex-1 mb-7">
         {features.map((f) => (
-          <FeatureRow key={f.label} icon={f.icon} label={f.label} color={featureColor} />
+          <FeatureRow key={f.label} icon={f.icon} label={f.label} color={accent} />
         ))}
       </ul>
 
       {/* CTA */}
       <Link
         href={href}
-        className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-sm font-bold transition-all duration-200 hover:opacity-90 hover:scale-[1.01] active:scale-[0.99]"
-        style={btnStyle}
+        className="flex items-center justify-center gap-2 w-full py-4 rounded-xl text-sm font-bold transition-all duration-200 hover:opacity-90 hover:scale-[1.01] active:scale-[0.99]"
+        style={{ background: `linear-gradient(135deg, ${accent}, ${accent2})`, color: btnTextColor, boxShadow: `0 10px 28px ${accent}55` }}
       >
         {btnLabel}
         <ArrowRight className="h-4 w-4" />
@@ -340,31 +302,22 @@ export default function LandingPage() {
             delay={0.25}
             badge
             logo={
-              <div>
-                <p className="text-[2.2rem] font-black text-white leading-none tracking-tight" style={{ fontFamily: "Georgia, serif" }}>
+              <div className="inline-block">
+                <span className="text-[2.8rem] font-black text-white leading-none tracking-tight" style={{ fontFamily: "Georgia, serif" }}>
                   amazon
-                </p>
-                <div className="mt-1 flex items-center">
-                  <div className="h-0.5 w-[52%] rounded-full" style={{ background: "linear-gradient(90deg, #f59e0b, #fb923c 60%, transparent)" }} />
-                  <div className="w-2 h-2 rounded-full border-2 border-amber-400 -ml-1 flex items-center justify-center">
-                    <div className="w-0.5 h-0.5 bg-amber-400 rounded-full" />
-                  </div>
-                </div>
+                </span>
+                <svg width="150" height="20" viewBox="0 0 150 20" fill="none" className="mt-1.5 mx-auto block">
+                  <path d="M10 7 C 52 23, 102 23, 138 8" stroke="#f59e0b" strokeWidth="4" strokeLinecap="round" />
+                  <path d="M138 8 L129 6.5 M138 8 L133 15" stroke="#f59e0b" strokeWidth="4" strokeLinecap="round" />
+                </svg>
               </div>
             }
+            tagline="Amazon mağazanı bağla, ürünleri ve siparişleri otomatik yönet."
             features={AMAZON_FEATURES}
-            featureColor="#f59e0b"
-            borderColor="rgba(245,158,11,0.35)"
-            glowColor="rgba(245,158,11,0.1)"
+            accent="#f59e0b"
+            accent2="#d97706"
             btnLabel="Amazon'u Bağla"
-            btnStyle={{ background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "#000" }}
-            cubeAccent="#f59e0b"
-            cubeImage="/cubes/amazon.png"
-            cubeContent={
-              <span className="text-4xl font-black text-amber-400" style={{ fontFamily: "Georgia, serif" }}>
-                a
-              </span>
-            }
+            btnTextColor="#000"
             href="/dashboard/amazon"
           />
 
@@ -372,29 +325,19 @@ export default function LandingPage() {
           <PlatformCard
             delay={0.35}
             logo={
-              <span className="text-[2.6rem] font-black leading-none tracking-tight">
+              <span className="text-[3rem] font-black leading-none tracking-tight">
                 <span style={{ color: "#ef4444" }}>e</span>
                 <span style={{ color: "#3b82f6" }}>b</span>
                 <span style={{ color: "#f59e0b" }}>a</span>
                 <span style={{ color: "#22c55e" }}>y</span>
               </span>
             }
+            tagline="eBay mağazanı bağla, otomatik listele, fiyatla ve sat."
             features={EBAY_FEATURES}
-            featureColor="#3b82f6"
-            borderColor="rgba(59,130,246,0.4)"
-            glowColor="rgba(59,130,246,0.12)"
+            accent="#3b82f6"
+            accent2="#1d4ed8"
             btnLabel="eBay'i Bağla"
-            btnStyle={{ background: "linear-gradient(135deg,#2563eb,#1d4ed8)", color: "#fff" }}
-            cubeAccent="#3b82f6"
-            cubeImage="/cubes/ebay.png"
-            cubeContent={
-              <span className="text-2xl font-black leading-none">
-                <span style={{ color: "#ef4444" }}>e</span>
-                <span style={{ color: "#60a5fa" }}>b</span>
-                <span style={{ color: "#fbbf24" }}>a</span>
-                <span style={{ color: "#4ade80" }}>y</span>
-              </span>
-            }
+            btnTextColor="#fff"
             href="/dashboard/listings"
           />
 
@@ -403,28 +346,18 @@ export default function LandingPage() {
             delay={0.45}
             logo={
               <span
-                className="text-[2.6rem] font-black leading-none tracking-tight"
-                style={{ color: "#f97316" }}
+                className="text-[3rem] font-black leading-none tracking-tight"
+                style={{ color: "#f97316", fontFamily: "Georgia, serif" }}
               >
                 Etsy
               </span>
             }
+            tagline="Etsy mağazanı bağla, ürün ve mesajları otomatikleştir."
             features={ETSY_FEATURES}
-            featureColor="#f97316"
-            borderColor="rgba(249,115,22,0.35)"
-            glowColor="rgba(249,115,22,0.1)"
+            accent="#f97316"
+            accent2="#ea580c"
             btnLabel="Etsy'i Bağla"
-            btnStyle={{ background: "linear-gradient(135deg,#f97316,#ea580c)", color: "#fff" }}
-            cubeAccent="#f97316"
-            cubeImage="/cubes/etsy.png"
-            cubeContent={
-              <span
-                className="text-4xl font-black"
-                style={{ color: "#f97316", fontFamily: "Georgia, serif" }}
-              >
-                E
-              </span>
-            }
+            btnTextColor="#fff"
             href="/dashboard/etsy"
           />
         </div>
