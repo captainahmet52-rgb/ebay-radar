@@ -15,22 +15,22 @@ import {
   Upload,
   CreditCard,
   ShieldCheck,
+  Home,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { LogoMark } from "@/components/logo";
 
+// eBayBot paneli — sadece eBay'e ait sayfalar
 const navItems = [
-  { href: "/dashboard",                label: "Dashboard",   icon: LayoutDashboard },
-  { href: "/dashboard/amazon",         label: "Amazon",      icon: Package,        color: "text-amber-400" },
-  { href: "/dashboard/listings",       label: "eBay",        icon: List,           color: "text-blue-400"  },
-  { href: "/dashboard/etsy",           label: "Etsy",        icon: ShoppingCart,   color: "text-orange-400"},
-  { href: "/dashboard/products",       label: "Ürünler",     icon: Package },
-  { href: "/dashboard/orders",         label: "Siparişler",  icon: ShoppingCart },
-  { href: "/dashboard/auto-upload",    label: "Oto Yükleme", icon: Upload },
-  { href: "/dashboard/pricing",        label: "Paketler",    icon: CreditCard },
-  { href: "/dashboard/settings",       label: "Ayarlar",     icon: Settings },
+  { href: "/dashboard",             label: "Panel",         icon: LayoutDashboard },
+  { href: "/dashboard/listings",    label: "eBay Listeler", icon: List },
+  { href: "/dashboard/products",    label: "Ürünler",       icon: Package },
+  { href: "/dashboard/orders",      label: "Siparişler",    icon: ShoppingCart },
+  { href: "/dashboard/auto-upload", label: "Oto Yükleme",   icon: Upload },
+  { href: "/dashboard/pricing",     label: "Paketler",      icon: CreditCard },
+  { href: "/dashboard/settings",    label: "Ayarlar",       icon: Settings },
 ];
 
 export function Sidebar() {
@@ -55,7 +55,7 @@ export function Sidebar() {
       transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
       className="fixed left-0 top-0 h-screen bg-slate-900/80 backdrop-blur-xl border-r border-slate-700/50 z-40 flex flex-col overflow-hidden"
     >
-      {/* Logo */}
+      {/* Logo + platform */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-700/50 min-h-[72px]">
         <LogoMark size={36} className="flex-shrink-0" />
         <AnimatePresence>
@@ -67,16 +67,45 @@ export function Sidebar() {
               transition={{ duration: 0.2 }}
               className="overflow-hidden leading-none"
             >
-              <p className="font-black text-white text-sm tracking-[0.18em]">LEAN</p>
-              <p className="text-[10px] text-slate-400 tracking-[0.18em] mt-1">AUTOMATION</p>
+              <p className="font-black text-white text-sm flex items-center gap-1.5">
+                eBayBot
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+              </p>
+              <p className="text-[10px] text-slate-400 mt-1">Lean Automation</p>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
+      {/* Ana Sayfa / Platform değiştir */}
+      <div className="px-3 pt-3">
+        <Link href="/">
+          <motion.div
+            whileHover={{ x: 2 }}
+            whileTap={{ scale: 0.97 }}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-200 cursor-pointer border border-slate-700/40"
+          >
+            <Home className="h-5 w-5 flex-shrink-0" />
+            <AnimatePresence>
+              {!collapsed && (
+                <motion.span
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -8 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-sm font-medium truncate"
+                >
+                  Ana Sayfa
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </Link>
+      </div>
+
       {/* Nav */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {navItems.map(({ href, label, icon: Icon, color }) => {
+        {navItems.map(({ href, label, icon: Icon }) => {
           const isActive =
             href === "/dashboard"
               ? pathname === "/dashboard"
@@ -97,7 +126,7 @@ export function Sidebar() {
                 <Icon
                   className={cn(
                     "h-5 w-5 flex-shrink-0",
-                    isActive ? "text-violet-400" : color ?? "group-hover:text-slate-200"
+                    isActive ? "text-violet-400" : "group-hover:text-slate-200"
                   )}
                 />
                 <AnimatePresence>

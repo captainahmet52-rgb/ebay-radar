@@ -318,7 +318,7 @@ export default function LandingPage() {
             accent2="#d97706"
             btnLabel="Amazon'u Bağla"
             btnTextColor="#000"
-            href="/dashboard/amazon"
+            href="/amazon"
           />
 
           {/* eBay */}
@@ -338,7 +338,7 @@ export default function LandingPage() {
             accent2="#1d4ed8"
             btnLabel="eBay'i Bağla"
             btnTextColor="#fff"
-            href="/dashboard/listings"
+            href="/dashboard"
           />
 
           {/* Etsy */}
@@ -358,7 +358,7 @@ export default function LandingPage() {
             accent2="#ea580c"
             btnLabel="Etsy'i Bağla"
             btnTextColor="#fff"
-            href="/dashboard/etsy"
+            href="/etsy"
           />
         </div>
       </section>
