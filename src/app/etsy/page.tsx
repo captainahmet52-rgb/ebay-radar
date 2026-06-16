@@ -14,7 +14,8 @@ import type { EtsyOverview } from "@/types/etsyflow";
 
 const ACCENT = "#f97316";
 const ACCENT2 = "#ea580c";
-const ETSYFLOW_URL = process.env.NEXT_PUBLIC_ETSYFLOW_URL ?? "https://etsyflow-project.vercel.app";
+const ETSYFLOW_URL = process.env.NEXT_PUBLIC_ETSYFLOW_URL ?? "https://etsy-flow.vercel.app";
+const ETSYFLOW_DASHBOARD = `${ETSYFLOW_URL}/dashboard`;
 
 type State =
   | { kind: "loading" }
@@ -216,7 +217,7 @@ function Overview({ data, email }: { data: EtsyOverview; email: string | null })
       )}
 
       {/* EtsyFlow'da yönet */}
-      <a href={ETSYFLOW_URL} target="_blank" rel="noopener noreferrer"
+      <a href={ETSYFLOW_DASHBOARD} target="_blank" rel="noopener noreferrer"
         className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 hover:scale-[1.01]"
         style={{ background: `linear-gradient(135deg,${ACCENT},${ACCENT2})`, boxShadow: `0 10px 28px ${ACCENT}44` }}>
         EtsyFlow&apos;da Detaylı Yönet <ExternalLink className="h-4 w-4" />
@@ -274,7 +275,7 @@ function Onboarding({ email }: { email: string | null }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <a href={ETSYFLOW_URL} target="_blank" rel="noopener noreferrer"
+          <a href={ETSYFLOW_DASHBOARD} target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 hover:scale-[1.01]"
             style={{ background: `linear-gradient(135deg,${ACCENT},${ACCENT2})`, boxShadow: `0 10px 28px ${ACCENT}44` }}>
             EtsyFlow&apos;da Başla <ExternalLink className="h-4 w-4" />
