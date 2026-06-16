@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import {
   etsyflowAdmin,
-  resolveEtsyProfileId,
+  getOrCreateEtsyProfileId,
   isEtsyflowConfigured,
 } from "@/lib/etsyflow";
 import type { EtsyOverview } from "@/types/etsyflow";
@@ -31,13 +31,8 @@ export async function GET() {
   }
 
   try {
-    const profileId = await resolveEtsyProfileId(email);
-
-    // EtsyFlow hesabı bu e-posta ile yoksa: boş ama bağlı değil
-    if (!profileId) {
-      const empty: EtsyOverview = { linked: false, stores: [], products: [], orders: [] };
-      return NextResponse.json(empty);
-    }
+    // E-posta eşleşir; yoksa EtsyFlow hesabı otomatik oluşturulur
+    const profileId = await getOrCreateEtsyProfileId(email);
 
     const db = etsyflowAdmin();
     const [stores, products, orders] = await Promise.all([

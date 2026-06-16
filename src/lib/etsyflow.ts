@@ -49,3 +49,43 @@ export async function resolveEtsyProfileId(email: string): Promise<string | null
   if (error) throw new Error(error.message);
   return data?.id ?? null;
 }
+
+/**
+ * Lean Automation kullanıcısını EtsyFlow'a eşler; yoksa OTOMATİK oluşturur.
+ * Yani Lean Automation'da hesabı olan biri Etsy'e girince EtsyFlow Supabase'inde
+ * de profili kendiliğinden açılır (tek kayıt, tek giriş).
+ */
+export async function getOrCreateEtsyProfileId(
+  email: string,
+  fullName?: string | null
+): Promise<string> {
+  const existing = await resolveEtsyProfileId(email);
+  if (existing) return existing;
+
+  const db = etsyflowAdmin();
+
+  // Supabase auth kullanıcısı oluştur — profiles satırı trigger ile oluşur.
+  const { data: created, error } = await db.auth.admin.createUser({
+    email,
+    email_confirm: true,
+    user_metadata: fullName ? { full_name: fullName } : undefined,
+  });
+
+  if (error) {
+    // Auth kullanıcısı zaten varsa profili tekrar çözmeyi dene
+    const retry = await resolveEtsyProfileId(email);
+    if (retry) return retry;
+    throw new Error(`EtsyFlow hesabı oluşturulamadı: ${error.message}`);
+  }
+
+  const id = created.user?.id;
+  if (!id) throw new Error("EtsyFlow kullanıcı id'si alınamadı");
+
+  // Trigger profili oluşturmadıysa garanti altına al
+  await db.from("profiles").upsert(
+    { id, email, full_name: fullName ?? null },
+    { onConflict: "id" }
+  );
+
+  return id;
+}
