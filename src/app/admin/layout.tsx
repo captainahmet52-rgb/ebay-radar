@@ -28,6 +28,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <a href="/admin/amazon" className="text-sm text-slate-300 hover:text-white transition-colors">
           Amazon Radar
         </a>
+        <a href="/admin/api-setup" className="text-sm text-slate-300 hover:text-white transition-colors">
+          API Kurulumu
+        </a>
         <a
           href="/dashboard"
           className="ml-auto text-sm text-slate-500 hover:text-white transition-colors"

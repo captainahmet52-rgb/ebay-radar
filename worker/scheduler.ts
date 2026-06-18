@@ -17,6 +17,7 @@ import {
   distributeProductsQueue,
   amazonRadarScanQueue,
   amazonAutoUploadQueue,
+  amazonPollOrdersQueue,
 } from "@/lib/queues";
 
 // AmazonBot radar — taranacak pazarlar
@@ -91,6 +92,15 @@ export async function setupScheduler(): Promise<void> {
     { repeat: { pattern: "0 3 * * *" } }
   );
   console.log("[scheduler] amazon-auto-upload kuruldu: her gün 03:00 UTC");
+
+  // ── amazon-poll-orders: her 30 dakika (SP-API getOrders → Siparişlerim) ──────
+  await clearRepeatableJobs(amazonPollOrdersQueue, "amazon-poll-orders");
+  await amazonPollOrdersQueue.add(
+    "amazon-poll-orders",
+    {}, // tüm hesaplar
+    { repeat: { every: 30 * 60 * 1000 } }
+  );
+  console.log("[scheduler] amazon-poll-orders kuruldu: her 30 dakika");
 }
 
 /**

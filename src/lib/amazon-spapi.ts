@@ -121,7 +121,10 @@ async function spapiRequest<T>(
   const res = await fetch(url, {
     method,
     headers: {
+      // SP-API artık AWS SigV4 İSTEMİYOR — sadece LWA access token yeterli.
       "x-amz-access-token": accessToken,
+      "x-amz-date": new Date().toISOString().replace(/[:-]|\.\d{3}/g, ""),
+      "user-agent": "LeanAutomation/1.0 (Language=TypeScript)",
       "Content-Type": "application/json",
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -230,4 +233,66 @@ export async function putListingsItem(
   );
 
   return { status: data.status ?? "SUBMITTED", sku: input.sku };
+}
+
+// ─── Siparişler (getOrders) ──────────────────────────────────────────────────
+// NOT: PII (alıcı adresi) için "Direct-to-Consumer Shipping (Restricted)" rolü +
+// Restricted Data Token (RDT) gerekir. Sipariş listesi (adres hariç) normal token ile gelir.
+
+export interface SpapiOrderSummary {
+  amazonOrderId: string;
+  orderStatus: string;
+  purchaseDate?: string;
+  orderTotal?: { amount: string; currencyCode: string };
+}
+
+/** Belirli tarihten sonra oluşturulan/güncellenen siparişleri çeker. */
+export async function getOrders(
+  market: string,
+  accessToken: string,
+  createdAfterIso: string
+): Promise<SpapiOrderSummary[]> {
+  const cfg = SPAPI_MARKETS[market];
+  if (!cfg) throw new Error(`Geçersiz pazar: ${market}`);
+
+  const data = await spapiRequest<{
+    payload?: { Orders?: Array<Record<string, unknown>> };
+  }>(market, accessToken, "GET", "/orders/v0/orders", {
+    MarketplaceIds: cfg.marketplaceId,
+    CreatedAfter: createdAfterIso,
+  });
+
+  return (data.payload?.Orders ?? []).map((o) => ({
+    amazonOrderId: String(o["AmazonOrderId"] ?? ""),
+    orderStatus: String(o["OrderStatus"] ?? "Unknown"),
+    purchaseDate: o["PurchaseDate"] as string | undefined,
+    orderTotal: o["OrderTotal"] as { amount: string; currencyCode: string } | undefined,
+  }));
+}
+
+// ─── Kargo bildirimi (confirmShipment) ───────────────────────────────────────
+
+/**
+ * Geçerli takip numarasını Amazon'a bildirir (VTR için kritik).
+ * Kullanıcı manuel girebilir; bu fonksiyon SP-API ile otomatik bildirim sağlar.
+ */
+export async function confirmShipment(
+  market: string,
+  accessToken: string,
+  amazonOrderId: string,
+  input: { carrierCode: string; trackingNumber: string; shipDateIso: string; items: Array<{ orderItemId: string; quantity: number }> }
+): Promise<void> {
+  const cfg = SPAPI_MARKETS[market];
+  if (!cfg) throw new Error(`Geçersiz pazar: ${market}`);
+
+  await spapiRequest(market, accessToken, "POST", `/orders/v0/orders/${amazonOrderId}/shipmentConfirmation`, undefined, {
+    marketplaceId: cfg.marketplaceId,
+    packageDetail: {
+      packageReferenceId: `pkg-${amazonOrderId}`,
+      carrierCode: input.carrierCode,
+      trackingNumber: input.trackingNumber,
+      shipDate: input.shipDateIso,
+      orderItems: input.items.map((i) => ({ orderItemId: i.orderItemId, quantity: i.quantity })),
+    },
+  });
 }

@@ -187,6 +187,24 @@ export const amazonPollProductQueue = new Queue<AmazonPollProductJobData, void, 
   }
 );
 
+// ─── AmazonBot Sipariş Çekme Kuyruğu (SP-API getOrders) ────────────────────────
+export interface AmazonPollOrdersJobData {
+  amazonAccountId?: string; // undefined → tüm Amazon hesapları
+}
+
+export const amazonPollOrdersQueue = new Queue<AmazonPollOrdersJobData, void, string>(
+  "amazon-poll-orders",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { type: "exponential", delay: 5000 },
+      removeOnComplete: { count: 100 },
+      removeOnFail: { count: 300 },
+    },
+  }
+);
+
 // ─── Token Yenileme Kuyruğu ────────────────────────────────────────────────────
 export interface RefreshTokensJobData {
   ebayAccountId?: string; // undefined ise süresi yaklaşan tüm hesapları yenile
