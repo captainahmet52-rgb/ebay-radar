@@ -15,7 +15,11 @@ import {
   dispatchPollOrdersQueue,
   refreshTokensQueue,
   distributeProductsQueue,
+  amazonRadarScanQueue,
 } from "@/lib/queues";
+
+// AmazonBot radar — taranacak pazarlar
+const AMAZON_RADAR_MARKETS = ["us", "uk", "ae", "sa"] as const;
 
 export async function setupScheduler(): Promise<void> {
   // ── dispatch-polls: her 5 dakika ────────────────────────────────────────────
@@ -61,6 +65,22 @@ export async function setupScheduler(): Promise<void> {
     }
   );
   console.log("[scheduler] distribute-products kuruldu: her gün 02:00 UTC");
+
+  // ── amazon-radar-scan: her pazar için 6 saatte bir ──────────────────────────
+  await clearRepeatableJobs(amazonRadarScanQueue, "amazon-radar-scan");
+  for (const market of AMAZON_RADAR_MARKETS) {
+    await amazonRadarScanQueue.add(
+      "amazon-radar-scan",
+      { market },
+      {
+        repeat: { every: 6 * 60 * 60 * 1000 }, // 6 saat (ms)
+        jobId: `amazon-radar:${market}`, // pazar başına tek repeatable
+      }
+    );
+  }
+  console.log(
+    `[scheduler] amazon-radar-scan kuruldu: ${AMAZON_RADAR_MARKETS.length} pazar, her 6 saat`
+  );
 }
 
 /**

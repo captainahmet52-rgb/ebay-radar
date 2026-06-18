@@ -133,6 +133,24 @@ export const distributeProductsQueue = new Queue<DistributeProductsJobData, void
   }
 );
 
+// ─── AmazonBot Radar Kuyruğu (AliExpress → Amazon depo) ───────────────────────
+export interface AmazonRadarScanJobData {
+  market: string; // us | uk | ae | sa
+}
+
+export const amazonRadarScanQueue = new Queue<AmazonRadarScanJobData, void, string>(
+  "amazon-radar-scan",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { type: "exponential", delay: 10000 },
+      removeOnComplete: { count: 100 },
+      removeOnFail: { count: 200 },
+    },
+  }
+);
+
 // ─── Token Yenileme Kuyruğu ────────────────────────────────────────────────────
 export interface RefreshTokensJobData {
   ebayAccountId?: string; // undefined ise süresi yaklaşan tüm hesapları yenile
