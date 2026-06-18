@@ -1,9 +1,19 @@
 /**
- * AmazonBot çekirdek motoru — AliExpress → Amazon fiyatlama.
+ * AmazonBot çekirdek motoru — AliExpress → Amazon fiyatlama (pazar-bazlı).
  * eBay repricer'ın (src/lib/repricer.ts) Amazon karşılığı.
  *
- * Formül: amazon_fiyatı = (maliyet + kargo) / (1 - komisyon - marj)
+ * ÖNEMLİ: Her pazarın maliyeti farklıdır — farkı yaratan komisyon değil KDV'dir.
+ *   US    → KDV yok
+ *   UK    → satış %20 KDV (fiyata dahil) + Amazon ücretine %20 KDV
+ *   UAE   → %5 KDV + %5 gümrük
+ *   Suudi → %15 KDV + gümrük (düşük değer muafiyeti YOK)
+ *
+ * KDV'li pazarda fiyat KDV dahil gösterilir; KDV satıcının cebinden çıkar:
+ *   satışFiyatı = landedCost / [ 1/(1+KDV) − komisyon×(1+ücretKDV) − marj ]
+ *   landedCost  = (maliyet + kargo) × kur × (1 + gümrük)
  * Asgari komisyon (min referral) devreye girerse yeniden çözülür.
+ *
+ * Marj PAZAR BAŞINA ayarlanır (defaultMargin); kullanıcı kendi marjıyla override edebilir.
  */
 
 export interface AmazonMarket {
@@ -11,16 +21,38 @@ export interface AmazonMarket {
   name: string;
   currency: string;
   symbol: string;
-  /** Kategori yüzdesi bu tutarın altında kalırsa uygulanan asgari komisyon. */
+  /** Kategori yüzdesi bu tutarın altında kalırsa uygulanan asgari komisyon (yerel para). */
   minReferral: number;
+  /** Satış KDV oranı — fiyata dahildir, satıcıdan tahsil edilir (US=0). */
+  vatRate: number;
+  /** Amazon komisyon/ücretine binen KDV (UK %20; UAE/SA kendi oranı; US=0). */
+  feeVatRate: number;
+  /** AliExpress paketi ülkeye girerken ithalat gümrüğü (yaklaşık). */
+  customsDutyRate: number;
+  /** USD → yerel para yaklaşık kuru. Üretimde canlı kurla değiştirilecek. */
+  fxRate: number;
+  /** Pazar varsayılan net kâr marjı (kullanıcı override edebilir). */
+  defaultMargin: number;
 }
 
-// Değerler yaklaşıktır; üretimde pazar bazında Amazon Seller Central'dan doğrula.
+// Değerler yaklaşıktır; üretimde pazar bazında Seller Central + canlı kurla doğrula.
 export const AMAZON_MARKETS: Record<string, AmazonMarket> = {
-  us: { key: "us", name: "Amazon US",                currency: "USD", symbol: "$",     minReferral: 0.30 },
-  uk: { key: "uk", name: "Amazon UK",                currency: "GBP", symbol: "£",     minReferral: 0.25 },
-  ae: { key: "ae", name: "Amazon UAE (BAE)",         currency: "AED", symbol: "AED ",  minReferral: 1.0 },
-  sa: { key: "sa", name: "Amazon Suudi Arabistan",   currency: "SAR", symbol: "SAR ",  minReferral: 1.0 },
+  us: {
+    key: "us", name: "Amazon US", currency: "USD", symbol: "$",
+    minReferral: 0.30, vatRate: 0,    feeVatRate: 0,    customsDutyRate: 0,    fxRate: 1,    defaultMargin: 0.20,
+  },
+  uk: {
+    key: "uk", name: "Amazon UK", currency: "GBP", symbol: "£",
+    minReferral: 0.25, vatRate: 0.20, feeVatRate: 0.20, customsDutyRate: 0,    fxRate: 0.79, defaultMargin: 0.25,
+  },
+  ae: {
+    key: "ae", name: "Amazon UAE (BAE)", currency: "AED", symbol: "AED ",
+    minReferral: 1.0,  vatRate: 0.05, feeVatRate: 0.05, customsDutyRate: 0.05, fxRate: 3.67, defaultMargin: 0.25,
+  },
+  sa: {
+    key: "sa", name: "Amazon Suudi Arabistan", currency: "SAR", symbol: "SAR ",
+    minReferral: 1.0,  vatRate: 0.15, feeVatRate: 0.15, customsDutyRate: 0.05, fxRate: 3.75, defaultMargin: 0.30,
+  },
 };
 
 // Amazon kategori komisyon oranları (2026, ~dondurulmuş). Yaklaşık referans.
@@ -48,49 +80,74 @@ export function getReferralRate(category?: string | null): number {
   return AMAZON_CATEGORY_FEES[category.toLowerCase()] ?? DEFAULT_REFERRAL;
 }
 
+/** Pazarın varsayılan marjı; kullanıcı yüzdesi (örn 30) verilirse onu kullan. */
+export function resolveMargin(market: AmazonMarket, userMarginPct?: number | null): number {
+  if (userMarginPct != null && userMarginPct > 0) return userMarginPct / 100;
+  return market.defaultMargin;
+}
+
 export interface AmazonRepricerResult {
+  /** Müşteriye gösterilen satış fiyatı (yerel para, KDV dahil). */
   salePrice: number;
+  /** Amazon komisyonu (ücret KDV'si dahil, yerel para). */
   referralFee: number;
+  /** Satıştan devlete gidecek KDV tutarı (yerel para). */
+  vat: number;
+  /** Ürün + kargo + kur + gümrük dahil maliyet (yerel para). */
+  landedCost: number;
+  /** Net kâr (yerel para). */
   netProfit: number;
+  /** Gerçek net marj yüzdesi. */
   marginPct: number;
 }
 
 /**
- * Amazon satış fiyatını hesaplar.
- * @param cost AliExpress ürün maliyeti (pazar para biriminde)
- * @param shipping AliExpress kargo
+ * Amazon satış fiyatını pazar-bazlı hesaplar (KDV + gümrük + kur dahil).
+ * @param costUsd     AliExpress ürün maliyeti (USD)
+ * @param shippingUsd AliExpress kargo (USD)
  * @param referralRate Amazon komisyon oranı (örn 0.15)
- * @param minReferral asgari komisyon tutarı
- * @param margin hedef net kâr marjı (örn 0.20)
+ * @param market      hedef pazar (KDV/gümrük/kur/min komisyon buradan)
+ * @param margin      hedef net kâr marjı (örn 0.20); yoksa pazar varsayılanı
  */
 export function calculateAmazonPrice(
-  cost: number,
-  shipping: number,
+  costUsd: number,
+  shippingUsd: number,
   referralRate: number,
-  minReferral: number,
-  margin: number = DEFAULT_MARGIN
+  market: AmazonMarket,
+  margin: number = market.defaultMargin
 ): AmazonRepricerResult {
-  const divisor = 1 - referralRate - margin;
+  // 1) Kaynak maliyeti yerel paraya çevir + ithalat gümrüğü ekle
+  const landedCost = (costUsd + shippingUsd) * market.fxRate * (1 + market.customsDutyRate);
+
+  // 2) KDV dahil fiyatı çöz
+  const divisor = 1 / (1 + market.vatRate) - referralRate * (1 + market.feeVatRate) - margin;
   if (divisor <= 0) {
-    throw new Error("komisyon + marj toplamı 1'e eşit/büyük olamaz");
+    throw new Error("KDV + komisyon + marj toplamı bu pazarda satışı imkansız kılıyor");
   }
 
-  let salePrice = (cost + shipping) / divisor;
-  let referralFee = salePrice * referralRate;
+  let salePrice = landedCost / divisor;
+  let referralFee = salePrice * referralRate * (1 + market.feeVatRate);
 
-  // Yüzde komisyon asgariden düşükse, asgari komisyonla yeniden çöz
-  if (referralFee < minReferral) {
-    salePrice = (cost + shipping + minReferral) / (1 - margin);
-    referralFee = minReferral;
+  // 3) Asgari komisyon kontrolü (ücret KDV'si dahil), gerekirse yeniden çöz
+  const minFee = market.minReferral * (1 + market.feeVatRate);
+  if (referralFee < minFee) {
+    const divisor2 = 1 / (1 + market.vatRate) - margin;
+    salePrice = (landedCost + minFee) / divisor2;
+    referralFee = minFee;
   }
 
-  const netProfit = salePrice - cost - shipping - referralFee;
+  const netRevenue = salePrice / (1 + market.vatRate); // KDV hariç eline geçen
+  const vat = salePrice - netRevenue;
+  const netProfit = netRevenue - referralFee - landedCost;
   const marginPct = (netProfit / salePrice) * 100;
 
+  const round2 = (n: number) => Math.round(n * 100) / 100;
   return {
-    salePrice: Math.round(salePrice * 100) / 100,
-    referralFee: Math.round(referralFee * 100) / 100,
-    netProfit: Math.round(netProfit * 100) / 100,
+    salePrice: round2(salePrice),
+    referralFee: round2(referralFee),
+    vat: round2(vat),
+    landedCost: round2(landedCost),
+    netProfit: round2(netProfit),
     marginPct: Math.round(marginPct * 10) / 10,
   };
 }

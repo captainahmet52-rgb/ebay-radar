@@ -21,7 +21,6 @@ import {
   getReferralRate,
   calculateAmazonPrice,
   determineAmazonQty,
-  DEFAULT_MARGIN,
   type AliStockStatus,
 } from "../src/lib/amazon-repricer";
 
@@ -63,7 +62,9 @@ async function main() {
 
   const categoryKey = getArg("category");
   const referralRate = getReferralRate(categoryKey);
-  const margin = parseFloat(getArg("margin") ?? String(DEFAULT_MARGIN));
+  // Marj verilmezse pazarın varsayılan marjı kullanılır (us %20, uk/ae %25, sa %30)
+  const marginArg = getArg("margin");
+  const margin = marginArg ? parseFloat(marginArg) : market.defaultMargin;
   const shipping = parseFloat(getArg("shipping") ?? "0");
 
   let cost: number;
@@ -95,23 +96,27 @@ async function main() {
     process.exit(1);
   }
 
-  const r = calculateAmazonPrice(cost!, shipping, referralRate, market.minReferral, margin);
+  const r = calculateAmazonPrice(cost!, shipping, referralRate, market, margin);
   const qty = determineAmazonQty(stock, null);
   const s = market.symbol;
 
-  console.log("═".repeat(48));
-  console.log(`  Pazar             : ${market.name} (${market.currency})`);
-  if (title) console.log(`  Ürün              : ${title}`);
-  console.log(`  AliExpress maliyet : ${s}${cost!.toFixed(2)}`);
-  console.log(`  Kargo             : ${s}${shipping.toFixed(2)}`);
-  console.log(`  Kategori          : ${categoryKey ?? "default"} (komisyon %${(referralRate * 100).toFixed(0)})`);
-  console.log(`  Hedef marj        : %${(margin * 100).toFixed(0)}`);
-  console.log("  " + "─".repeat(44));
-  console.log(`  Amazon satış fiyatı: ${s}${r.salePrice.toFixed(2)}`);
-  console.log(`  Amazon komisyon    : ${s}${r.referralFee.toFixed(2)}`);
+  console.log("═".repeat(52));
+  console.log(`  Pazar              : ${market.name} (${market.currency})`);
+  if (title) console.log(`  Ürün               : ${title}`);
+  console.log(`  AliExpress maliyet : $${cost!.toFixed(2)} + kargo $${shipping.toFixed(2)} (USD)`);
+  console.log(`  Kur (USD→${market.currency})  : ${market.fxRate}`);
+  console.log(`  Gümrük             : %${(market.customsDutyRate * 100).toFixed(0)}`);
+  console.log(`  Landed maliyet     : ${s}${r.landedCost.toFixed(2)}`);
+  console.log(`  Kategori           : ${categoryKey ?? "default"} (komisyon %${(referralRate * 100).toFixed(0)})`);
+  console.log(`  Satış KDV          : %${(market.vatRate * 100).toFixed(0)}`);
+  console.log(`  Hedef marj         : %${(margin * 100).toFixed(0)}`);
+  console.log("  " + "─".repeat(48));
+  console.log(`  Amazon satış fiyatı: ${s}${r.salePrice.toFixed(2)}  (KDV dahil)`);
+  console.log(`  ↳ KDV (devlete)    : ${s}${r.vat.toFixed(2)}`);
+  console.log(`  ↳ Amazon komisyon  : ${s}${r.referralFee.toFixed(2)}`);
   console.log(`  Net kâr            : ${s}${r.netProfit.toFixed(2)}  (%${r.marginPct})`);
   if (aliId) console.log(`  Önerilen Amazon Q  : ${qty}`);
-  console.log("═".repeat(48));
+  console.log("═".repeat(52));
 }
 
 main();

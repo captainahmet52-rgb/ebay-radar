@@ -1,4 +1,4 @@
-import { runRadar, DEFAULT_RADAR_CONFIG } from "@/lib/amazon-radar";
+import { runRadar, buildRadarConfig } from "@/lib/amazon-radar";
 import { SAMPLE_CANDIDATES } from "@/lib/amazon-radar-samples";
 import { AMAZON_MARKETS } from "@/lib/amazon-repricer";
 
@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export default function AdminAmazonPage() {
   const symbol = AMAZON_MARKETS.us.symbol;
-  const results = runRadar(SAMPLE_CANDIDATES, { market: "us", ...DEFAULT_RADAR_CONFIG });
+  const results = runRadar(SAMPLE_CANDIDATES, buildRadarConfig("us"));
   const winners = results.filter((r) => r.verdict.pass);
   const rejected = results.filter((r) => !r.verdict.pass);
 

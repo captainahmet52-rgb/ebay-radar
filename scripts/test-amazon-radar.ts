@@ -5,9 +5,8 @@
 
 import {
   runRadar,
-  DEFAULT_RADAR_CONFIG,
+  buildRadarConfig,
   type AmazonCandidate,
-  type RadarConfig,
 } from "../src/lib/amazon-radar";
 import { AMAZON_MARKETS } from "../src/lib/amazon-repricer";
 
@@ -51,9 +50,9 @@ function main() {
     console.error(`Geçersiz pazar: ${marketKey}`);
     process.exit(1);
   }
-  const config: RadarConfig = { market: marketKey, ...DEFAULT_RADAR_CONFIG };
+  const config = buildRadarConfig(marketKey);
 
-  console.log(`\n🛰️  AmazonBot Radar — ${market.name}\n${"═".repeat(52)}`);
+  console.log(`\n🛰️  AmazonBot Radar — ${market.name}  (marj %${Math.round(config.targetMargin * 100)})\n${"═".repeat(52)}`);
 
   const results = runRadar(SAMPLES, config);
   const s = market.symbol;

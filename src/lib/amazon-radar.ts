@@ -9,6 +9,7 @@
 import {
   getReferralRate,
   calculateAmazonPrice,
+  resolveMargin,
   AMAZON_MARKETS,
   type AmazonRepricerResult,
 } from "./amazon-repricer";
@@ -19,8 +20,8 @@ export interface AmazonCandidate {
   // AliExpress tarafı
   aliId: string;
   title: string;
-  aliCost: number;          // ürün maliyeti (pazar para biriminde)
-  aliShipping: number;      // kargo
+  aliCost: number;          // ürün maliyeti (USD — AliExpress kaynağı)
+  aliShipping: number;      // kargo (USD)
   aliOrders: number;        // AliExpress sipariş sayısı (talep/güven sinyali)
   aliRating: number;        // 0-5
   brand?: string | null;    // Amazon "Brand" alanı (Keepa'dan)
@@ -36,17 +37,22 @@ export interface AmazonCandidate {
 
 export interface RadarConfig {
   market: string;        // us | uk | ae | sa
-  targetMargin: number;  // hedef net marj (örn 0.20)
+  targetMargin: number;  // hedef net marj — PAZAR BAŞINA (us 0.20, uk/ae 0.25, sa 0.30)
   minMarginPct: number;  // kabul edilen asgari gerçek marj % (örn 15)
   maxBsr: number;        // bunun üstü BSR elenir (örn 50000)
   minSalesEst: number;   // aylık min satış (örn 30)
   maxSellers: number;    // bundan fazla satıcı = çok rekabet (örn 15)
   minAliOrders: number;  // AliExpress min sipariş (örn 50)
   minAliRating: number;  // AliExpress min puan (örn 4.5)
-  priceMin: number;      // satış fiyatı alt sınır
-  priceMax: number;      // satış fiyatı üst sınır
+  priceMin: number;      // satış fiyatı alt sınır (yerel para)
+  priceMax: number;      // satış fiyatı üst sınır (yerel para)
 }
 
+/**
+ * Pazardan bağımsız temel eşikler. targetMargin ve fiyat aralığı pazara göre
+ * buildRadarConfig() içinde belirlenir (marj pazar varsayılanı, fiyat kura ölçeklenir).
+ * priceMinUsd/priceMaxUsd USD referanstır; pazarın kuruyla yerel paraya çevrilir.
+ */
 export const DEFAULT_RADAR_CONFIG: Omit<RadarConfig, "market"> = {
   targetMargin: 0.20,
   minMarginPct: 15,
@@ -58,6 +64,34 @@ export const DEFAULT_RADAR_CONFIG: Omit<RadarConfig, "market"> = {
   priceMin: 12,
   priceMax: 80,
 };
+
+/** USD referans fiyat aralığı (pazarın kuruyla yerel paraya çevrilir). */
+const PRICE_MIN_USD = 12;
+const PRICE_MAX_USD = 80;
+
+/**
+ * Bir pazar için radar yapılandırması üretir.
+ * - targetMargin: pazar varsayılanı (us %20, uk/ae %25, sa %30) — userMarginPct ile override
+ * - priceMin/Max: USD aralığı pazarın kuruyla yerel paraya çevrilir
+ */
+export function buildRadarConfig(
+  marketKey: string,
+  opts?: { userMarginPct?: number | null; overrides?: Partial<Omit<RadarConfig, "market">> }
+): RadarConfig {
+  const market = AMAZON_MARKETS[marketKey];
+  if (!market) throw new Error(`Geçersiz pazar: ${marketKey}`);
+
+  const targetMargin = resolveMargin(market, opts?.userMarginPct);
+
+  return {
+    market: marketKey,
+    ...DEFAULT_RADAR_CONFIG,
+    targetMargin,
+    priceMin: Math.round(PRICE_MIN_USD * market.fxRate),
+    priceMax: Math.round(PRICE_MAX_USD * market.fxRate),
+    ...opts?.overrides,
+  };
+}
 
 // ─── Marka / yasak listeleri (SERT filtre — genişletilebilir) ────────────────
 
@@ -133,10 +167,10 @@ export function evaluateCandidate(c: AmazonCandidate, config: RadarConfig): Rada
   const allowed = checkAllowed(c);
   if (!allowed.allowed) reasons.push(allowed.reason!);
 
-  // 2) Kâr
+  // 2) Kâr — pazarın KDV/gümrük/kuru + pazar marjıyla
   const referralRate = getReferralRate(c.category);
   const pricing = calculateAmazonPrice(
-    c.aliCost, c.aliShipping, referralRate, market.minReferral, config.targetMargin
+    c.aliCost, c.aliShipping, referralRate, market, config.targetMargin
   );
   if (pricing.marginPct < config.minMarginPct) {
     reasons.push(`Düşük marj (%${pricing.marginPct} < %${config.minMarginPct})`);

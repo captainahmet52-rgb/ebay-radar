@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { runRadar, DEFAULT_RADAR_CONFIG, type RadarConfig } from "@/lib/amazon-radar";
+import { runRadar, buildRadarConfig } from "@/lib/amazon-radar";
 import { SAMPLE_CANDIDATES } from "@/lib/amazon-radar-samples";
 import { AMAZON_MARKETS } from "@/lib/amazon-repricer";
 
@@ -21,12 +21,14 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: `Geçersiz pazar: ${market}` }, { status: 400 });
   }
 
-  const config: RadarConfig = { market, ...DEFAULT_RADAR_CONFIG };
+  // Pazar başına marj + KDV/gümrük/kur otomatik (buildRadarConfig)
+  const config = buildRadarConfig(market);
   const results = runRadar(SAMPLE_CANDIDATES, config);
 
   return NextResponse.json({
     market,
     demo: true, // gerçek kaynak bağlanınca false olacak
+    targetMargin: config.targetMargin,
     total: results.length,
     passed: results.filter((r) => r.verdict.pass).length,
     results,
