@@ -28,6 +28,10 @@ model User {
   orders               Order[]
   productDistributions ProductDistribution[]
 
+  // AmazonBot (AliExpress → Amazon)
+  amazonAccounts       AmazonAccount[]
+  amazonListings       AmazonListing[]
+
   // Otomatik Yükleme Ayarları
   autoUploadEnabled     Boolean  @default(false)
   uploadSchedule        String   @default("daily")
@@ -237,6 +241,95 @@ model DepotProduct {
 
   sourceStore     TrackedStore?         @relation(fields: [sourceStoreId], references: [id])
   distributions   ProductDistribution[]
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AmazonBot (AliExpress → Amazon dropshipping) — eBay tarafından BAĞIMSIZ kendi dünyası
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Bağlı Amazon satıcı hesapları ────────────────────────────────────────────
+model AmazonAccount {
+  id                         String    @id @default(cuid())
+  userId                     String
+  sellerId                   String    // Amazon Seller ID (SP-API)
+  // Hesabın pazarı — bağlanırken SP-API getMarketplaceParticipations ile OTOMATİK tespit
+  // us | uk | ae | sa
+  market                     String    @default("us")
+  // SP-API token'ları ŞİFRELİ saklanır — Node crypto (AES-256-GCM). Düz metin ASLA.
+  spapiRefreshTokenEncrypted String?   @db.Text
+  spapiAccessTokenEncrypted  String?   @db.Text
+  tokenExpiresAt             DateTime?
+  createdAt                  DateTime  @default(now())
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listings AmazonListing[]
+
+  @@index([userId])
+}
+
+// ─── AmazonBot kendi deposu (AliExpress kaynağı, radar ile doldurulur) ────────
+model AmazonDepotProduct {
+  id                 String    @id @default(cuid())
+  aliId              String    @unique // AliExpress ürün ID
+  title              String?
+  imageUrl           String?
+  category           String?
+  brand              String?
+  brandSafe          Boolean   @default(true) // marka/yasak filtresinden geçti mi
+  // AliExpress kaynağı USD cinsinden (pazara çevrim fiyatlama anında yapılır)
+  aliCostUsd         Float
+  aliShippingUsd     Float     @default(0)
+  aliOrders          Int       @default(0)
+  aliRating          Float     @default(0)
+  // Stok sinyali: in_stock | low | out | unknown
+  aliStockStatus     String    @default("in_stock")
+  aliStockQty        Int?
+  // Amazon tarafı (Keepa) — bilinmiyorsa null
+  amazonBsr          Int?
+  amazonSalesEst     Int?
+  amazonSellerCount  Int?
+  amazonSoldByAmazon Boolean   @default(false)
+  // Radar
+  radarScore         Int?      // 0-100
+  // hot | normal | dead
+  pollTier           String    @default("normal")
+  // active | paused | rejected
+  status             String    @default("active")
+  lastScrapedAt      DateTime?
+  createdAt          DateTime  @default(now())
+
+  listings AmazonListing[]
+
+  @@index([status])
+  @@index([pollTier])
+}
+
+// ─── Kullanıcı Amazon listelemeleri (hangi ürün hangi hesapta/pazarda) ────────
+model AmazonListing {
+  id              String   @id @default(cuid())
+  userId          String
+  amazonAccountId String
+  productId       String
+  // us | uk | ae | sa — hesabın pazarı
+  market          String   @default("us")
+  asin            String?  // yayınlandıktan sonra dönen ASIN
+  sku             String?
+  salePrice       Float?   // yerel para (pazarın birimi)
+  currentQty      Int      @default(2)
+  publishStage    String?
+  lastError       String?
+  // active | paused | ended
+  status          String   @default("active")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amazonAccount AmazonAccount      @relation(fields: [amazonAccountId], references: [id], onDelete: Cascade)
+  product       AmazonDepotProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([amazonAccountId, productId])
+  @@index([userId])
+  @@index([status])
 }
 
 // ─── Kullanıcıya Dağıtılan Ürünler ──────────────────────────────────────────
