@@ -31,6 +31,11 @@ model User {
   // AmazonBot (AliExpress → Amazon)
   amazonAccounts       AmazonAccount[]
   amazonListings       AmazonListing[]
+  amazonOrders         AmazonOrder[]
+  creditTransactions   CreditTransaction[]
+
+  // Ön ödemeli kredi cüzdanı (takip kodu çevirme vb. mikro-ücretler buradan düşer)
+  creditBalanceUsd     Float    @default(0)
 
   // AmazonBot oto-yükleme + müşteri kuralları (eBay auto-upload'ın Amazon karşılığı)
   amazonAutoUploadEnabled  Boolean @default(false)
@@ -343,6 +348,56 @@ model AmazonListing {
   @@unique([amazonAccountId, productId])
   @@index([userId])
   @@index([status])
+
+  orders AmazonOrder[]
+}
+
+// ─── Amazon siparişleri + takip kodu senkronu ─────────────────────────────────
+model AmazonOrder {
+  id              String   @id @default(cuid())
+  userId          String
+  amazonAccountId String?
+  listingId       String?
+  // Amazon sipariş kimliği (SP-API getOrders'tan)
+  amazonOrderId   String   @unique
+  market          String   @default("us")
+  soldPrice       Float?
+  qty             Int      @default(1)
+  // AliExpress tarafı
+  aliOrderId      String?
+  aliTrackingNo   String?  // AliExpress'in verdiği ilk numara (Amazon'da GEÇERSİZ)
+  // 17track/AfterShip ile çevrilen GEÇERLİ son-mil numara
+  validCarrierCode String?
+  validTrackingNo  String?
+  // pending | converting | converted | failed
+  trackingStatus  String   @default("pending")
+  // unshipped | shipped | delivered | cancelled
+  status          String   @default("unshipped")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing AmazonListing? @relation(fields: [listingId], references: [id])
+
+  @@index([userId])
+  @@index([trackingStatus])
+}
+
+// ─── Kredi cüzdanı hareketleri (audit ledger) ─────────────────────────────────
+model CreditTransaction {
+  id        String   @id @default(cuid())
+  userId    String
+  // Negatif = harcama, pozitif = yükleme/iade (USD)
+  amountUsd Float
+  // topup | tracking_conversion | refund
+  type      String
+  refId     String?  // ör. AmazonOrder.id
+  note      String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // ─── Kullanıcıya Dağıtılan Ürünler ──────────────────────────────────────────
