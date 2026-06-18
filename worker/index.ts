@@ -11,6 +11,8 @@ import { createPollOrdersWorker } from "./jobs/poll-orders";
 import { createUpdateListingWorker } from "./jobs/update-listing";
 import { createRadarScanWorker } from "./jobs/radar-scan";
 import { createAmazonRadarScanWorker } from "./jobs/amazon-radar-scan";
+import { createAmazonAutoUploadWorker } from "./jobs/amazon-auto-upload";
+import { createAmazonPollProductWorker } from "./jobs/amazon-poll-product";
 import { createDistributeProductsWorker } from "./jobs/distribute-products";
 import { createRefreshTokensWorker } from "./jobs/refresh-tokens";
 import { createDispatchPollsWorker } from "./jobs/dispatch-polls";
@@ -27,6 +29,8 @@ const workers: Worker[] = [
   createUpdateListingWorker(connection),
   createRadarScanWorker(connection),
   createAmazonRadarScanWorker(connection),
+  createAmazonAutoUploadWorker(connection),
+  createAmazonPollProductWorker(connection),
   createDistributeProductsWorker(connection),
   createRefreshTokensWorker(connection),
   createDispatchPollsWorker(connection),
@@ -40,6 +44,8 @@ console.log("  → poll-orders            (concurrency: 2)");
 console.log("  → update-listing         (concurrency: 4)");
 console.log("  → radar-scan             (concurrency: 2)");
 console.log("  → amazon-radar-scan      (concurrency: 2)");
+console.log("  → amazon-auto-upload     (concurrency: 2)");
+console.log("  → amazon-poll-product    (concurrency: 4)");
 console.log("  → distribute-products    (concurrency: 2)");
 console.log("  → refresh-tokens         (concurrency: 2)");
 console.log("  → dispatch-polls         (concurrency: 1)");

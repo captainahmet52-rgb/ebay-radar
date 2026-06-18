@@ -152,6 +152,42 @@ export default function AmazonSettingsPage() {
           </div>
         </div>
 
+        {/* Hesap & çalıştır */}
+        <div>
+          <h2 className="text-lg font-bold mb-3">Amazon hesabı & çalıştır</h2>
+          <Card pad="p-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <a
+                href="/api/amazon/connect?region=na"
+                className="rounded-lg px-4 py-2 text-sm font-semibold border border-white/10 text-white hover:border-emerald-500/40 transition-colors"
+              >
+                Amazon mağaza bağla (US)
+              </a>
+              <a
+                href="/api/amazon/connect?region=eu"
+                className="rounded-lg px-4 py-2 text-sm font-semibold border border-white/10 text-white hover:border-emerald-500/40 transition-colors"
+              >
+                Amazon mağaza bağla (UK/BAE/Suudi)
+              </a>
+              <button
+                onClick={async () => {
+                  setMsg(null);
+                  const r = await fetch("/api/amazon/auto-upload/run", { method: "POST" });
+                  const j = await r.json().catch(() => ({}));
+                  setMsg(r.ok ? "Oto-yükleme başlatıldı ✓" : (j.error ?? "Hata"));
+                }}
+                className="rounded-lg px-4 py-2 text-sm font-semibold text-black"
+                style={{ background: AMZ_ACCENT }}
+              >
+                Şimdi yükle
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mt-3">
+              Pazar, mağaza bağlanırken otomatik tespit edilir. SP-API anahtarları bağlanınca yayın aktif olur.
+            </p>
+          </Card>
+        </div>
+
         {/* Radar eşikleri (salt-okunur) */}
         <div>
           <h2 className="text-lg font-bold mb-3">Radar eşikleri</h2>

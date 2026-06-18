@@ -16,6 +16,7 @@ import {
   refreshTokensQueue,
   distributeProductsQueue,
   amazonRadarScanQueue,
+  amazonAutoUploadQueue,
 } from "@/lib/queues";
 
 // AmazonBot radar — taranacak pazarlar
@@ -81,6 +82,15 @@ export async function setupScheduler(): Promise<void> {
   console.log(
     `[scheduler] amazon-radar-scan kuruldu: ${AMAZON_RADAR_MARKETS.length} pazar, her 6 saat`
   );
+
+  // ── amazon-auto-upload: her gün 03:00 UTC (oto-yükleme açık tüm kullanıcılar) ──
+  await clearRepeatableJobs(amazonAutoUploadQueue, "amazon-auto-upload");
+  await amazonAutoUploadQueue.add(
+    "amazon-auto-upload",
+    {}, // userId undefined → tüm açık kullanıcılar
+    { repeat: { pattern: "0 3 * * *" } }
+  );
+  console.log("[scheduler] amazon-auto-upload kuruldu: her gün 03:00 UTC");
 }
 
 /**

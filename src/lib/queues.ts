@@ -151,6 +151,42 @@ export const amazonRadarScanQueue = new Queue<AmazonRadarScanJobData, void, stri
   }
 );
 
+// ─── AmazonBot Oto-Yükleme Kuyruğu ─────────────────────────────────────────────
+export interface AmazonAutoUploadJobData {
+  userId?: string; // undefined → oto-yükleme açık tüm kullanıcılar
+}
+
+export const amazonAutoUploadQueue = new Queue<AmazonAutoUploadJobData, void, string>(
+  "amazon-auto-upload",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 2,
+      backoff: { type: "fixed", delay: 5000 },
+      removeOnComplete: { count: 100 },
+      removeOnFail: { count: 200 },
+    },
+  }
+);
+
+// ─── AmazonBot Stok/Fiyat Tarama Kuyruğu ───────────────────────────────────────
+export interface AmazonPollProductJobData {
+  depotProductId: string;
+}
+
+export const amazonPollProductQueue = new Queue<AmazonPollProductJobData, void, string>(
+  "amazon-poll-product",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { type: "exponential", delay: 5000 },
+      removeOnComplete: { count: 100 },
+      removeOnFail: { count: 500 },
+    },
+  }
+);
+
 // ─── Token Yenileme Kuyruğu ────────────────────────────────────────────────────
 export interface RefreshTokensJobData {
   ebayAccountId?: string; // undefined ise süresi yaklaşan tüm hesapları yenile
