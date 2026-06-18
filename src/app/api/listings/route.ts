@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { createOrUpdateListing } from "@/lib/ebay-listings";
-import { calculateEbayPrice, determineQty } from "@/lib/repricer";
+import { calculateEbayPriceForMarket, determineQty } from "@/lib/repricer";
 import type { StockStatus } from "@/types";
 
 export const GET = requireAuth(async (req, { userId }) => {
@@ -89,9 +89,11 @@ export const POST = requireAuth(async (req, { userId }) => {
         ? settings.uploadProfitMarginPct / 100
         : product.targetMargin;
 
-    // Fiyat + qty hesapla (kullanıcının marjıyla)
-    const repricerResult = calculateEbayPrice(
+    // Fiyat + qty hesapla — mağazanın pazarına göre (KDV/komisyon/kur) + kullanıcının marjıyla
+    const repricerResult = await calculateEbayPriceForMarket(
       product.amazonPrice,
+      product.amazonMarket,
+      ebayAccount.marketplace,
       product.ebayFeeRate,
       margin
     );
@@ -130,6 +132,7 @@ export const POST = requireAuth(async (req, { userId }) => {
         ebayListingId,
         ebayOfferId,
         ebaySku,
+        ebaySite: ebayAccount.marketplace, // mağazanın tespit edilen pazarı
         currentQty: qty,
         currentPrice: repricerResult.ebayPrice,
         status: qty === 0 ? "paused" : "active",

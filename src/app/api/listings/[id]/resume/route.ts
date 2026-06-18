@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { fetchAmazonProduct } from "@/lib/scraper";
-import { calculateEbayPrice, determineQty } from "@/lib/repricer";
+import { calculateEbayPriceForMarket, determineQty } from "@/lib/repricer";
 import { resumeListing } from "@/lib/ebay/inventory";
 import type { StockStatus } from "@/types";
 
@@ -12,7 +12,11 @@ export const PUT = requireAuth(async (req, { userId, params }) => {
 
     const listing = await prisma.listing.findFirst({
       where: { id, userId },
-      include: { ebayAccount: true, product: true },
+      include: {
+        ebayAccount: true,
+        product: true,
+        user: { select: { uploadProfitMarginPct: true } },
+      },
     });
 
     if (!listing) {
@@ -61,10 +65,16 @@ export const PUT = requireAuth(async (req, { userId, params }) => {
     }
 
     // 2. Yeni fiyat hesapla — eski fiyattan ASLA açma (CLAUDE.md Bölüm 4)
-    const repricerResult = calculateEbayPrice(
+    // Pazar-bazlı (KDV/komisyon/kur) + kullanıcının marjı (yoksa ürün varsayılanı)
+    const marginPct = listing.user?.uploadProfitMarginPct;
+    const margin =
+      marginPct != null && marginPct > 0 ? marginPct / 100 : listing.product.targetMargin;
+    const repricerResult = await calculateEbayPriceForMarket(
       scraperResult.price,
+      listing.product.amazonMarket,
+      listing.ebaySite,
       listing.product.ebayFeeRate,
-      listing.product.targetMargin
+      margin
     );
 
     // 3. eBay'de fiyat+qty güncelle — SKU (stok) + offerId (fiyat) gerektirir

@@ -1,40 +1,47 @@
 // Fiyat hesaplama motoru — CLAUDE.md Bölüm 3 & 4
 import type { RepricerResult, StockStatus } from "@/types";
 import type { Product } from "@prisma/client";
-import { convertCurrency, MARKET_CURRENCY, EBAY_SITE_CURRENCY } from "@/lib/exchange-rate";
-
-// CLAUDE.md: >=10$ → 0.40, <10$ → 0.30
-function getFixedFee(amazonPrice: number): number {
-  return amazonPrice >= 10 ? 0.40 : 0.30;
-}
+import { convertCurrency, MARKET_CURRENCY } from "@/lib/exchange-rate";
+import {
+  EBAY_MARKETPLACES,
+  resolveEbayMarketplace,
+  type EbayMarketplace,
+} from "@/lib/ebay-markets";
 
 /**
- * eBay satış fiyatı hesaplama.
- * Formül: eBay_fiyatı = (amazon_fiyatı + sabit_ücret) / (1 - komisyon - margin)
+ * eBay satış fiyatı hesaplama — PAZAR BAŞINA (KDV + düzenleme ücreti + yerel sipariş ücreti).
+ * Formül: eBay_fiyatı = (amazon_fiyatı + sabit_ücret) / (1 - etkinÜcret - margin)
+ *   etkinÜcret = (FVF + düzenlemeÜcreti) × (1 + ücretKDV)
+ *   sabitÜcret = sipariş başına ücret (yerel para) × (1 + ücretKDV)
  * amazonPriceInEbayCurrency: Amazon fiyatı zaten eBay para birimine çevrilmiş olmalı.
  */
 export function calculateEbayPrice(
   amazonPriceInEbayCurrency: number,
   commission: number = 0.136,
-  margin: number = 0.20
+  margin: number = 0.20,
+  marketplace: EbayMarketplace = EBAY_MARKETPLACES.EBAY_US
 ): RepricerResult {
   const amazonPrice = amazonPriceInEbayCurrency;
-  const fixedFee = getFixedFee(amazonPrice);
-  const divisor = 1 - commission - margin;
+  const fvf = commission > 0 ? commission : marketplace.defaultFvfRate;
 
+  // Sipariş başına sabit ücret (yerel para) + ücret KDV'si
+  const baseFixed =
+    amazonPrice >= marketplace.perOrderThreshold
+      ? marketplace.perOrderFeeHigh
+      : marketplace.perOrderFeeLow;
+  const fixedFee = baseFixed * (1 + marketplace.feeVatRate);
+
+  // Etkin oran: (FVF + düzenleme ücreti) × (1 + ücret KDV)
+  const effectiveRate = (fvf + marketplace.regulatoryFeeRate) * (1 + marketplace.feeVatRate);
+
+  const divisor = 1 - effectiveRate - margin;
   if (divisor <= 0) {
     throw new Error("Komisyon + margin toplamı 1'e eşit veya büyük olamaz");
   }
 
   const ebayPrice = (amazonPrice + fixedFee) / divisor;
-
-  // eBay'e ödenen komisyon
-  const ebayFee = ebayPrice * commission + fixedFee;
-
-  // Net kâr
+  const ebayFee = ebayPrice * effectiveRate + fixedFee;
   const netProfit = ebayPrice - amazonPrice - ebayFee;
-
-  // Gerçek margin yüzdesi
   const marginPct = netProfit / ebayPrice;
 
   return {
@@ -49,7 +56,7 @@ export function calculateEbayPrice(
 
 /**
  * Cross-marketplace fiyat hesaplama.
- * Amazon fiyatını eBay para birimine çevirir, sonra repricer formülünü uygular.
+ * Amazon fiyatını eBay pazarının para birimine çevirir, sonra pazar-bazlı formülü uygular.
  */
 export async function calculateEbayPriceForMarket(
   amazonPrice: number,
@@ -58,10 +65,11 @@ export async function calculateEbayPriceForMarket(
   commission = 0.136,
   margin = 0.20
 ): Promise<RepricerResult> {
+  const marketplace = resolveEbayMarketplace(ebaySite);
   const fromCurrency = MARKET_CURRENCY[amazonMarket] ?? "USD";
-  const toCurrency = EBAY_SITE_CURRENCY[ebaySite] ?? "USD";
+  const toCurrency = marketplace.currency;
   const convertedPrice = await convertCurrency(amazonPrice, fromCurrency, toCurrency);
-  return calculateEbayPrice(convertedPrice, commission, margin);
+  return calculateEbayPrice(convertedPrice, commission, margin, marketplace);
 }
 
 /**

@@ -10,6 +10,7 @@ export const GET = requireAuth(async (_req, { userId }) => {
       select: {
         id: true,
         ebayUserId: true,
+        marketplace: true,
         tokenExpiresAt: true,
         createdAt: true,
       },

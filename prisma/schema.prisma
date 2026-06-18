@@ -59,6 +59,9 @@ model EbayAccount {
   id                    String    @id @default(cuid())
   userId                String
   ebayUserId            String
+  // Mağazanın bağlı olduğu eBay pazarı — bağlanırken Identity API'den otomatik tespit edilir.
+  // EBAY_US | EBAY_GB | EBAY_DE | EBAY_AU
+  marketplace           String    @default("EBAY_US")
   // Token'lar ŞİFRELİ saklanır — Node crypto (AES-256-GCM). Düz metin ASLA.
   oauthTokenEncrypted   String?   @db.Text
   refreshTokenEncrypted String?   @db.Text

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { exchangeCodeForTokens } from "@/lib/ebay/oauth";
 import { encryptToken } from "@/lib/crypto";
 import { prisma } from "@/lib/prisma";
+import { normalizeEbayMarketplaceId } from "@/lib/ebay-markets";
 
 // getApiBaseUrl is used to build the Identity API URL.
 // isSandbox / getApiBaseUrl are module-private in oauth.ts so we read the
@@ -19,7 +20,13 @@ function getIdentityApiBaseUrl(): string {
  *
  * @throws Error when the HTTP call fails or the response is missing userId.
  */
-async function fetchEbayUserId(accessToken: string): Promise<string> {
+interface EbayIdentity {
+  userId: string;
+  /** Pazar tespiti — desteklenen anahtar (EBAY_US/GB/DE/AU); bilinmiyorsa EBAY_US. */
+  marketplace: string;
+}
+
+async function fetchEbayIdentity(accessToken: string): Promise<EbayIdentity> {
   const url = `${getIdentityApiBaseUrl()}/commerce/identity/v1/user/`;
 
   const response = await fetch(url, {
@@ -43,14 +50,20 @@ async function fetchEbayUserId(accessToken: string): Promise<string> {
     );
   }
 
-  const data = (await response.json()) as { userId?: string };
+  const data = (await response.json()) as {
+    userId?: string;
+    registrationMarketplaceId?: string;
+  };
 
   if (!data.userId) {
     console.error("[ebay/callback] Identity API yanıtında userId alanı yok");
     throw new Error("eBay Identity API yanıtında userId alanı bulunamadı");
   }
 
-  return data.userId;
+  return {
+    userId: data.userId,
+    marketplace: normalizeEbayMarketplaceId(data.registrationMarketplaceId),
+  };
 }
 
 export async function GET(req: NextRequest) {
@@ -87,11 +100,11 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // eBay Identity API'den gerçek (immutable) kullanıcı ID'sini al.
+    // eBay Identity API'den gerçek (immutable) kullanıcı ID'sini + pazarı al.
     // Başarısız olursa DB'ye yazmadan yönlendir.
-    let ebayUserId: string;
+    let identity: EbayIdentity;
     try {
-      ebayUserId = await fetchEbayUserId(tokens.accessToken);
+      identity = await fetchEbayIdentity(tokens.accessToken);
     } catch (err) {
       console.error("[ebay/callback] Identity fetch başarısız:", err);
       return NextResponse.redirect(
@@ -107,7 +120,8 @@ export async function GET(req: NextRequest) {
     await prisma.ebayAccount.create({
       data: {
         userId: state,
-        ebayUserId,
+        ebayUserId: identity.userId,
+        marketplace: identity.marketplace, // pazar otomatik tespit edildi
         oauthTokenEncrypted,
         refreshTokenEncrypted,
         tokenExpiresAt,

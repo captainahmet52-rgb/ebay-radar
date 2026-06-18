@@ -15,8 +15,16 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 interface EbayAccount {
   id: string;
   ebayUserId: string;
+  marketplace?: string;
   tokenExpiresAt: string;
 }
+
+const EBAY_MARKET_LABELS: Record<string, string> = {
+  EBAY_US: "🇺🇸 eBay US",
+  EBAY_GB: "🇬🇧 eBay UK",
+  EBAY_DE: "🇩🇪 eBay DE",
+  EBAY_AU: "🇦🇺 eBay AU",
+};
 
 const fadeUp = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 } };
 
@@ -131,7 +139,14 @@ export default function SettingsPage() {
                       <Zap className="h-4 w-4 text-violet-400" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-white">{account.ebayUserId}</p>
+                      <p className="text-sm font-medium text-white">
+                        {account.ebayUserId}
+                        {account.marketplace && (
+                          <span className="ml-2 text-xs font-normal text-violet-300">
+                            {EBAY_MARKET_LABELS[account.marketplace] ?? account.marketplace}
+                          </span>
+                        )}
+                      </p>
                       <p className="text-xs text-slate-400">
                         Token: {new Date(account.tokenExpiresAt) > new Date() ? "Geçerli" : "Süresi Doldu"}
                       </p>
