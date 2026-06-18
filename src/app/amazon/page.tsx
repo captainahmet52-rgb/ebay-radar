@@ -1,37 +1,77 @@
 "use client";
 
+import Link from "next/link";
+import { Radar, Trophy, XCircle, Gauge, ArrowRight, TrendingUp } from "lucide-react";
 import {
-  RefreshCcw, ShoppingCart, Cpu, Target, BarChart2, RotateCcw,
-} from "lucide-react";
-import { ComingSoonBot, type BotFeature } from "@/components/coming-soon-bot";
+  AmazonReady, PageHeader, Stat, Card, AMZ_ACCENT,
+  useAmazonData,
+} from "@/components/amazon/shared";
+import { AMAZON_MARKETS } from "@/lib/amazon-repricer";
 
-const FEATURES: BotFeature[] = [
-  { icon: RefreshCcw,  title: "Stok Senkronizasyonu",       desc: "Amazon depo stoğunuz otomatik senkronize edilir." },
-  { icon: ShoppingCart,title: "Sipariş Otomasyonu",         desc: "Gelen siparişler otomatik işlenir ve yönetilir." },
-  { icon: Cpu,         title: "AI Ürün Yönetimi",           desc: "Yapay zeka ile en kârlı ürünler otomatik belirlenir." },
-  { icon: Target,      title: "Buy Box Takibi",             desc: "Buy Box kazanma oranınız gerçek zamanlı izlenir." },
-  { icon: BarChart2,   title: "Kâr Analitiği",              desc: "Detaylı kâr/zarar raporları ve trend analizleri." },
-  { icon: RotateCcw,   title: "Otomatik Yeniden Fiyatlama", desc: "Rakiplere göre fiyatlarınız otomatik güncellenir." },
-];
+export default function AmazonPanelPage() {
+  const { market } = useAmazonData();
+  const symbol = AMAZON_MARKETS[market]?.symbol ?? "$";
 
-export default function AmazonBotPage() {
   return (
-    <ComingSoonBot
-      botName="AmazonBot"
-      accent="#f59e0b"
-      description="Amazon mağazanı bağla; ürünleri, stokları ve siparişleri otomatik yönet. Kârlı ürünleri AI ile keşfet, tek tıkla listele."
-      features={FEATURES}
-      logo={
-        <div className="inline-block">
-          <span className="text-[3rem] font-black text-white leading-none tracking-tight" style={{ fontFamily: "Georgia, serif" }}>
-            amazon
-          </span>
-          <svg width="160" height="22" viewBox="0 0 160 22" fill="none" className="mt-1.5 mx-auto block">
-            <path d="M10 8 C 56 25, 110 25, 148 9" stroke="#f59e0b" strokeWidth="4" strokeLinecap="round" />
-            <path d="M148 9 L138 7 M148 9 L142 16" stroke="#f59e0b" strokeWidth="4" strokeLinecap="round" />
-          </svg>
-        </div>
-      }
-    />
+    <>
+      <PageHeader
+        title="AmazonBot Paneli"
+        subtitle="Radar AliExpress'ten kazanan ürünleri bulur, Amazon'da doğrular ve kâr/marka filtresinden geçirir."
+      />
+      <AmazonReady>
+        {(data) => {
+          const winners = data.results.filter((r) => r.verdict.pass);
+          const rejected = data.results.length - winners.length;
+          const avgScore = winners.length
+            ? Math.round(winners.reduce((s, r) => s + r.verdict.score, 0) / winners.length)
+            : 0;
+
+          return (
+            <div className="space-y-8">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <Stat icon={Radar} label="Taranan aday" value={data.total} />
+                <Stat icon={Trophy} label="Kazanan" value={winners.length} sub="radardan geçti" />
+                <Stat icon={XCircle} label="Elenen" value={rejected} sub="filtreye takıldı" />
+                <Stat icon={Gauge} label="Ort. skor" value={avgScore} sub="/100" />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-lg font-bold">En iyi kazananlar</h2>
+                  <Link href="/amazon/depot" className="text-sm text-slate-400 hover:text-white flex items-center gap-1">
+                    Tümü <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </div>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {winners.slice(0, 6).map((r) => (
+                    <Card key={r.candidate.aliId}>
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                          style={{ background: `${AMZ_ACCENT}1f`, border: `1px solid ${AMZ_ACCENT}40`, color: AMZ_ACCENT }}>
+                          {r.verdict.score}/100
+                        </span>
+                        <TrendingUp className="h-4 w-4 text-emerald-400" />
+                      </div>
+                      <p className="text-sm font-medium leading-snug line-clamp-2">{r.candidate.title}</p>
+                      {r.verdict.pricing && (
+                        <p className="text-xs text-slate-400 mt-2">
+                          Satış {symbol}{r.verdict.pricing.salePrice} · Kâr {symbol}{r.verdict.pricing.netProfit} (%{r.verdict.pricing.marginPct})
+                        </p>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+                {winners.length === 0 && (
+                  <p className="text-slate-500 text-sm py-8 text-center rounded-xl"
+                    style={{ background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                    Bu pazarda radardan geçen ürün yok. Eşikleri Ayarlar&apos;dan gevşetebilirsin.
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        }}
+      </AmazonReady>
+    </>
   );
 }
