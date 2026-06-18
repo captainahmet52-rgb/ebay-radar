@@ -26,7 +26,11 @@ async function processPollProduct(
     include: {
       listings: {
         where: { status: "active" },
-        select: { id: true, ebaySite: true },
+        select: {
+          id: true,
+          ebaySite: true,
+          user: { select: { uploadProfitMarginPct: true } },
+        },
       },
     },
   });
@@ -167,21 +171,28 @@ async function processPollProduct(
     return;
   }
 
-  const updateJobs = activeListings.map((listing) =>
-    updateListingQueue.add(
-      "update-listing",
-      {
-        listingId: listing.id,
-        price: newEbayPrice,
-        qty: newQty,
-      },
-      {
-        jobId: `update-listing:${listing.id}:${Date.now()}`,
-      }
-    )
-  );
+  // Her listing için kullanıcının KENDİ kâr marjıyla fiyat hesapla (kullanıcıya özel)
+  await Promise.all(
+    activeListings.map(async (listing) => {
+      const marginPct = listing.user?.uploadProfitMarginPct;
+      const margin =
+        marginPct != null && marginPct > 0 ? marginPct / 100 : product.targetMargin;
 
-  await Promise.all(updateJobs);
+      const { ebayPrice } = await calculateEbayPriceForMarket(
+        newAmazonPrice,
+        product.amazonMarket ?? "US",
+        listing.ebaySite ?? "EBAY_US",
+        product.ebayFeeRate,
+        margin
+      );
+
+      return updateListingQueue.add(
+        "update-listing",
+        { listingId: listing.id, price: ebayPrice, qty: newQty },
+        { jobId: `update-listing:${listing.id}:${Date.now()}` }
+      );
+    })
+  );
 
   job.log(
     `Tamamlandı: ${product.asin} | Amazon: $${newAmazonPrice.toFixed(2)} → eBay: $${newEbayPrice.toFixed(2)} | Stok: ${stockStatus}(${stockQty ?? "∞"}) | ${activeListings.length} listing kuyruğa eklendi`

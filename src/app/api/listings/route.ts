@@ -79,11 +79,21 @@ export const POST = requireAuth(async (req, { userId }) => {
       );
     }
 
-    // Fiyat + qty hesapla
+    // Kullanıcının kâr marjı ayarı (yüzde) — yoksa ürün varsayılanına düş
+    const settings = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { uploadProfitMarginPct: true },
+    });
+    const margin =
+      settings?.uploadProfitMarginPct != null && settings.uploadProfitMarginPct > 0
+        ? settings.uploadProfitMarginPct / 100
+        : product.targetMargin;
+
+    // Fiyat + qty hesapla (kullanıcının marjıyla)
     const repricerResult = calculateEbayPrice(
       product.amazonPrice,
       product.ebayFeeRate,
-      product.targetMargin
+      margin
     );
     const qty = determineQty(
       product.amazonStockStatus as StockStatus,
