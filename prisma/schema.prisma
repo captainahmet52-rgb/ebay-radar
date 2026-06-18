@@ -32,6 +32,19 @@ model User {
   amazonAccounts       AmazonAccount[]
   amazonListings       AmazonListing[]
 
+  // AmazonBot oto-yükleme + müşteri kuralları (eBay auto-upload'ın Amazon karşılığı)
+  amazonAutoUploadEnabled  Boolean @default(false)
+  amazonUploadDailyLimit   Int     @default(10)
+  amazonUploadMinCostUsd   Float   @default(8)   // AliExpress kaynak maliyeti alt sınırı
+  amazonUploadMaxCostUsd   Float   @default(100) // üst sınır
+  amazonUploadQuantity     Int     @default(2)
+  amazonUploadAutoPublish  Boolean @default(true)
+  // Pazar başına MÜŞTERİ marj override (null → pazar varsayılanı: us %20, uk/ae %25, sa %30)
+  amazonMarginUsPct        Float?
+  amazonMarginUkPct        Float?
+  amazonMarginAePct        Float?
+  amazonMarginSaPct        Float?
+
   // Otomatik Yükleme Ayarları
   autoUploadEnabled     Boolean  @default(false)
   uploadSchedule        String   @default("daily")

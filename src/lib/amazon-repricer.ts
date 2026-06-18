@@ -86,6 +86,28 @@ export function resolveMargin(market: AmazonMarket, userMarginPct?: number | nul
   return market.defaultMargin;
 }
 
+/** Kullanıcının pazar başına marj override alanları (User'dan). */
+export interface AmazonMarginOverrides {
+  amazonMarginUsPct?: number | null;
+  amazonMarginUkPct?: number | null;
+  amazonMarginAePct?: number | null;
+  amazonMarginSaPct?: number | null;
+}
+
+/** Pazar anahtarına karşılık gelen kullanıcı marj override'ını döner (yoksa null). */
+export function userMarginForMarket(
+  marketKey: string,
+  o: AmazonMarginOverrides
+): number | null {
+  switch (marketKey) {
+    case "us": return o.amazonMarginUsPct ?? null;
+    case "uk": return o.amazonMarginUkPct ?? null;
+    case "ae": return o.amazonMarginAePct ?? null;
+    case "sa": return o.amazonMarginSaPct ?? null;
+    default:   return null;
+  }
+}
+
 export interface AmazonRepricerResult {
   /** Müşteriye gösterilen satış fiyatı (yerel para, KDV dahil). */
   salePrice: number;
