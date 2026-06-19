@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Mail, Lock, AlertCircle, CheckCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -88,7 +89,12 @@ export default function RegisterPage() {
       if (!res.ok) throw new Error(data.error ?? "Kayıt başarısız");
 
       setSuccess(true);
-      setTimeout(() => router.push(loginHref), 2000);
+      // Kayıt sonrası OTOMATİK giriş yap, sonra geldiğin bota / ana sayfaya dön (tekrar login yok)
+      const signInResult = await signIn("credentials", { email, password, redirect: false });
+      setTimeout(() => {
+        if (signInResult?.error) router.push(loginHref); // oto-giriş olmazsa login'e düş
+        else router.push(callbackUrl ?? "/");
+      }, 1200);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Bir hata oluştu");
     } finally {

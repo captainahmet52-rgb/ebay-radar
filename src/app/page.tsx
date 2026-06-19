@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { motion, useMotionValue } from "framer-motion";
 import Link from "next/link";
+import { useSession, signOut } from "next-auth/react";
 import {
   RefreshCcw, ShoppingCart, Cpu, Target, BarChart2,
   Upload, DollarSign, RotateCcw, FileBarChart,
@@ -172,6 +173,8 @@ function PlatformCard({
 // ─── Ana sayfa ────────────────────────────────────────────────────────────────
 
 export default function LandingPage() {
+  const { status } = useSession();
+  const isAuthed = status === "authenticated";
   const mouseX = useMotionValue(-9999);
   const mouseY = useMotionValue(-9999);
 
@@ -237,19 +240,30 @@ export default function LandingPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Link
-            href="/login"
-            className="text-sm font-semibold px-5 py-2.5 rounded-xl text-slate-300 hover:text-white transition-colors"
-          >
-            Giriş Yap
-          </Link>
-          <Link
-            href="/register"
-            className="flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl transition-all duration-200 hover:bg-violet-600/20"
-            style={{ border: "1px solid rgba(124,58,237,0.5)", background: "rgba(124,58,237,0.1)" }}
-          >
-            Kayıt Ol
-          </Link>
+          {isAuthed ? (
+            <button
+              onClick={() => signOut({ callbackUrl: "/" })}
+              className="text-sm font-semibold px-5 py-2.5 rounded-xl text-slate-300 hover:text-white transition-colors"
+            >
+              Çıkış Yap
+            </button>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="text-sm font-semibold px-5 py-2.5 rounded-xl text-slate-300 hover:text-white transition-colors"
+              >
+                Giriş Yap
+              </Link>
+              <Link
+                href="/register"
+                className="flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl transition-all duration-200 hover:bg-violet-600/20"
+                style={{ border: "1px solid rgba(124,58,237,0.5)", background: "rgba(124,58,237,0.1)" }}
+              >
+                Kayıt Ol
+              </Link>
+            </>
+          )}
         </div>
       </nav>
 
