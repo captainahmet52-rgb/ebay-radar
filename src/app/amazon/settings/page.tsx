@@ -14,6 +14,7 @@ interface AmazonSettings {
   amazonUploadMaxCostUsd: number;
   amazonUploadQuantity: number;
   amazonUploadAutoPublish: boolean;
+  amazonAutoFulfill: boolean;
   amazonMarginUsPct: number | null;
   amazonMarginUkPct: number | null;
   amazonMarginAePct: number | null;
@@ -137,6 +138,9 @@ export default function AmazonSettingsPage() {
             </Row>
             <Row label="Otomatik yayınla">
               <Toggle on={!!s?.amazonUploadAutoPublish} disabled={!s} onChange={(v) => set("amazonUploadAutoPublish", v)} />
+            </Row>
+            <Row label="Satışta otomatik sipariş (AliExpress oto-buy)">
+              <Toggle on={!!s?.amazonAutoFulfill} disabled={!s} onChange={(v) => set("amazonAutoFulfill", v)} />
             </Row>
           </Card>
           <div className="flex items-center gap-3 mt-3">

@@ -44,6 +44,8 @@ model User {
   amazonUploadMaxCostUsd   Float   @default(100) // üst sınır
   amazonUploadQuantity     Int     @default(2)
   amazonUploadAutoPublish  Boolean @default(true)
+  // Satış olunca AliExpress'e otomatik sipariş ver (oto-buy)
+  amazonAutoFulfill        Boolean @default(false)
   // Pazar başına MÜŞTERİ marj override (null → pazar varsayılanı: us %20, uk/ae %25, sa %30)
   amazonMarginUsPct        Float?
   amazonMarginUkPct        Float?

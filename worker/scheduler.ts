@@ -19,6 +19,7 @@ import {
   amazonAutoUploadQueue,
   amazonPollOrdersQueue,
   amazonDepotWatchdogQueue,
+  amazonTrackingSyncQueue,
 } from "@/lib/queues";
 
 // AmazonBot radar — taranacak pazarlar
@@ -111,6 +112,15 @@ export async function setupScheduler(): Promise<void> {
     { repeat: { every: 15 * 60 * 1000 } }
   );
   console.log("[scheduler] amazon-depot-watchdog kuruldu: her 15 dakika");
+
+  // ── amazon-tracking-sync: her 2 saat (AliExpress sipariş → kargo no) ─────────
+  await clearRepeatableJobs(amazonTrackingSyncQueue, "amazon-tracking-sync");
+  await amazonTrackingSyncQueue.add(
+    "amazon-tracking-sync",
+    {},
+    { repeat: { every: 2 * 60 * 60 * 1000 } }
+  );
+  console.log("[scheduler] amazon-tracking-sync kuruldu: her 2 saat");
 }
 
 /**

@@ -205,6 +205,41 @@ export const amazonVerifyOrderQueue = new Queue<AmazonVerifyOrderJobData, void, 
   }
 );
 
+// ─── AmazonBot Oto-Sipariş (AliExpress'e oto-buy) ──────────────────────────────
+export interface AmazonFulfillOrderJobData {
+  orderId: string;
+}
+
+export const amazonFulfillOrderQueue = new Queue<AmazonFulfillOrderJobData, void, string>(
+  "amazon-fulfill-order",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { type: "exponential", delay: 8000 },
+      removeOnComplete: { count: 200 },
+      removeOnFail: { count: 500 },
+    },
+  }
+);
+
+// ─── AmazonBot Takip Senkronu (AliExpress sipariş → kargo no çek) ──────────────
+export interface AmazonTrackingSyncJobData {
+  _trigger?: string;
+}
+
+export const amazonTrackingSyncQueue = new Queue<AmazonTrackingSyncJobData, void, string>(
+  "amazon-tracking-sync",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 2,
+      removeOnComplete: { count: 50 },
+      removeOnFail: { count: 100 },
+    },
+  }
+);
+
 // ─── AmazonBot Depo Bekçisi (eşik altına düşünce radarı tetikler) ──────────────
 export interface AmazonDepotWatchdogJobData {
   _trigger?: string;

@@ -16,6 +16,8 @@ import { createAmazonPollProductWorker } from "./jobs/amazon-poll-product";
 import { createAmazonPollOrdersWorker } from "./jobs/amazon-poll-orders";
 import { createAmazonDepotWatchdogWorker } from "./jobs/amazon-depot-watchdog";
 import { createAmazonVerifyOrderWorker } from "./jobs/amazon-verify-order";
+import { createAmazonFulfillOrderWorker } from "./jobs/amazon-fulfill-order";
+import { createAmazonTrackingSyncWorker } from "./jobs/amazon-tracking-sync";
 import { createDistributeProductsWorker } from "./jobs/distribute-products";
 import { createRefreshTokensWorker } from "./jobs/refresh-tokens";
 import { createDispatchPollsWorker } from "./jobs/dispatch-polls";
@@ -37,6 +39,8 @@ const workers: Worker[] = [
   createAmazonPollOrdersWorker(connection),
   createAmazonDepotWatchdogWorker(connection),
   createAmazonVerifyOrderWorker(connection),
+  createAmazonFulfillOrderWorker(connection),
+  createAmazonTrackingSyncWorker(connection),
   createDistributeProductsWorker(connection),
   createRefreshTokensWorker(connection),
   createDispatchPollsWorker(connection),
@@ -55,6 +59,8 @@ console.log("  → amazon-poll-product    (concurrency: 4)");
 console.log("  → amazon-poll-orders     (concurrency: 2)");
 console.log("  → amazon-depot-watchdog  (concurrency: 1)");
 console.log("  → amazon-verify-order    (concurrency: 4)");
+console.log("  → amazon-fulfill-order   (concurrency: 2)");
+console.log("  → amazon-tracking-sync   (concurrency: 1)");
 console.log("  → distribute-products    (concurrency: 2)");
 console.log("  → refresh-tokens         (concurrency: 2)");
 console.log("  → dispatch-polls         (concurrency: 1)");

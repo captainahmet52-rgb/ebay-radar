@@ -6,7 +6,7 @@ import type { ConnectionOptions } from "bullmq";
 import { prisma } from "@/lib/prisma";
 import { fetchAliExpressProduct } from "@/lib/aliexpress";
 import { isPriceSpike } from "@/lib/amazon-repricer";
-import type { AmazonVerifyOrderJobData } from "@/lib/queues";
+import { amazonFulfillOrderQueue, type AmazonVerifyOrderJobData } from "@/lib/queues";
 
 async function processVerifyOrder(job: Job<AmazonVerifyOrderJobData>): Promise<void> {
   const { orderId } = job.data;
@@ -61,6 +61,21 @@ async function processVerifyOrder(job: Job<AmazonVerifyOrderJobData>): Promise<v
       ...(risk ? { status: "risk" } : {}),
     },
   });
+
+  // Güvenliyse ve kullanıcı oto-sipariş açtıysa → AliExpress'e oto-buy
+  if (!risk && !order.aliOrderId) {
+    const user = await prisma.user.findUnique({
+      where: { id: order.userId },
+      select: { amazonAutoFulfill: true },
+    });
+    if (user?.amazonAutoFulfill) {
+      await amazonFulfillOrderQueue.add(
+        "amazon-fulfill-order",
+        { orderId },
+        { jobId: `amazon-fulfill:${orderId}` }
+      );
+    }
+  }
 
   await job.log(
     risk ? `SİPARİŞ RİSKLİ: ${orderId} — ${risk}` : `Sipariş doğrulandı: ${orderId}`

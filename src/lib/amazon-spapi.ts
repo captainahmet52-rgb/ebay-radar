@@ -298,6 +298,71 @@ export async function getOrders(
   }));
 }
 
+// ─── Sipariş adresi (PII — RDT gerekli) ──────────────────────────────────────
+
+export interface ShippingAddress {
+  name?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  stateOrRegion?: string;
+  postalCode?: string;
+  countryCode?: string;
+  phone?: string;
+}
+
+/**
+ * Kısıtlı veri token'ı (RDT) üretir — PII içeren operasyonlar için gerekli.
+ */
+export async function createRestrictedDataToken(
+  market: string,
+  accessToken: string,
+  path: string,
+  dataElements: string[]
+): Promise<string> {
+  const data = await spapiRequest<{ restrictedDataToken?: string }>(
+    market,
+    accessToken,
+    "POST",
+    "/tokens/2021-03-01/restrictedDataToken",
+    undefined,
+    { restrictedResources: [{ method: "GET", path, dataElements }] }
+  );
+  if (!data.restrictedDataToken) throw new Error("RDT alınamadı");
+  return data.restrictedDataToken;
+}
+
+/**
+ * Siparişin teslim adresini çeker (RDT ile). AliExpress oto-sipariş için gerekli.
+ */
+export async function getOrderAddress(
+  market: string,
+  accessToken: string,
+  amazonOrderId: string
+): Promise<ShippingAddress> {
+  const path = `/orders/v0/orders/${amazonOrderId}/address`;
+  const rdt = await createRestrictedDataToken(market, accessToken, path, ["shippingAddress"]);
+
+  const data = await spapiRequest<{ payload?: { ShippingAddress?: Record<string, string> } }>(
+    market,
+    rdt, // RDT, access token yerine kullanılır
+    "GET",
+    path
+  );
+
+  const a = data.payload?.ShippingAddress ?? {};
+  return {
+    name: a.Name,
+    addressLine1: a.AddressLine1,
+    addressLine2: a.AddressLine2,
+    city: a.City,
+    stateOrRegion: a.StateOrRegion,
+    postalCode: a.PostalCode,
+    countryCode: a.CountryCode,
+    phone: a.Phone,
+  };
+}
+
 // ─── Kargo bildirimi (confirmShipment) ───────────────────────────────────────
 
 /**
