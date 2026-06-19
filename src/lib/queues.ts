@@ -187,6 +187,24 @@ export const amazonPollProductQueue = new Queue<AmazonPollProductJobData, void, 
   }
 );
 
+// ─── AmazonBot Sipariş-Anı Doğrulama (canlı stok/fiyat kontrolü) ──────────────
+export interface AmazonVerifyOrderJobData {
+  orderId: string;
+}
+
+export const amazonVerifyOrderQueue = new Queue<AmazonVerifyOrderJobData, void, string>(
+  "amazon-verify-order",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 2,
+      backoff: { type: "fixed", delay: 3000 },
+      removeOnComplete: { count: 200 },
+      removeOnFail: { count: 500 },
+    },
+  }
+);
+
 // ─── AmazonBot Depo Bekçisi (eşik altına düşünce radarı tetikler) ──────────────
 export interface AmazonDepotWatchdogJobData {
   _trigger?: string;

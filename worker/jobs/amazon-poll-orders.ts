@@ -5,7 +5,7 @@ import type { ConnectionOptions } from "bullmq";
 import { prisma } from "@/lib/prisma";
 import { decryptToken } from "@/lib/crypto";
 import { getSpapiAccessToken, getOrders, isSpapiConfigured } from "@/lib/amazon-spapi";
-import type { AmazonPollOrdersJobData } from "@/lib/queues";
+import { amazonVerifyOrderQueue, type AmazonPollOrdersJobData } from "@/lib/queues";
 
 async function pollAccount(accountId: string, log: (m: string) => void): Promise<void> {
   const account = await prisma.amazonAccount.findUnique({ where: { id: accountId } });
@@ -24,7 +24,7 @@ async function pollAccount(accountId: string, log: (m: string) => void): Promise
     if (!o.amazonOrderId) continue;
     const soldPrice = o.orderTotal ? Number(o.orderTotal.amount) : null;
 
-    await prisma.amazonOrder.upsert({
+    const saved = await prisma.amazonOrder.upsert({
       where: { amazonOrderId: o.amazonOrderId },
       create: {
         userId: account.userId,
@@ -36,6 +36,15 @@ async function pollAccount(accountId: string, log: (m: string) => void): Promise
       },
       update: { status: o.orderStatus.toLowerCase(), ...(soldPrice != null ? { soldPrice } : {}) },
     });
+
+    // Henüz doğrulanmamış siparişi sipariş-anı doğrulamaya gönder (canlı stok/fiyat)
+    if (!saved.verifiedAt) {
+      await amazonVerifyOrderQueue.add(
+        "amazon-verify-order",
+        { orderId: saved.id },
+        { jobId: `amazon-verify:${saved.id}` }
+      );
+    }
   }
 }
 

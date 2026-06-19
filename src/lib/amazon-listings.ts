@@ -8,6 +8,7 @@ import {
   getSpapiAccessToken,
   getListingsRestrictions,
   putListingsItem,
+  searchProductType,
   isSpapiConfigured,
 } from "@/lib/amazon-spapi";
 import type { AmazonAccount, AmazonDepotProduct } from "@prisma/client";
@@ -64,20 +65,28 @@ export async function createOrUpdateAmazonListing(
 
   const sku = buildSku(product, market);
 
-  // NOT: attributes şeması ürün tipine göre değişir; burası gerçek kategori
-  // eşlemesiyle zenginleştirilecek. Minimum: fiyat + adet + durum.
+  // Ürün tipini başlıktan tespit et (putListingsItem için gerekli)
+  const productType = await searchProductType(market, accessToken, product.title ?? "");
+
+  // Marketplace para birimi (currency kodu pazara göre)
+  const currency =
+    market === "uk" ? "GBP" : market === "ae" ? "AED" : market === "sa" ? "SAR" : "USD";
+
+  // NOT: tam attribute şeması productType'a göre genişletilir (getDefinitionsProductType ile).
+  // Minimum zorunlular: durum + stok + fiyat + başlık.
   const attributes: Record<string, unknown> = {
     condition_type: [{ value: "new_new" }],
+    item_name: product.title ? [{ value: product.title }] : undefined,
     fulfillment_availability: [{ fulfillment_channel_code: "DEFAULT", quantity: qty }],
     purchasable_offer: [
-      { currency: market, our_price: [{ schedule: [{ value_with_tax: price }] }] },
+      { currency, our_price: [{ schedule: [{ value_with_tax: price }] }] },
     ],
   };
 
   const result = await putListingsItem(market, accessToken, {
     sellerId: account.sellerId,
     sku,
-    productType: "PRODUCT",
+    productType,
     attributes,
   });
 

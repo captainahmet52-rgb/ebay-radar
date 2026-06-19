@@ -371,8 +371,11 @@ model AmazonOrder {
   validTrackingNo  String?
   // pending | converting | converted | failed
   trackingStatus  String   @default("pending")
-  // unshipped | shipped | delivered | cancelled
+  // unshipped | shipped | delivered | cancelled | risk
   status          String   @default("unshipped")
+  // Sipariş-anı doğrulama (canlı AliExpress stok/fiyat kontrolü)
+  verifyNote      String?
+  verifiedAt      DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

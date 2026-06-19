@@ -198,6 +198,34 @@ export async function getListingsRestrictions(
   return { allowed: restrictions.length === 0, reasons };
 }
 
+// ─── Ürün tipi tespiti (putListingsItem için gerekli) ────────────────────────
+
+/**
+ * Başlık/anahtar kelimeden Amazon productType'ını bulur (searchDefinitionsProductTypes).
+ * Bulunamazsa güvenli varsayılan "PRODUCT" döner.
+ */
+export async function searchProductType(
+  market: string,
+  accessToken: string,
+  keywords: string
+): Promise<string> {
+  const cfg = SPAPI_MARKETS[market];
+  if (!cfg) throw new Error(`Geçersiz pazar: ${market}`);
+
+  try {
+    const data = await spapiRequest<{ productTypes?: Array<{ name?: string }> }>(
+      market,
+      accessToken,
+      "GET",
+      "/definitions/2020-09-01/productTypes",
+      { keywords: keywords.slice(0, 60), marketplaceIds: cfg.marketplaceId }
+    );
+    return data.productTypes?.[0]?.name ?? "PRODUCT";
+  } catch {
+    return "PRODUCT";
+  }
+}
+
 // ─── Listeleme ─────────────────────────────────────────────────────────────────
 
 export interface PutListingInput {

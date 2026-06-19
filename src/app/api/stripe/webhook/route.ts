@@ -43,6 +43,22 @@ export async function POST(req: NextRequest) {
             data: { stripeCustomerId: customerId },
           });
         }
+
+        // Kredi yükleme (tek seferlik ödeme) → cüzdana ekle + ledger
+        if (userId && session.metadata?.type === "credit_topup") {
+          const amountUsd = Number(session.metadata.amountUsd ?? 0);
+          if (amountUsd > 0) {
+            await prisma.$transaction([
+              prisma.user.update({
+                where: { id: userId },
+                data: { creditBalanceUsd: { increment: amountUsd } },
+              }),
+              prisma.creditTransaction.create({
+                data: { userId, amountUsd, type: "topup", refId: session.id, note: "Stripe kredi yükleme" },
+              }),
+            ]);
+          }
+        }
         break;
       }
 

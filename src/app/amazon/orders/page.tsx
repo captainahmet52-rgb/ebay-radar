@@ -95,9 +95,26 @@ export default function AmazonOrdersPage() {
                 <p className="text-2xl font-black">${(data?.balanceUsd ?? 0).toFixed(2)}</p>
               </div>
             </div>
-            <p className="text-xs text-slate-500">
-              Her takip kodu çevirme: <b style={{ color: AMZ_ACCENT }}>${fee.toFixed(2)}</b>
-            </p>
+            <div className="flex items-center gap-3">
+              <p className="text-xs text-slate-500">
+                Her çevirme: <b style={{ color: AMZ_ACCENT }}>${fee.toFixed(2)}</b>
+              </p>
+              <button
+                onClick={async () => {
+                  const r = await fetch("/api/amazon/wallet/topup", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ amountUsd: 10 }),
+                  });
+                  const j = await r.json();
+                  if (r.ok && j.url) window.location.href = j.url;
+                  else setMsg(j.error ?? "Yükleme başlatılamadı");
+                }}
+                className="rounded-lg px-3 py-1.5 text-sm font-semibold border border-white/10 text-white hover:border-emerald-500/40"
+              >
+                Kredi yükle ($10)
+              </button>
+            </div>
           </div>
         </Card>
       </div>
