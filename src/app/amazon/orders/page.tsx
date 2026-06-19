@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { Copy, Loader2, Wallet } from "lucide-react";
 import { PageHeader, Card, Empty, AMZ_ACCENT } from "@/components/amazon/shared";
 
@@ -129,8 +130,10 @@ export default function AmazonOrdersPage() {
         <Empty text="Henüz sipariş yok. Amazon siparişleri geldikçe burada listelenecek." />
       ) : (
         <div className="space-y-2.5">
-          {data.orders.map((o) => (
-            <Card key={o.id} pad="p-4">
+          {data.orders.map((o, i) => (
+            <motion.div key={o.id} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: Math.min(i * 0.04, 0.4) }}>
+            <Card pad="p-4">
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold">#{o.amazonOrderId}</p>
@@ -181,6 +184,7 @@ export default function AmazonOrdersPage() {
                 )}
               </div>
             </Card>
+            </motion.div>
           ))}
         </div>
       )}

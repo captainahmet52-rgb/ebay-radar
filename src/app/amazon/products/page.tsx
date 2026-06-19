@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { Loader2, RefreshCw } from "lucide-react";
 import { PageHeader, Card, Empty, AMZ_ACCENT } from "@/components/amazon/shared";
 
@@ -47,11 +48,13 @@ export default function AmazonProductsPage() {
         <Empty text="Henüz listeleme yok. Mağaza bağlayıp Ayarlar'dan oto-yüklemeyi açınca (ya da 'Şimdi yükle') depodan ürünler buraya listelenecek." />
       ) : (
         <div className="space-y-2.5">
-          {data.listings.map((l) => {
+          {data.listings.map((l, i) => {
             const sym = MARKET_SYMBOL[l.market] ?? "$";
             const active = l.status === "active";
             return (
-              <Card key={l.id} pad="p-4">
+              <motion.div key={l.id} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: Math.min(i * 0.04, 0.4) }} whileHover={{ x: 3 }}>
+              <Card pad="p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <p className="text-sm font-medium">{l.product.title ?? l.product.aliId}</p>
@@ -74,6 +77,7 @@ export default function AmazonProductsPage() {
                   </div>
                 </div>
               </Card>
+              </motion.div>
             );
           })}
         </div>

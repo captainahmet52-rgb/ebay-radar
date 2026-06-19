@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { Loader2, Store, Trash2, Plus } from "lucide-react";
 import { PageHeader, Card, Empty, AMZ_ACCENT } from "@/components/amazon/shared";
 
@@ -79,8 +80,10 @@ export default function AmazonStoresPage() {
         <Empty text="Henüz bağlı Amazon mağazan yok. Yukarıdan bir mağaza bağla." />
       ) : (
         <div className="space-y-2.5">
-          {accounts.map((a) => (
-            <Card key={a.id} pad="p-4">
+          {accounts.map((a, i) => (
+            <motion.div key={a.id} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: Math.min(i * 0.05, 0.4) }} whileHover={{ x: 3 }}>
+            <Card pad="p-4">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center"
@@ -103,6 +106,7 @@ export default function AmazonStoresPage() {
                 </button>
               </div>
             </Card>
+            </motion.div>
           ))}
         </div>
       )}
