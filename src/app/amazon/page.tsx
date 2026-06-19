@@ -2,44 +2,47 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Radar, Package, ShoppingCart, Gauge, ArrowRight, TrendingUp, Loader2, RefreshCw } from "lucide-react";
+import { Store, Package, ShoppingCart, AlertTriangle, ArrowRight, Loader2, RefreshCw } from "lucide-react";
 import { PageHeader, Stat, Card, AMZ_ACCENT } from "@/components/amazon/shared";
 
-interface DepotProduct {
-  id: string; aliId: string; title: string | null; category: string | null;
-  radarScore: number | null; aliCostUsd: number; status: string;
+interface Listing {
+  id: string; market: string; salePrice: number | null; currentQty: number;
+  status: string; publishStage: string | null;
+  product: { title: string | null; aliId: string };
 }
 
+const MARKET_SYMBOL: Record<string, string> = { us: "$", uk: "£", ae: "AED ", sa: "SAR " };
+
 export default function AmazonPanelPage() {
-  const [depot, setDepot] = useState<{ demo: boolean; total: number; active: number; paused: number; products: DepotProduct[] } | null>(null);
+  const [accounts, setAccounts] = useState(0);
+  const [listings, setListings] = useState<Listing[]>([]);
   const [listingsCount, setListingsCount] = useState(0);
-  const [ordersCount, setOrdersCount] = useState(0);
+  const [orders, setOrders] = useState(0);
+  const [riskOrders, setRiskOrders] = useState(0);
   const [loading, setLoading] = useState(true);
 
   async function load() {
     setLoading(true);
-    const [d, l, o] = await Promise.all([
-      fetch("/api/amazon/depot").then((r) => r.json()).catch(() => null),
+    const [acc, l, o] = await Promise.all([
+      fetch("/api/amazon/accounts").then((r) => r.json()).catch(() => null),
       fetch("/api/amazon/listings").then((r) => r.json()).catch(() => null),
       fetch("/api/amazon/orders").then((r) => r.json()).catch(() => null),
     ]);
-    setDepot(d);
+    setAccounts(acc?.data?.length ?? 0);
+    setListings(l?.listings ?? []);
     setListingsCount(l?.total ?? 0);
-    setOrdersCount(o?.orders?.length ?? 0);
+    const ords = o?.orders ?? [];
+    setOrders(ords.length);
+    setRiskOrders(ords.filter((x: { status: string }) => x.status === "risk").length);
     setLoading(false);
   }
   useEffect(() => { void load(); }, []);
-
-  const winners = depot?.products.filter((p) => p.status === "active") ?? [];
-  const avgScore = winners.length
-    ? Math.round(winners.reduce((s, p) => s + (p.radarScore ?? 0), 0) / winners.length)
-    : 0;
 
   return (
     <>
       <PageHeader
         title="AmazonBot Paneli"
-        subtitle="Radar AliExpress'ten kazanan ürünleri bulur, marka/yasak + kâr filtresinden geçirip depoya yazar."
+        subtitle="Mağazanı bağla, kurallarını ayarla — sistem depodan uygun ürünleri otomatik listeler, fiyatlar ve siparişleri yönetir."
         right={
           <button onClick={load} className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm">
             <RefreshCw className="h-4 w-4" /> Yenile
@@ -54,51 +57,54 @@ export default function AmazonPanelPage() {
       ) : (
         <div className="space-y-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Stat icon={Radar} label="Depodaki ürün" value={depot?.active ?? 0} sub={`toplam ${depot?.total ?? 0}`} />
+            <Stat icon={Store} label="Mağazalarım" value={accounts} />
             <Stat icon={Package} label="Listelemelerim" value={listingsCount} />
-            <Stat icon={ShoppingCart} label="Siparişler" value={ordersCount} />
-            <Stat icon={Gauge} label="Ort. radar skoru" value={avgScore} sub="/100" />
+            <Stat icon={ShoppingCart} label="Siparişler" value={orders} />
+            <Stat icon={AlertTriangle} label="Riskli sipariş" value={riskOrders} sub="kontrol et" />
           </div>
+
+          {accounts === 0 && (
+            <Card>
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <p className="text-sm text-slate-300">
+                  Başlamak için bir Amazon mağazası bağla — sonra Ayarlar&apos;dan oto-yüklemeyi aç.
+                </p>
+                <Link href="/amazon/stores" className="rounded-lg px-4 py-2 text-sm font-semibold text-black flex items-center gap-1.5"
+                  style={{ background: AMZ_ACCENT }}>
+                  Mağaza bağla <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </Card>
+          )}
 
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-bold">
-              Depodaki en iyi ürünler
-              {depot?.demo && (
-                <span className="ml-2 text-[10px] font-bold align-middle px-2 py-0.5 rounded-full"
-                  style={{ background: "rgba(210,153,34,0.12)", border: "1px solid rgba(210,153,34,0.35)", color: "#e3b341" }}>
-                  DEMO
-                </span>
-              )}
-            </h2>
-              <Link href="/amazon/depot" className="text-sm text-slate-400 hover:text-white flex items-center gap-1">
+              <h2 className="text-lg font-bold">Son listelemelerim</h2>
+              <Link href="/amazon/products" className="text-sm text-slate-400 hover:text-white flex items-center gap-1">
                 Tümü <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
 
-            {winners.length === 0 ? (
+            {listings.length === 0 ? (
               <p className="text-slate-500 text-sm py-10 text-center rounded-xl"
                 style={{ background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                Depo henüz boş. AliExpress API bağlanınca radar otomatik doldurmaya başlar
-                (admin&apos;den elle de tetikleyebilirsin).
+                Henüz listeleme yok. Mağaza bağlayıp oto-yüklemeyi açınca ürünler otomatik listelenecek.
               </p>
             ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {winners.slice(0, 6).map((p) => (
-                  <Card key={p.id}>
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <span className="text-xs font-bold px-2 py-0.5 rounded-full"
-                        style={{ background: `${AMZ_ACCENT}1f`, border: `1px solid ${AMZ_ACCENT}40`, color: AMZ_ACCENT }}>
-                        {p.radarScore ?? 0}/100
-                      </span>
-                      <TrendingUp className="h-4 w-4 text-emerald-400" />
-                    </div>
-                    <p className="text-sm font-medium leading-snug line-clamp-2">{p.title ?? p.aliId}</p>
-                    <p className="text-xs text-slate-400 mt-2">
-                      Maliyet ${p.aliCostUsd.toFixed(2)}{p.category ? ` · ${p.category}` : ""}
-                    </p>
-                  </Card>
-                ))}
+              <div className="space-y-2.5">
+                {listings.slice(0, 6).map((l) => {
+                  const sym = MARKET_SYMBOL[l.market] ?? "$";
+                  return (
+                    <Card key={l.id}>
+                      <div className="flex items-center justify-between gap-4">
+                        <p className="text-sm font-medium min-w-0">{l.product.title ?? l.product.aliId}</p>
+                        <span className="text-xs text-slate-400 whitespace-nowrap">
+                          {l.market.toUpperCase()}{l.salePrice != null ? ` · ${sym}${l.salePrice.toFixed(2)}` : ""} · {l.status}
+                        </span>
+                      </div>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </div>

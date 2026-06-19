@@ -5,16 +5,16 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
-  LayoutDashboard, Radar, Package, ShoppingCart, Settings, Home, Loader2, Store,
+  LayoutDashboard, Package, ShoppingCart, Settings, Home, Loader2, Store,
 } from "lucide-react";
 import { LogoMark } from "@/components/logo";
 import { AMZ_ACCENT } from "@/components/amazon/shared";
 import { cn } from "@/lib/utils";
 
+// Müşteri menüsü — radar/depo YOK (onlar admin'e ait, eBay'deki gibi).
 const NAV = [
   { href: "/amazon", label: "Panel", icon: LayoutDashboard, exact: true },
   { href: "/amazon/stores", label: "Mağazalarım", icon: Store },
-  { href: "/amazon/depot", label: "Radar & Depo", icon: Radar },
   { href: "/amazon/products", label: "Ürünler", icon: Package },
   { href: "/amazon/orders", label: "Siparişler", icon: ShoppingCart },
   { href: "/amazon/settings", label: "Ayarlar", icon: Settings },
