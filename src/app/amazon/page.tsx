@@ -11,7 +11,7 @@ interface DepotProduct {
 }
 
 export default function AmazonPanelPage() {
-  const [depot, setDepot] = useState<{ total: number; active: number; paused: number; products: DepotProduct[] } | null>(null);
+  const [depot, setDepot] = useState<{ demo: boolean; total: number; active: number; paused: number; products: DepotProduct[] } | null>(null);
   const [listingsCount, setListingsCount] = useState(0);
   const [ordersCount, setOrdersCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -62,7 +62,15 @@ export default function AmazonPanelPage() {
 
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-bold">Depodaki en iyi ürünler</h2>
+              <h2 className="text-lg font-bold">
+              Depodaki en iyi ürünler
+              {depot?.demo && (
+                <span className="ml-2 text-[10px] font-bold align-middle px-2 py-0.5 rounded-full"
+                  style={{ background: "rgba(210,153,34,0.12)", border: "1px solid rgba(210,153,34,0.35)", color: "#e3b341" }}>
+                  DEMO
+                </span>
+              )}
+            </h2>
               <Link href="/amazon/depot" className="text-sm text-slate-400 hover:text-white flex items-center gap-1">
                 Tümü <ArrowRight className="h-4 w-4" />
               </Link>

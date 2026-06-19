@@ -33,11 +33,20 @@ export const POST = requireAdmin(async () => {
  * Depodaki (kalıcı) Amazon ürünleri + tüm sistemin Amazon istatistikleri.
  */
 export const GET = requireAdmin(async () => {
-  const [products, depotTotal, depotActive, depotPaused, accounts, listings, orders, riskOrders] =
+  const [products, uploaded, depotTotal, depotActive, depotPaused, accounts, listings, orders, riskOrders] =
     await Promise.all([
       prisma.amazonDepotProduct.findMany({
         orderBy: [{ radarScore: "desc" }, { createdAt: "desc" }],
         take: 200,
+      }),
+      // Depodan YÜKLENEN ürünler (tüm kullanıcılar) — hangi ürün, hangi pazar, kim, durum
+      prisma.amazonListing.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 200,
+        include: {
+          product: { select: { title: true, aliId: true } },
+          user: { select: { email: true } },
+        },
       }),
       prisma.amazonDepotProduct.count(),
       prisma.amazonDepotProduct.count({ where: { status: "active" } }),
@@ -51,5 +60,6 @@ export const GET = requireAdmin(async () => {
   return NextResponse.json({
     stats: { depotTotal, depotActive, depotPaused, accounts, listings, orders, riskOrders },
     products,
+    uploaded,
   });
 });

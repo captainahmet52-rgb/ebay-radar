@@ -12,7 +12,7 @@ interface DepotProduct {
 }
 
 export default function AmazonDepotPage() {
-  const [data, setData] = useState<{ total: number; active: number; paused: number; products: DepotProduct[] } | null>(null);
+  const [data, setData] = useState<{ demo: boolean; total: number; active: number; paused: number; products: DepotProduct[] } | null>(null);
   const [loading, setLoading] = useState(true);
 
   async function load() {
@@ -27,13 +27,21 @@ export default function AmazonDepotPage() {
     <>
       <PageHeader
         title="Radar & Depo"
-        subtitle="Radarın bulup marka/yasak + kâr filtresinden geçirdiği gerçek ürünler. Stok kontrol bunları tarar."
+        subtitle="Radar AliExpress'ten kazanan ürünleri bulur, marka/yasak + kâr filtresinden geçirip depoya yazar. Stok kontrol bunları tarar."
         right={
           <button onClick={load} className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm">
             <RefreshCw className="h-4 w-4" /> Yenile
           </button>
         }
       />
+
+      {data?.demo && (
+        <div className="mb-5 rounded-xl px-4 py-3 text-sm"
+          style={{ background: "rgba(210,153,34,0.08)", border: "1px solid rgba(210,153,34,0.3)", color: "#e3b341" }}>
+          ⚠️ <b>DEMO veri</b> — Bu ürünler örnektir, gerçek AliExpress ürünü değildir. AliExpress API
+          bağlanınca radar gerçek ürünleri bulup buraya yazacak.
+        </div>
+      )}
 
       {data && (
         <div className="flex gap-3 mb-5 text-sm">

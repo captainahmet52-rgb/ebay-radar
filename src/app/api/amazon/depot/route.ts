@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
+import { isAliExpressConfigured } from "@/lib/aliexpress";
 
 /**
  * GET /api/amazon/depot
@@ -17,5 +18,6 @@ export const GET = requireAuth(async () => {
     }),
   ]);
 
-  return NextResponse.json({ total, active, paused, products });
+  // AliExpress API bağlı değilse depodaki ürünler örnek (demo) veridir
+  return NextResponse.json({ demo: !isAliExpressConfigured(), total, active, paused, products });
 });
