@@ -26,7 +26,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           Depo
         </a>
         <a href="/admin/amazon" className="text-sm text-slate-300 hover:text-white transition-colors">
-          Amazon Radar
+          AmazonBot
         </a>
         <a href="/admin/api-setup" className="text-sm text-slate-300 hover:text-white transition-colors">
           API Kurulumu
