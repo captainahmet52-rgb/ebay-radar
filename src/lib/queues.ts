@@ -187,6 +187,23 @@ export const amazonPollProductQueue = new Queue<AmazonPollProductJobData, void, 
   }
 );
 
+// ─── AmazonBot Depo Bekçisi (eşik altına düşünce radarı tetikler) ──────────────
+export interface AmazonDepotWatchdogJobData {
+  _trigger?: string;
+}
+
+export const amazonDepotWatchdogQueue = new Queue<AmazonDepotWatchdogJobData, void, string>(
+  "amazon-depot-watchdog",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 1,
+      removeOnComplete: { count: 20 },
+      removeOnFail: { count: 50 },
+    },
+  }
+);
+
 // ─── AmazonBot Sipariş Çekme Kuyruğu (SP-API getOrders) ────────────────────────
 export interface AmazonPollOrdersJobData {
   amazonAccountId?: string; // undefined → tüm Amazon hesapları

@@ -18,6 +18,7 @@ import {
   amazonRadarScanQueue,
   amazonAutoUploadQueue,
   amazonPollOrdersQueue,
+  amazonDepotWatchdogQueue,
 } from "@/lib/queues";
 
 // AmazonBot radar — taranacak pazarlar
@@ -101,6 +102,15 @@ export async function setupScheduler(): Promise<void> {
     { repeat: { every: 30 * 60 * 1000 } }
   );
   console.log("[scheduler] amazon-poll-orders kuruldu: her 30 dakika");
+
+  // ── amazon-depot-watchdog: her 15 dakika (depo azalınca radarı hemen tetikler) ──
+  await clearRepeatableJobs(amazonDepotWatchdogQueue, "amazon-depot-watchdog");
+  await amazonDepotWatchdogQueue.add(
+    "amazon-depot-watchdog",
+    {},
+    { repeat: { every: 15 * 60 * 1000 } }
+  );
+  console.log("[scheduler] amazon-depot-watchdog kuruldu: her 15 dakika");
 }
 
 /**

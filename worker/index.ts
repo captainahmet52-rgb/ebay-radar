@@ -14,6 +14,7 @@ import { createAmazonRadarScanWorker } from "./jobs/amazon-radar-scan";
 import { createAmazonAutoUploadWorker } from "./jobs/amazon-auto-upload";
 import { createAmazonPollProductWorker } from "./jobs/amazon-poll-product";
 import { createAmazonPollOrdersWorker } from "./jobs/amazon-poll-orders";
+import { createAmazonDepotWatchdogWorker } from "./jobs/amazon-depot-watchdog";
 import { createDistributeProductsWorker } from "./jobs/distribute-products";
 import { createRefreshTokensWorker } from "./jobs/refresh-tokens";
 import { createDispatchPollsWorker } from "./jobs/dispatch-polls";
@@ -33,6 +34,7 @@ const workers: Worker[] = [
   createAmazonAutoUploadWorker(connection),
   createAmazonPollProductWorker(connection),
   createAmazonPollOrdersWorker(connection),
+  createAmazonDepotWatchdogWorker(connection),
   createDistributeProductsWorker(connection),
   createRefreshTokensWorker(connection),
   createDispatchPollsWorker(connection),
@@ -49,6 +51,7 @@ console.log("  → amazon-radar-scan      (concurrency: 2)");
 console.log("  → amazon-auto-upload     (concurrency: 2)");
 console.log("  → amazon-poll-product    (concurrency: 4)");
 console.log("  → amazon-poll-orders     (concurrency: 2)");
+console.log("  → amazon-depot-watchdog  (concurrency: 1)");
 console.log("  → distribute-products    (concurrency: 2)");
 console.log("  → refresh-tokens         (concurrency: 2)");
 console.log("  → dispatch-polls         (concurrency: 1)");

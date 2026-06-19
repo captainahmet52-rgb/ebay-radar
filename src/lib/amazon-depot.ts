@@ -5,7 +5,12 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { amazonRadarScanQueue } from "@/lib/queues";
+import { AMAZON_MARKETS } from "@/lib/amazon-repricer";
 import type { AmazonCandidate, RadarVerdict } from "@/lib/amazon-radar";
+
+/** Depodaki taze (aktif + marka-güvenli) ürün bu sayının altına düşerse radar HEMEN çalışır. */
+export const AMAZON_DEPOT_MIN_ACTIVE = Number(process.env.AMAZON_DEPOT_MIN_ACTIVE ?? 20);
 
 export interface RadarResult {
   candidate: AmazonCandidate;
@@ -54,4 +59,34 @@ export async function saveRadarWinnersToDepot(
   }
 
   return { saved, skipped };
+}
+
+/** Depodaki taze ürün sayısı (radar bekçisi için). */
+export async function countActiveDepot(): Promise<number> {
+  return prisma.amazonDepotProduct.count({ where: { status: "active", brandSafe: true } });
+}
+
+/**
+ * Depo eşik altındaysa tüm pazarlar için radarı HEMEN tetikler.
+ * 10 dakikalık kova ile dedupe: aynı pencerede tekrar tekrar tetiklenmez.
+ * Ürün bittiğinde / yüklendiğinde / bekçi turunda çağrılır.
+ */
+export async function triggerRadarIfLow(
+  reason: string
+): Promise<{ triggered: boolean; count: number }> {
+  const count = await countActiveDepot();
+  if (count >= AMAZON_DEPOT_MIN_ACTIVE) return { triggered: false, count };
+
+  const bucket = Math.floor(Date.now() / (10 * 60 * 1000)); // 10 dk pencere
+  await Promise.all(
+    Object.keys(AMAZON_MARKETS).map((market) =>
+      amazonRadarScanQueue.add(
+        "amazon-radar-scan",
+        { market },
+        { jobId: `amazon-radar:auto:${market}:${bucket}` }
+      )
+    )
+  );
+  console.log(`[depot] Eşik altı (${count}/${AMAZON_DEPOT_MIN_ACTIVE}) — radar tetiklendi: ${reason}`);
+  return { triggered: true, count };
 }

@@ -11,6 +11,7 @@ import {
   calculateAmazonPrice,
 } from "@/lib/amazon-repricer";
 import { createOrUpdateAmazonListing } from "@/lib/amazon-listings";
+import { triggerRadarIfLow } from "@/lib/amazon-depot";
 import { isSpapiConfigured } from "@/lib/amazon-spapi";
 import type { AmazonAutoUploadJobData } from "@/lib/queues";
 
@@ -111,6 +112,10 @@ async function processAmazonAutoUpload(job: Job<AmazonAutoUploadJobData>): Promi
   for (const u of users) {
     await uploadForUser(u.id, log);
   }
+
+  // Yükleme depoyu azalttıysa radarı hemen tetikle (yeni ürün gelsin)
+  const { triggered, count } = await triggerRadarIfLow("oto-yükleme sonrası");
+  if (triggered) log(`Depo azaldı (${count}) — radar tetiklendi`);
 }
 
 export function createAmazonAutoUploadWorker(connection: ConnectionOptions): Worker {
