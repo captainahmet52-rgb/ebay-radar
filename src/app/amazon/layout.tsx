@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Radar, Package, ShoppingCart, Settings, Home, Loader2, Store,
 } from "lucide-react";
 import { LogoMark } from "@/components/logo";
-import { AmazonDataProvider, AMZ_ACCENT } from "@/components/amazon/shared";
+import { AMZ_ACCENT } from "@/components/amazon/shared";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -38,8 +38,7 @@ export default function AmazonLayout({ children }: { children: React.ReactNode }
   }
 
   return (
-    <AmazonDataProvider>
-      <div className="min-h-screen text-white" style={{ background: "#050608" }}>
+    <div className="min-h-screen text-white" style={{ background: "#050608" }}>
         <aside className="fixed left-0 top-0 h-screen w-60 z-40 flex flex-col"
           style={{ background: "rgba(6,14,10,0.85)", backdropFilter: "blur(20px)", borderRight: "1px solid rgba(255,255,255,0.06)" }}>
           <div className="flex items-center gap-2.5 px-5 py-5" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
@@ -85,6 +84,5 @@ export default function AmazonLayout({ children }: { children: React.ReactNode }
           <div className="relative z-10 px-6 md:px-10 py-8">{children}</div>
         </main>
       </div>
-    </AmazonDataProvider>
   );
 }
