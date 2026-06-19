@@ -80,7 +80,12 @@ export default function RegisterPage() {
       if (!res.ok) throw new Error(data.error ?? "Kayıt başarısız");
 
       setSuccess(true);
-      setTimeout(() => router.push("/login"), 2000);
+      setTimeout(() => {
+        const cb = typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("callbackUrl")
+          : null;
+        router.push(cb && cb.startsWith("/") ? `/login?callbackUrl=${encodeURIComponent(cb)}` : "/login");
+      }, 2000);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Bir hata oluştu");
     } finally {

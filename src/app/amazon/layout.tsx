@@ -26,8 +26,8 @@ export default function AmazonLayout({ children }: { children: React.ReactNode }
   const pathname = usePathname();
 
   useEffect(() => {
-    if (status === "unauthenticated") router.replace("/login");
-  }, [status, router]);
+    if (status === "unauthenticated") router.replace(`/login?callbackUrl=${encodeURIComponent(pathname)}`);
+  }, [status, router, pathname]);
 
   if (status !== "authenticated") {
     return (

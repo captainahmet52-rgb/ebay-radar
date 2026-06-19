@@ -32,7 +32,12 @@ export default function LoginPage() {
     if (result?.error) {
       setError("E-posta veya şifre hatalı. Lütfen tekrar deneyin.");
     } else {
-      router.push("/dashboard");
+      // Hangi bottan gelindiyse oraya dön (callbackUrl), yoksa eBay paneli
+      const cb =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("callbackUrl")
+          : null;
+      router.push(cb && cb.startsWith("/") ? cb : "/dashboard");
     }
   };
 
