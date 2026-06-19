@@ -158,16 +158,10 @@ export default function AmazonSettingsPage() {
           <Card pad="p-4">
             <div className="flex flex-wrap items-center gap-3">
               <a
-                href="/api/amazon/connect?region=na"
+                href="/amazon/stores"
                 className="rounded-lg px-4 py-2 text-sm font-semibold border border-white/10 text-white hover:border-emerald-500/40 transition-colors"
               >
-                Amazon mağaza bağla (US)
-              </a>
-              <a
-                href="/api/amazon/connect?region=eu"
-                className="rounded-lg px-4 py-2 text-sm font-semibold border border-white/10 text-white hover:border-emerald-500/40 transition-colors"
-              >
-                Amazon mağaza bağla (UK/BAE/Suudi)
+                Mağazalarım (bağla / yönet)
               </a>
               <button
                 onClick={async () => {
