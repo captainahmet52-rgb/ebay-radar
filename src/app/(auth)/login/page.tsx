@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
@@ -15,6 +15,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [callbackUrl, setCallbackUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const cb = new URLSearchParams(window.location.search).get("callbackUrl");
+    if (cb && cb.startsWith("/")) setCallbackUrl(cb);
+  }, []);
+
+  const registerHref = callbackUrl ? `/register?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/register";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,12 +40,8 @@ export default function LoginPage() {
     if (result?.error) {
       setError("E-posta veya şifre hatalı. Lütfen tekrar deneyin.");
     } else {
-      // Hangi bottan gelindiyse oraya dön (callbackUrl), yoksa eBay paneli
-      const cb =
-        typeof window !== "undefined"
-          ? new URLSearchParams(window.location.search).get("callbackUrl")
-          : null;
-      router.push(cb && cb.startsWith("/") ? cb : "/dashboard");
+      // Hangi bottan gelindiyse oraya dön; yoksa bot seçim ekranı (ana sayfa)
+      router.push(callbackUrl ?? "/");
     }
   };
 
@@ -91,7 +95,7 @@ export default function LoginPage() {
 
       <p className="text-center text-sm text-slate-400 mt-6">
         Hesabın yok mu?{" "}
-        <Link href="/register" className="text-violet-400 hover:text-violet-300 font-medium transition-colors">
+        <Link href={registerHref} className="text-violet-400 hover:text-violet-300 font-medium transition-colors">
           Kayıt ol
         </Link>
       </p>

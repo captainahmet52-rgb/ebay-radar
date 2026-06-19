@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -54,6 +54,14 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [callbackUrl, setCallbackUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const cb = new URLSearchParams(window.location.search).get("callbackUrl");
+    if (cb && cb.startsWith("/")) setCallbackUrl(cb);
+  }, []);
+
+  const loginHref = callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,12 +88,7 @@ export default function RegisterPage() {
       if (!res.ok) throw new Error(data.error ?? "Kayıt başarısız");
 
       setSuccess(true);
-      setTimeout(() => {
-        const cb = typeof window !== "undefined"
-          ? new URLSearchParams(window.location.search).get("callbackUrl")
-          : null;
-        router.push(cb && cb.startsWith("/") ? `/login?callbackUrl=${encodeURIComponent(cb)}` : "/login");
-      }, 2000);
+      setTimeout(() => router.push(loginHref), 2000);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Bir hata oluştu");
     } finally {
@@ -168,7 +171,7 @@ export default function RegisterPage() {
 
       <p className="text-center text-sm text-slate-400 mt-6">
         Zaten hesabın var mı?{" "}
-        <Link href="/login" className="text-violet-400 hover:text-violet-300 font-medium transition-colors">
+        <Link href={loginHref} className="text-violet-400 hover:text-violet-300 font-medium transition-colors">
           Giriş yap
         </Link>
       </p>
