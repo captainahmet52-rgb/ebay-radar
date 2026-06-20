@@ -61,6 +61,28 @@
     </div>
 
     <p id="msg" class="msg"></p>
+
+    <div class="divider"></div>
+
+    <div class="row count-row">
+      <span>Hazırlananlar (eBay'e)</span>
+      <span id="prepCount" class="badge green-badge">0</span>
+    </div>
+    <label class="margin-row">
+      Kâr Marjı (%)
+      <input id="marginPct" type="number" value="25" min="0" max="90" />
+    </label>
+    <div class="list" id="prepList">
+      <p class="empty">Amazon ürün sayfasında "Lean'e Aktar"a bas…</p>
+    </div>
+    <div class="actions">
+      <button id="ebayUpload" class="btn primary">eBay'e Yükle</button>
+      <button id="csv" class="btn green">CSV İndir</button>
+    </div>
+    <div class="actions">
+      <button id="prepClear" class="btn danger">Hazırlananları Temizle</button>
+    </div>
+    <p id="prepMsg" class="msg"></p>
   </main>
 
   <script src="popup.js"></script>

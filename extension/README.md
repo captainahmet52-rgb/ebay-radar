@@ -1,7 +1,14 @@
-# Lean Automation — Chrome Eklentisi (v0.1.0)
+# Lean Automation — Chrome Eklentisi (v0.2.0)
 
-Amazon'da kârlı ürünleri bulup ASIN'lerini toplayan tarayıcı eklentisi.
-İlk sürüm: **Amazon Ürün Bulucu (ASIN Grabber)** — bağımsız çalışır, backend gerekmez.
+Amazon → eBay manuel dropshipping aracı (bilen kullanıcı için). Bağımsız çalışır, backend gerekmez.
+
+## Akış (manuel yol)
+1. **Amazon arama** → ürünlere onay kutusu, ASIN topla (ASIN Grabber)
+2. **Amazon ürün sayfası** → "Lean'e Aktar" → ürün başlık/fiyat/görsel çekilir, **eBay fiyatı marjla hesaplanır**, "Hazırlananlar"a eklenir
+3. **Popup → eBay'e Yükle** → eBay listeleme sayfası açılır, başlık/fiyat **ön doldurulur** (en iyi-çaba) → kontrol edip yayınla
+4. Alternatif: **CSV İndir** → eBay toplu listeleme için dosya
+
+> Otomatik yol (bilmeyen kullanıcı) eklenti değil: panelde **mağaza bağla (eBay API) + oto-yükleme ayarı** ile sunucu otomatik listeler.
 
 ## Kurulum (test — "Load unpacked")
 1. Chrome'da `chrome://extensions` aç

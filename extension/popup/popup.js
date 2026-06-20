@@ -90,6 +90,93 @@ $("copy").addEventListener("click", async () => {
 // Depodaki değişiklikleri canlı yansıt
 chrome.storage.onChanged.addListener((c, area) => {
   if (area === "local" && c[STORAGE_KEY]) render(c[STORAGE_KEY].newValue || []);
+  if (area === "local" && c.la_prepared) loadPrepared();
 });
 
 loadFromStorage();
+
+// ── Hazırlananlar (eBay'e) ────────────────────────────────────────────────────
+const PREP_KEY = "la_prepared";
+const SETTINGS_KEY = "la_settings";
+const QUEUE_KEY = "la_publish_queue";
+
+function ebayPrice(amazon, marginPct, commission = 0.13) {
+  const fixed = amazon >= 10 ? 0.4 : 0.3;
+  const div = 1 - commission - marginPct / 100;
+  if (div <= 0) return null;
+  return Math.round(((amazon + fixed) / div) * 100) / 100;
+}
+
+function prepMsg(t, ok = true) {
+  const el = $("prepMsg");
+  el.textContent = t; el.style.color = ok ? "#10b981" : "#f85149";
+  if (t) setTimeout(() => (el.textContent = ""), 2500);
+}
+
+let prepared = [];
+
+async function loadPrepared() {
+  const [d, s] = await Promise.all([
+    chrome.storage.local.get(PREP_KEY),
+    chrome.storage.local.get(SETTINGS_KEY),
+  ]);
+  prepared = Array.isArray(d[PREP_KEY]) ? d[PREP_KEY] : [];
+  const margin = Number(s[SETTINGS_KEY]?.marginPct) > 0 ? Number(s[SETTINGS_KEY].marginPct) : 25;
+  $("marginPct").value = margin;
+  renderPrepared(margin);
+}
+
+function renderPrepared(margin) {
+  $("prepCount").textContent = String(prepared.length);
+  const box = $("prepList");
+  if (!prepared.length) {
+    box.innerHTML = '<p class="empty">Amazon ürün sayfasında "Lean\'e Aktar"a bas…</p>';
+    return;
+  }
+  box.innerHTML = prepared
+    .map((it) => {
+      const p = ebayPrice(it.amazonPrice, margin) ?? it.ebayPrice;
+      return `<div class="prep-item"><span class="t">${it.title}</span><span class="p">$${p}</span></div>`;
+    })
+    .join("");
+}
+
+$("marginPct").addEventListener("input", async () => {
+  const m = Number($("marginPct").value) || 25;
+  await chrome.storage.local.set({ [SETTINGS_KEY]: { marginPct: m } });
+  renderPrepared(m);
+});
+
+$("ebayUpload").addEventListener("click", async () => {
+  if (!prepared.length) { prepMsg("Liste boş", false); return; }
+  const m = Number($("marginPct").value) || 25;
+  const queue = prepared.map((it) => ({ ...it, ebayPrice: ebayPrice(it.amazonPrice, m) ?? it.ebayPrice }));
+  await chrome.storage.local.set({ [QUEUE_KEY]: queue });
+  await chrome.tabs.create({ url: "https://www.ebay.com/sl/sell" });
+  prepMsg("eBay açıldı, başlık/fiyat dolduruluyor…");
+});
+
+$("csv").addEventListener("click", () => {
+  if (!prepared.length) { prepMsg("Liste boş", false); return; }
+  const m = Number($("marginPct").value) || 25;
+  const head = "ASIN,Title,AmazonPrice,eBayPrice,Image,URL";
+  const rows = prepared.map((it) => {
+    const p = ebayPrice(it.amazonPrice, m) ?? it.ebayPrice;
+    const esc = (s) => `"${String(s ?? "").replace(/"/g, '""')}"`;
+    return [it.asin, esc(it.title), it.amazonPrice, p, esc(it.images?.[0] ?? ""), esc(it.url)].join(",");
+  });
+  const blob = new Blob([head + "\n" + rows.join("\n")], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `lean-products-${Date.now()}.csv`;
+  a.click();
+  prepMsg(`${prepared.length} ürün CSV indirildi`);
+});
+
+$("prepClear").addEventListener("click", async () => {
+  await chrome.storage.local.set({ [PREP_KEY]: [] });
+  await loadPrepared();
+  prepMsg("Hazırlananlar temizlendi");
+});
+
+loadPrepared();

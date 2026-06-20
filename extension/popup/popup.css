@@ -67,3 +67,14 @@ body {
 .btn.danger { background: transparent; border: 1px solid #f8514955; color: #f85149; }
 
 .msg { font-size: 11px; color: #10b981; min-height: 14px; text-align: center; }
+
+.divider { height: 1px; background: rgba(255,255,255,0.08); margin: 4px 0; }
+.green-badge { background: #10b981; color: #04130d; }
+.margin-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #c9d1d9; }
+.margin-row input {
+  width: 90px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 7px; padding: 6px 8px; color: #fff; font-size: 12px;
+}
+.prep-item { display: flex; justify-content: space-between; gap: 8px; padding: 4px 4px; border-bottom: 1px solid rgba(255,255,255,0.05); font-family: -apple-system, sans-serif; }
+.prep-item .t { font-size: 11px; color: #c9d1d9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.prep-item .p { font-size: 11px; font-weight: 700; color: #10b981; white-space: nowrap; }
