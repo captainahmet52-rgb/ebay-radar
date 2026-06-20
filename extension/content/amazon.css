@@ -1,0 +1,13 @@
+/* Lean Automation — Amazon kart onay kutusu */
+.la-asin-cb {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  z-index: 1000;
+  cursor: pointer;
+  accent-color: #7c3aed;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+}

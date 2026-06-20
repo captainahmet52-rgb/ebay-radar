@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "Lean Automation — Amazon Ürün Bulucu",
+  "version": "0.1.0",
+  "description": "Amazon'da kârlı ürünleri bul, ASIN'leri topla, eBay'e yüklemeye hazırla. Lean Automation.",
+  "permissions": ["storage", "tabs", "scripting"],
+  "host_permissions": [
+    "https://www.amazon.com/*",
+    "https://www.amazon.co.uk/*",
+    "https://www.amazon.de/*",
+    "https://www.amazon.ca/*",
+    "https://www.amazon.fr/*",
+    "https://www.amazon.it/*",
+    "https://www.amazon.es/*",
+    "https://www.amazon.com.au/*",
+    "https://www.amazon.com.tr/*"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Lean Automation"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.amazon.com/*",
+        "https://www.amazon.co.uk/*",
+        "https://www.amazon.de/*",
+        "https://www.amazon.ca/*",
+        "https://www.amazon.fr/*",
+        "https://www.amazon.it/*",
+        "https://www.amazon.es/*",
+        "https://www.amazon.com.au/*",
+        "https://www.amazon.com.tr/*"
+      ],
+      "js": ["content/amazon.js"],
+      "css": ["content/amazon.css"],
+      "run_at": "document_end"
+    }
+  ]
+}
