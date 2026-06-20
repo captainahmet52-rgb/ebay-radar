@@ -39,7 +39,7 @@
         "https://www.amazon.com.au/*",
         "https://www.amazon.com.tr/*"
       ],
-      "js": ["content/amazon.js"],
+      "js": ["lib/automation.js", "content/amazon.js"],
       "css": ["content/amazon.css"],
       "run_at": "document_end"
     },
@@ -55,7 +55,7 @@
         "https://www.amazon.com.au/*",
         "https://www.amazon.com.tr/*"
       ],
-      "js": ["content/amazon-product.js"],
+      "js": ["lib/automation.js", "content/amazon-product.js"],
       "run_at": "document_end"
     },
     {
@@ -65,7 +65,7 @@
         "https://www.ebay.de/*",
         "https://www.ebay.com.au/*"
       ],
-      "js": ["content/ebay-sell.js"],
+      "js": ["lib/automation.js", "content/ebay-sell.js"],
       "run_at": "document_end"
     }
   ]
