@@ -152,8 +152,8 @@ $("ebayUpload").addEventListener("click", async () => {
   const m = Number($("marginPct").value) || 25;
   const queue = prepared.map((it) => ({ ...it, ebayPrice: ebayPrice(it.amazonPrice, m) ?? it.ebayPrice }));
   await chrome.storage.local.set({ [QUEUE_KEY]: queue });
-  await chrome.tabs.create({ url: "https://www.ebay.com/sl/sell" });
-  prepMsg("eBay açıldı, başlık/fiyat dolduruluyor…");
+  await chrome.tabs.create({ url: "https://www.ebay.com/sl/prelist/home?sr=shstart" });
+  prepMsg("eBay listeleme açıldı, başlık aranıyor…");
 });
 
 $("csv").addEventListener("click", () => {
