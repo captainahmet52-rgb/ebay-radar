@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import useSWR from "swr";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Layers } from "lucide-react";
 import { ProductTable } from "@/components/products/product-table";
 import { AddProductModal } from "@/components/products/add-product-modal";
+import { BulkUploadModal } from "@/components/products/bulk-upload-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { ListingStatus } from "@/types";
@@ -25,6 +26,7 @@ export default function ProductsPage() {
   const [filter, setFilter] = useState<FilterValue>("all");
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const { data, isLoading, mutate } = useSWR("/api/products", fetcher);
   const products = data?.data ?? data ?? [];
@@ -73,10 +75,16 @@ export default function ProductsPage() {
             {products.length} ürün takip ediliyor
           </p>
         </div>
-        <Button onClick={() => setModalOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Ürün Ekle
-        </Button>
+        <div className="flex items-center gap-2.5">
+          <Button variant="ghost" onClick={() => setBulkOpen(true)}>
+            <Layers className="h-4 w-4" />
+            Toplu ASIN
+          </Button>
+          <Button onClick={() => setModalOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Ürün Ekle
+          </Button>
+        </div>
       </div>
 
       {/* Filters + Search */}
@@ -124,6 +132,13 @@ export default function ProductsPage() {
       <AddProductModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
+        onSuccess={() => mutate()}
+      />
+
+      {/* Toplu ASIN/URL Yükle */}
+      <BulkUploadModal
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
         onSuccess={() => mutate()}
       />
     </motion.div>

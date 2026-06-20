@@ -54,6 +54,17 @@ export const POST = requireAuth(async (req, { userId }) => {
       );
     }
 
+    // Ürün limiti: kullanılan = kullanıcının listing sayısı
+    const limitUser = await prisma.user.findUnique({ where: { id: userId }, select: { productLimit: true } });
+    const productLimit = limitUser?.productLimit ?? 100;
+    const usedCount = await prisma.listing.count({ where: { userId } });
+    if (usedCount >= productLimit) {
+      return NextResponse.json(
+        { error: `Ürün limitine ulaştın (${productLimit}). Planını yükselt.`, needUpgrade: true },
+        { status: 403 }
+      );
+    }
+
     // Ürün sahipliği: bu kullanıcının listesinde mi?
     const product = await prisma.product.findUnique({ where: { id: productId } });
     if (!product) {

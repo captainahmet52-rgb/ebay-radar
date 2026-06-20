@@ -29,6 +29,7 @@ async function processPollProduct(
         select: {
           id: true,
           ebaySite: true,
+          marginPct: true,
           user: { select: { uploadProfitMarginPct: true } },
         },
       },
@@ -171,10 +172,10 @@ async function processPollProduct(
     return;
   }
 
-  // Her listing için kullanıcının KENDİ kâr marjıyla fiyat hesapla (kullanıcıya özel)
+  // Her listing için marj: önce liste batch marjı, sonra kullanıcı marjı, sonra ürün varsayılanı
   await Promise.all(
     activeListings.map(async (listing) => {
-      const marginPct = listing.user?.uploadProfitMarginPct;
+      const marginPct = listing.marginPct ?? listing.user?.uploadProfitMarginPct;
       const margin =
         marginPct != null && marginPct > 0 ? marginPct / 100 : product.targetMargin;
 

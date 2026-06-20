@@ -142,9 +142,11 @@ model Listing {
   ebaySite      String   @default("EBAY_US")
   currentQty    Int      @default(2)
   currentPrice  Float?
+  // Bu listeye özel kâr marjı (yüzde) — toplu yüklemede o partinin marjı. Yoksa kullanıcı/ürün marjı.
+  marginPct     Float?
   publishStage  String?
   lastEbayError String?
-  // active | paused | ended
+  // active | paused | ended | draft
   status        String   @default("active")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
