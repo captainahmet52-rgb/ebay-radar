@@ -5,7 +5,7 @@
 export const SITE = {
   name: "Lean Automation",
   shortName: "Lean Automation",
-  url: (process.env.NEXT_PUBLIC_SITE_URL ?? "https://lean-automation.com").replace(/\/$/, ""),
+  url: (process.env.NEXT_PUBLIC_SITE_URL ?? "https://leanautomation.pro").replace(/\/$/, ""),
   locale: "tr_TR",
   title: "Lean Automation | Amazon, eBay ve Etsy Pazar Yeri Otomasyonu",
   description:
