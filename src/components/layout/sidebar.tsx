@@ -68,10 +68,10 @@ export function Sidebar() {
               className="overflow-hidden leading-none"
             >
               <p className="font-black text-white text-sm flex items-center gap-1.5">
-                eBayBot
+                Lean Automation
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
               </p>
-              <p className="text-[10px] text-slate-400 mt-1">Lean Automation</p>
+              <p className="text-[10px] text-slate-400 mt-1">eBay Paneli</p>
             </motion.div>
           )}
         </AnimatePresence>

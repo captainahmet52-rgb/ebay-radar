@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { PLAN_LIST, isOnTrial, trialDaysLeft } from "@/lib/plans";
 import { Check, Zap } from "lucide-react";
 
-export const metadata = { title: "Paketler — eBayBot" };
+export const metadata = { title: "Paketler — Lean Automation" };
 
 export default async function PricingPage() {
   const session = await auth();

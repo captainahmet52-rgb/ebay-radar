@@ -1,5 +1,5 @@
-import { Bot } from "lucide-react";
 import Link from "next/link";
+import { Logo } from "@/components/logo";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -9,11 +9,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="absolute bottom-0 right-1/3 w-[400px] h-[400px] bg-blue-600/8 rounded-full blur-[80px] pointer-events-none" />
 
       {/* Logo top-left */}
-      <Link href="/" className="absolute top-6 left-6 flex items-center gap-2 text-white hover:opacity-80 transition-opacity">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center">
-          <Bot className="h-4 w-4 text-white" />
-        </div>
-        <span className="font-bold">eBayBot</span>
+      <Link href="/" className="absolute top-6 left-6 hover:opacity-80 transition-opacity">
+        <Logo size={32} />
       </Link>
 
       <div className="w-full max-w-sm relative z-10">{children}</div>
