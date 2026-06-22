@@ -65,6 +65,9 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
+      # Coolify sihirli değişkeni: app servisini 3000 portunda + domaine bağlar.
+      # (Traefik loadbalancer port'unu deterministik yapar — redeploy'da kaybolmaz.)
+      SERVICE_FQDN_APP_3000: "https://leanautomation.pro"
       DATABASE_URL: postgresql://ebay_user:ebay_pass@postgres:5432/ebay_db
       REDIS_URL: redis://redis:6379
       NODE_ENV: production
