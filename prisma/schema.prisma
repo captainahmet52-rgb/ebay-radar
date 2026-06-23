@@ -203,10 +203,33 @@ model Order {
   verifiedAt        DateTime?
   // pending | verified | cancelled | fulfilled
   fulfillmentStatus String    @default("pending")
+
+  // ─── Managed Fulfillment (admin kaynaklı: biz Amazon'dan alırız) ───────────
+  // Akış: awaiting_admin → awaiting_order_payment → awaiting_tracking_payment → completed
+  managedStatus     String?
+  // eBay'den çekilen alıcı kargo adresi (PII — SADECE admin görür, Amazon'dan almak için)
+  shipToName        String?
+  shipToLine1       String?
+  shipToLine2       String?
+  shipToCity        String?
+  shipToState       String?
+  shipToZip         String?
+  shipToCountry     String?
+  shipToPhone       String?
+  // Admin girer: Amazon ürün maliyeti + markup + Amazon'dan aldığı takip no
+  sourceCostUsd     Float?
+  markupUsd         Float?
+  amazonTrackingNo  String?
+  // Kullanıcı ödemeleri (cüzdandan)
+  orderChargePaidAt    DateTime?  // sipariş maliyeti + markup ödendi
+  trackingChargePaidAt DateTime?  // takip ücreti ödendi → takip no reveal
+
   createdAt         DateTime  @default(now())
 
   listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId],    references: [id], onDelete: Cascade)
+
+  @@index([managedStatus])
 }
 
 // ─── NextAuth zorunlu tablolar ────────────────────────────────────────────────

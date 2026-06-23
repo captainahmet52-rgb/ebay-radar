@@ -32,6 +32,9 @@ interface Order {
   fulfillmentStatus: FulfillmentStatus;
   trackingNumber?: string | null;
   carrierCode?: string | null;
+  managedStatus?: string | null;
+  sourceCostUsd?: number | null;
+  markupUsd?: number | null;
   verifiedAt?: string;
   createdAt: string;
   listing?: {
@@ -71,17 +74,18 @@ export default function OrdersPage() {
   const safeOrders: Order[] = ordersRes?.data ?? [];
   const totalProfit = safeOrders.reduce((sum, o) => sum + (o.netProfit ?? 0), 0);
 
-  async function fulfill(id: string) {
+  async function post(id: string, path: string, okMsg?: string) {
     setBusyId(id);
     try {
-      const res = await fetch(`/api/orders/${id}/fulfill`, { method: "POST" });
+      const res = await fetch(`/api/orders/${id}/${path}`, { method: "POST" });
       const j = await res.json();
       if (res.ok) {
+        if (okMsg) alert(okMsg + (j.trackingNumber ? `\nTakip: ${j.trackingNumber}` : ""));
         mutate();
       } else if (j.needTopUp) {
-        alert("Yetersiz bakiye — cüzdana yükle, sonra tekrar dene.");
+        alert(`Yetersiz bakiye${j.amount ? ` ($${j.amount.toFixed(2)} gerekli)` : ""} — cüzdana yükle.`);
       } else {
-        alert(j.error ?? "Kargolama başarısız.");
+        alert(j.error ?? "İşlem başarısız.");
       }
     } catch {
       alert("Bir hata oluştu.");
@@ -89,6 +93,9 @@ export default function OrdersPage() {
       setBusyId(null);
     }
   }
+  const fulfill = (id: string) => post(id, "fulfill");
+  const payOrder = (id: string) => post(id, "pay-order", "Sipariş ödemesi alındı.");
+  const payTracking = (id: string) => post(id, "pay-tracking", "Takip kodu oluşturuldu ✓");
 
   return (
     <motion.div
@@ -217,6 +224,24 @@ export default function OrdersPage() {
                           <p className="font-mono text-[11px] text-emerald-400">{order.trackingNumber}</p>
                           <p className="text-[10px] text-slate-500 uppercase">{order.carrierCode}</p>
                         </div>
+                      ) : order.managedStatus === "awaiting_admin" ? (
+                        <span className="text-[11px] text-slate-500">Hazırlanıyor…</span>
+                      ) : order.managedStatus === "awaiting_order_payment" ? (
+                        <button
+                          onClick={() => payOrder(order.id)}
+                          disabled={busyId === order.id}
+                          className="text-xs font-medium px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white disabled:opacity-50 whitespace-nowrap"
+                        >
+                          {busyId === order.id ? "…" : `Sipariş Öde $${((order.sourceCostUsd ?? 0) + (order.markupUsd ?? 0)).toFixed(2)}`}
+                        </button>
+                      ) : order.managedStatus === "awaiting_tracking_payment" ? (
+                        <button
+                          onClick={() => payTracking(order.id)}
+                          disabled={busyId === order.id}
+                          className="text-xs font-medium px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50 whitespace-nowrap"
+                        >
+                          {busyId === order.id ? "…" : "Takip Öde $0.43"}
+                        </button>
                       ) : (
                         <button
                           onClick={() => fulfill(order.id)}

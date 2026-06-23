@@ -68,8 +68,13 @@ export async function fulfillEbayOrder(orderId: string): Promise<FulfillResult> 
   }
 
   try {
-    // 2. TrackCaptain'dan geçerli numara al (varış adresi yoksa ülke=US)
-    const conv = await convertTracking("", { country: "US" });
+    // 2. TrackCaptain'dan geçerli numara al — alıcı adresine uyan (VTR kalitesi)
+    const conv = await convertTracking(order.amazonTrackingNo ?? "", {
+      city: order.shipToCity ?? undefined,
+      state: order.shipToState ?? undefined,
+      zip: order.shipToZip ?? undefined,
+      country: order.shipToCountry ?? "US",
+    });
 
     // 3. Müşterinin eBay mağazasına yükle
     const fulfillmentId = await createShippingFulfillment(
@@ -93,6 +98,10 @@ export async function fulfillEbayOrder(orderId: string): Promise<FulfillResult> 
           ebayFulfillmentId: fulfillmentId,
           shippedAt: new Date(),
           fulfillmentStatus: "fulfilled",
+          // Managed fulfillment akışındaysa tamamlandı + takip ödemesi işaretle
+          ...(order.managedStatus
+            ? { managedStatus: "completed", trackingChargePaidAt: new Date() }
+            : {}),
         },
       }),
     ]);

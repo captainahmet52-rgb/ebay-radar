@@ -14,6 +14,18 @@ import { getValidToken } from "@/lib/ebay/oauth";
 
 // ─── Tipler ──────────────────────────────────────────────────────────────────
 
+/** Alıcı kargo adresi (PII — managed fulfillment için Amazon'dan alırken gerekir) */
+export interface EbayShipTo {
+  name?: string;
+  line1?: string;
+  line2?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  country?: string;
+  phone?: string;
+}
+
 /** poll-orders'ın ihtiyaç duyduğu sadeleştirilmiş sipariş şekli */
 export interface EbayOrder {
   orderId: string;
@@ -21,6 +33,7 @@ export interface EbayOrder {
   /** totalFeeBasisAmount.value — komisyon/kâr hesabı için */
   totalAmount?: string;
   buyerUsername?: string;
+  shipTo?: EbayShipTo;
 }
 
 // ─── eBay API ham yanıt şekilleri ──────────────────────────────────────────────
@@ -36,11 +49,31 @@ interface EbayLineItem {
   legacyItemId?: string; // marketplace listing ID
 }
 
+interface EbayContactAddress {
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  stateOrProvince?: string;
+  postalCode?: string;
+  countryCode?: string;
+}
+
+interface EbayShipToRaw {
+  fullName?: string;
+  contactAddress?: EbayContactAddress;
+  primaryPhone?: { phoneNumber?: string };
+}
+
+interface EbayFulfillmentStartInstruction {
+  shippingStep?: { shipTo?: EbayShipToRaw };
+}
+
 interface EbayRawOrder {
   orderId?: string;
   lineItems?: EbayLineItem[];
   totalFeeBasisAmount?: EbayAmount;
   buyer?: { username?: string };
+  fulfillmentStartInstructions?: EbayFulfillmentStartInstruction[];
 }
 
 interface GetOrdersResponse {
@@ -97,11 +130,28 @@ function mapOrder(raw: EbayRawOrder): EbayOrder | null {
       listingId: li.legacyItemId ?? undefined,
     }));
 
+  // Alıcı kargo adresi (varsa) — managed fulfillment için
+  const rawShip = raw.fulfillmentStartInstructions?.[0]?.shippingStep?.shipTo;
+  const addr = rawShip?.contactAddress;
+  const shipTo: EbayShipTo | undefined = rawShip
+    ? {
+        name: rawShip.fullName ?? undefined,
+        line1: addr?.addressLine1 ?? undefined,
+        line2: addr?.addressLine2 ?? undefined,
+        city: addr?.city ?? undefined,
+        state: addr?.stateOrProvince ?? undefined,
+        zip: addr?.postalCode ?? undefined,
+        country: addr?.countryCode ?? undefined,
+        phone: rawShip.primaryPhone?.phoneNumber ?? undefined,
+      }
+    : undefined;
+
   return {
     orderId: raw.orderId,
     lineItems,
     totalAmount: raw.totalFeeBasisAmount?.value ?? undefined,
     buyerUsername: raw.buyer?.username ?? undefined,
+    shipTo,
   };
 }
 

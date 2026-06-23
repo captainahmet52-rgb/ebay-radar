@@ -116,8 +116,9 @@ async function processPollOrders(job: Job<PollOrdersJobData>): Promise<void> {
 
       // Kargo bildirimi için ilk satır kalemi ID'si (varsa)
       const ebayLineItemId = ebayOrder.lineItems.find((li) => li.lineItemId)?.lineItemId ?? null;
+      const ship = ebayOrder.shipTo;
 
-      // c. Order kaydı oluştur.
+      // c. Order kaydı oluştur. managedStatus=awaiting_admin → admin sipariş havuzuna düşer.
       const order = await prisma.order.create({
         data: {
           userId: listing.userId,
@@ -126,6 +127,16 @@ async function processPollOrders(job: Job<PollOrdersJobData>): Promise<void> {
           ebayLineItemId,
           soldPrice: Number.isFinite(soldPrice) ? soldPrice : null,
           fulfillmentStatus: "pending",
+          managedStatus: "awaiting_admin",
+          // Alıcı adresi (PII — sadece admin görür)
+          shipToName: ship?.name ?? null,
+          shipToLine1: ship?.line1 ?? null,
+          shipToLine2: ship?.line2 ?? null,
+          shipToCity: ship?.city ?? null,
+          shipToState: ship?.state ?? null,
+          shipToZip: ship?.zip ?? null,
+          shipToCountry: ship?.country ?? null,
+          shipToPhone: ship?.phone ?? null,
         },
         select: { id: true },
       });
