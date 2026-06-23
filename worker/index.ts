@@ -22,6 +22,7 @@ import { createDistributeProductsWorker } from "./jobs/distribute-products";
 import { createRefreshTokensWorker } from "./jobs/refresh-tokens";
 import { createDispatchPollsWorker } from "./jobs/dispatch-polls";
 import { createDispatchPollOrdersWorker } from "./jobs/dispatch-poll-orders";
+import { createFreezeStoresWorker } from "./jobs/freeze-stores";
 import { setupScheduler } from "./scheduler";
 
 // ─── Worker'ları başlat ────────────────────────────────────────────────────────
@@ -45,6 +46,7 @@ const workers: Worker[] = [
   createRefreshTokensWorker(connection),
   createDispatchPollsWorker(connection),
   createDispatchPollOrdersWorker(connection),
+  createFreezeStoresWorker(connection),
 ];
 
 console.log(`[worker] ${workers.length} worker aktif:`);

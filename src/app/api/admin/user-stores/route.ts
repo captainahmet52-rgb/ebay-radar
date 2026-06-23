@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
+import { ADMIN_COMP_UNTIL } from "@/lib/store-access";
 import { z } from "zod";
 
 /**
@@ -17,6 +18,8 @@ export const GET = requireAdmin(async () => {
       marketplace: true,
       isActive: true,
       activatedAt: true,
+      trialEndsAt: true,
+      paidUntil: true,
       createdAt: true,
       user: { select: { id: true, email: true, plan: true } },
     },
@@ -47,9 +50,15 @@ export const PATCH = requireAdmin(async (req) => {
     return NextResponse.json({ error: "Mağaza bulunamadı" }, { status: 404 });
   }
 
+  // Admin aktivasyonu = ücretsiz süresiz erişim (comp). paidUntil uzak geleceğe
+  // set edilir ki freeze-stores worker'ı dondurmasın. Pasifleştirince temizlenir.
   await prisma.ebayAccount.update({
     where: { id: accountId },
-    data: { isActive, activatedAt: isActive ? new Date() : null },
+    data: {
+      isActive,
+      activatedAt: isActive ? new Date() : null,
+      paidUntil: isActive ? ADMIN_COMP_UNTIL : null,
+    },
   });
 
   return NextResponse.json({ ok: true, isActive });

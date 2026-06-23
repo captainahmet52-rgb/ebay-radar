@@ -8,8 +8,9 @@ import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  Store, Plus, CheckCircle, Power, Trash2, Upload, Crown, AlertCircle,
+  Store, Plus, Power, Trash2, Upload, Crown, AlertCircle, Clock, Snowflake,
 } from "lucide-react";
+import { storeAccessState, trialDaysLeft, STORE_TRIAL_PRODUCT_LIMIT } from "@/lib/store-access";
 
 interface EbayAccountMeta {
   id: string;
@@ -17,7 +18,16 @@ interface EbayAccountMeta {
   marketplace: string;
   isActive: boolean;
   activatedAt: string | null;
+  trialEndsAt: string | null;
+  paidUntil: string | null;
   createdAt: string;
+}
+
+function stateOf(a: EbayAccountMeta) {
+  return storeAccessState({
+    trialEndsAt: a.trialEndsAt ? new Date(a.trialEndsAt) : null,
+    paidUntil: a.paidUntil ? new Date(a.paidUntil) : null,
+  });
 }
 
 interface AccountsResponse {
@@ -41,8 +51,13 @@ export default function StoresPage() {
   const [connecting, setConnecting] = useState(false);
 
   const accounts = data?.data ?? [];
-  const storeLimit = data?.meta?.storeLimit ?? 0;
-  const activeCount = data?.meta?.activeCount ?? 0;
+  const counts = accounts.reduce(
+    (acc, a) => {
+      acc[stateOf(a)]++;
+      return acc;
+    },
+    { active: 0, trial: 0, frozen: 0 } as Record<"active" | "trial" | "frozen", number>
+  );
 
   async function connectStore() {
     setConnecting(true);
@@ -118,17 +133,22 @@ export default function StoresPage() {
         </Button>
       </div>
 
-      {/* Aktif mağaza özeti */}
-      <Card className="p-4 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-slate-300">
-          <CheckCircle className="h-4 w-4 text-emerald-400" />
-          Aktif mağaza: <span className="font-bold text-white">{activeCount} / {storeLimit}</span>
+      {/* Durum özeti */}
+      <Card className="p-4 flex flex-wrap items-center gap-4 justify-between">
+        <div className="flex items-center gap-4 text-sm">
+          <span className="flex items-center gap-1.5 text-emerald-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Aktif: {counts.active}
+          </span>
+          <span className="flex items-center gap-1.5 text-blue-400">
+            <Clock className="h-3.5 w-3.5" /> Deneme: {counts.trial}
+          </span>
+          <span className="flex items-center gap-1.5 text-red-400">
+            <Snowflake className="h-3.5 w-3.5" /> Donduruldu: {counts.frozen}
+          </span>
         </div>
-        {activeCount >= storeLimit && (
-          <Link href="/dashboard/pricing" className="text-xs text-violet-400 hover:underline flex items-center gap-1">
-            <Crown className="h-3.5 w-3.5" /> Paket yükselt
-          </Link>
-        )}
+        <Link href="/dashboard/pricing" className="text-xs text-violet-400 hover:underline flex items-center gap-1">
+          <Crown className="h-3.5 w-3.5" /> Paketler
+        </Link>
       </Card>
 
       {/* Mağaza listesi */}
@@ -148,44 +168,67 @@ export default function StoresPage() {
           {accounts.map((a) => (
             <motion.div key={a.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               <Card className="p-4 space-y-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="font-semibold text-white">{a.ebayUserId}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">{marketLabel(a.marketplace)}</p>
-                  </div>
-                  {a.isActive ? (
-                    <span className="text-xs font-medium px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-400 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Aktif
-                    </span>
-                  ) : (
-                    <span className="text-xs font-medium px-2 py-1 rounded-full bg-slate-500/15 text-slate-400 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-500" /> Pasif
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {a.isActive ? (
+                {(() => {
+                  const state = stateOf(a);
+                  const daysLeft = trialDaysLeft(a.trialEndsAt ? new Date(a.trialEndsAt) : null);
+                  return (
                     <>
-                      <Link href="/dashboard/products">
-                        <Button size="sm">
-                          <Upload className="h-3.5 w-3.5" /> Ürün Yükle
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="font-semibold text-white">{a.ebayUserId}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">{marketLabel(a.marketplace)}</p>
+                        </div>
+                        {state === "active" ? (
+                          <span className="text-xs font-medium px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-400 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Aktif
+                          </span>
+                        ) : state === "trial" ? (
+                          <span className="text-xs font-medium px-2 py-1 rounded-full bg-blue-500/15 text-blue-400 flex items-center gap-1">
+                            <Clock className="h-3 w-3" /> Deneme — {daysLeft} gün
+                          </span>
+                        ) : (
+                          <span className="text-xs font-medium px-2 py-1 rounded-full bg-red-500/15 text-red-400 flex items-center gap-1">
+                            <Snowflake className="h-3 w-3" /> Donduruldu
+                          </span>
+                        )}
+                      </div>
+
+                      {state === "trial" && (
+                        <p className="text-xs text-blue-300/80">
+                          Ücretsiz deneme: bu mağazaya {STORE_TRIAL_PRODUCT_LIMIT} ürün yükleyebilirsin.
+                        </p>
+                      )}
+                      {state === "frozen" && (
+                        <p className="text-xs text-red-300/80">
+                          Ücretsiz sürüm bitti. Devam etmek için paket satın al.
+                        </p>
+                      )}
+
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {state === "frozen" ? (
+                          <Button size="sm" onClick={() => activate(a.id)} loading={busyId === a.id}>
+                            <Crown className="h-3.5 w-3.5" /> Paket Al
+                          </Button>
+                        ) : (
+                          <>
+                            <Link href="/dashboard/products">
+                              <Button size="sm">
+                                <Upload className="h-3.5 w-3.5" /> Ürün Yükle
+                              </Button>
+                            </Link>
+                            <Button size="sm" variant="ghost" onClick={() => deactivate(a.id)} loading={busyId === a.id}>
+                              <Power className="h-3.5 w-3.5" /> Pasifleştir
+                            </Button>
+                          </>
+                        )}
+                        <Button size="sm" variant="ghost" onClick={() => remove(a.id)} loading={busyId === a.id}
+                          className="text-red-400 hover:bg-red-500/10 ml-auto">
+                          <Trash2 className="h-3.5 w-3.5" /> Kaldır
                         </Button>
-                      </Link>
-                      <Button size="sm" variant="ghost" onClick={() => deactivate(a.id)} loading={busyId === a.id}>
-                        <Power className="h-3.5 w-3.5" /> Pasifleştir
-                      </Button>
+                      </div>
                     </>
-                  ) : (
-                    <Button size="sm" onClick={() => activate(a.id)} loading={busyId === a.id}>
-                      <CheckCircle className="h-3.5 w-3.5" /> Aktifleştir
-                    </Button>
-                  )}
-                  <Button size="sm" variant="ghost" onClick={() => remove(a.id)} loading={busyId === a.id}
-                    className="text-red-400 hover:bg-red-500/10 ml-auto">
-                    <Trash2 className="h-3.5 w-3.5" /> Kaldır
-                  </Button>
-                </div>
+                  );
+                })()}
               </Card>
             </motion.div>
           ))}

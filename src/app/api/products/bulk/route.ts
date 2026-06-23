@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { pollProductQueue } from "@/lib/queues";
+import { storeAccessState, STORE_TRIAL_PRODUCT_LIMIT } from "@/lib/store-access";
 import { z } from "zod";
 
 const schema = z.object({
@@ -77,8 +78,25 @@ export const POST = requireAuth(async (req, { userId }) => {
     );
   }
 
+  // Deneme modundaki mağaza: bu mağazaya en fazla STORE_TRIAL_PRODUCT_LIMIT (50) ürün
+  let effectiveRemaining = remaining;
+  if (storeAccessState(account) === "trial") {
+    const storeUsed = await prisma.listing.count({ where: { userId, ebayAccountId: account.id } });
+    const storeRemaining = Math.max(0, STORE_TRIAL_PRODUCT_LIMIT - storeUsed);
+    if (storeRemaining === 0) {
+      return NextResponse.json(
+        {
+          error: `Ücretsiz denemede mağaza başına ${STORE_TRIAL_PRODUCT_LIMIT} ürün yükleyebilirsin. Daha fazlası için paket al.`,
+          needUpgrade: true,
+        },
+        { status: 403 }
+      );
+    }
+    effectiveRemaining = Math.min(remaining, storeRemaining);
+  }
+
   // Bu kullanıcının zaten listelediği ürünleri atla (mükerrer önleme)
-  const targetAsins = asins.slice(0, remaining);
+  const targetAsins = asins.slice(0, effectiveRemaining);
   let added = 0;
   let skippedDupe = 0;
 

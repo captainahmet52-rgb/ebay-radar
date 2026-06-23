@@ -96,10 +96,16 @@ model EbayAccount {
   returnPolicyId        String?
   merchantLocationKey   String?
   policiesCheckedAt     DateTime?
-  // Mağaza aktif mi? Bağlanınca pasif gelir; plan limiti dahilinde aktifleştirilir.
-  // Sadece aktif mağazalara ürün yüklenir / radar çalışır.
+  // Mağaza otomasyon anahtarı. Bağlanınca 7 günlük deneme ile AKTİF gelir.
+  // Süre (deneme veya paket) bitince freeze-stores worker'ı false yapar.
+  // Sadece isActive mağazalara ürün yüklenir / radar çalışır.
   isActive              Boolean   @default(false)
   activatedAt           DateTime?
+  // Mağaza başına 7 günlük ücretsiz deneme bitiş tarihi (bağlanınca set edilir).
+  trialEndsAt           DateTime?
+  // Ücretli erişim bitiş tarihi (paket alınca +30 gün; admin comp'ta uzak gelecek).
+  // now < paidUntil → ücretli aktif; yoksa deneme/dondurma durumuna bakılır.
+  paidUntil             DateTime?
   createdAt             DateTime  @default(now())
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)

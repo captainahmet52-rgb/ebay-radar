@@ -20,6 +20,7 @@ import {
   amazonPollOrdersQueue,
   amazonDepotWatchdogQueue,
   amazonTrackingSyncQueue,
+  freezeStoresQueue,
 } from "@/lib/queues";
 
 // AmazonBot radar — taranacak pazarlar
@@ -121,6 +122,15 @@ export async function setupScheduler(): Promise<void> {
     { repeat: { every: 2 * 60 * 60 * 1000 } }
   );
   console.log("[scheduler] amazon-tracking-sync kuruldu: her 2 saat");
+
+  // ── freeze-stores: her saat (deneme/paket süresi biten mağazaları dondur) ────
+  await clearRepeatableJobs(freezeStoresQueue, "freeze-stores");
+  await freezeStoresQueue.add(
+    "freeze-stores",
+    {},
+    { repeat: { every: 60 * 60 * 1000 } } // 1 saat (ms)
+  );
+  console.log("[scheduler] freeze-stores kuruldu: her saat");
 }
 
 /**

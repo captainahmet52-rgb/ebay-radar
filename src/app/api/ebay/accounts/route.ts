@@ -15,6 +15,8 @@ export const GET = requireAuth(async (_req, { userId }) => {
           marketplace: true,
           isActive: true,
           activatedAt: true,
+          trialEndsAt: true,
+          paidUntil: true,
           tokenExpiresAt: true,
           createdAt: true,
         },

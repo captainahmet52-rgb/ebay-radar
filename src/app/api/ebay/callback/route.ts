@@ -3,6 +3,7 @@ import { exchangeCodeForTokens } from "@/lib/ebay/oauth";
 import { encryptToken } from "@/lib/crypto";
 import { prisma } from "@/lib/prisma";
 import { normalizeEbayMarketplaceId } from "@/lib/ebay-markets";
+import { addDays, STORE_TRIAL_DAYS } from "@/lib/store-access";
 
 // getApiBaseUrl is used to build the Identity API URL.
 // isSandbox / getApiBaseUrl are module-private in oauth.ts so we read the
@@ -117,6 +118,8 @@ export async function GET(req: NextRequest) {
     const refreshTokenEncrypted = encryptToken(tokens.refreshToken);
     const tokenExpiresAt = new Date(Date.now() + tokens.expiresIn * 1000);
 
+    // Yeni mağaza: 7 günlük ücretsiz deneme ile AKTİF başlar (50 ürün limiti).
+    // Deneme bitince freeze-stores worker'ı otomatik dondurur.
     await prisma.ebayAccount.create({
       data: {
         userId: state,
@@ -125,6 +128,9 @@ export async function GET(req: NextRequest) {
         oauthTokenEncrypted,
         refreshTokenEncrypted,
         tokenExpiresAt,
+        isActive: true,
+        activatedAt: new Date(),
+        trialEndsAt: addDays(new Date(), STORE_TRIAL_DAYS),
       },
     });
 

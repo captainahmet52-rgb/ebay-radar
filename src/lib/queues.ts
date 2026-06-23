@@ -326,3 +326,20 @@ export const dispatchPollOrdersQueue = new Queue<DispatchPollOrdersJobData, void
     },
   }
 );
+
+// ── freeze-stores: süresi biten (deneme/paket) mağazaları otomatik dondurur ──
+export interface FreezeStoresJobData {
+  _trigger?: string;
+}
+
+export const freezeStoresQueue = new Queue<FreezeStoresJobData, void, string>(
+  "freeze-stores",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 1,
+      removeOnComplete: { count: 10 },
+      removeOnFail: { count: 20 },
+    },
+  }
+);
