@@ -4,6 +4,7 @@ import type { ConnectionOptions } from "bullmq";
 import { prisma } from "@/lib/prisma";
 import { getValidToken } from "@/lib/ebay/oauth";
 import { pauseListing, updatePriceAndQty } from "@/lib/ebay/inventory";
+import { resolveEbayMarketplace } from "@/lib/ebay-markets";
 import type { UpdateListingJobData } from "@/lib/queues";
 
 // ─── Job işleyici ─────────────────────────────────────────────────────────────
@@ -73,13 +74,15 @@ async function processUpdateListing(
       // Stok 0 → listing'i duraklat (qty 0). offerId gerekmez.
       await pauseListing(ebayAccount.id, sku);
     } else if (listing.ebayOfferId) {
-      // Tam güncelleme: stok + fiyat birlikte.
+      // Tam güncelleme: stok + fiyat birlikte (mağazanın para birimiyle).
+      const currency = resolveEbayMarketplace(listing.ebaySite).currency;
       await updatePriceAndQty(
         ebayAccount.id,
         sku,
         listing.ebayOfferId,
         price,
-        qty
+        qty,
+        currency
       );
     } else {
       // offerId yok — listing henüz publish edilmemiş olabilir.

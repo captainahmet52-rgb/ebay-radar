@@ -25,6 +25,7 @@ import {
   getRequiredAspects,
   isConditionRequired,
 } from "@/lib/ebay/taxonomy";
+import { resolveEbayMarketplace } from "@/lib/ebay-markets";
 
 // ─── publishStage sabitleri ────────────────────────────────────────────────────
 // Sıralı aşamalar: <null> → inventory_done → offer_created → published
@@ -201,13 +202,16 @@ export async function publishListing(
   const offerDone =
     stage === STAGE_OFFER_CREATED || stage === STAGE_PUBLISHED;
 
+  // Mağazanın pazarı + para birimi (multi-market: US/UK/DE/AU)
+  const marketplace = resolveEbayMarketplace(listing.ebaySite);
+
   if (!offerDone && !offerId) {
     try {
       const createResp = await client.post<CreateOfferResponse>(
         `/sell/inventory/v1/offer`,
         {
           sku,
-          marketplaceId: "EBAY_US",
+          marketplaceId: marketplace.key,
           format: "FIXED_PRICE",
           availableQuantity: qty,
           categoryId,
@@ -220,7 +224,7 @@ export async function publishListing(
           pricingSummary: {
             price: {
               value: price.toFixed(2),
-              currency: "USD",
+              currency: marketplace.currency,
             },
           },
         }
@@ -339,7 +343,8 @@ export async function updatePriceAndQty(
   sku: string,
   offerId: string,
   price: number,
-  qty: number
+  qty: number,
+  currency: string = "USD"
 ): Promise<void> {
   const client = await buildClient(ebayAccountId);
 
@@ -353,7 +358,7 @@ export async function updatePriceAndQty(
             availableQuantity: qty,
             offerId,
             price: {
-              currency: "USD",
+              currency,
               value: price.toFixed(2),
             },
           },
