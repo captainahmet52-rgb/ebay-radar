@@ -12,7 +12,7 @@
       <div class="logo">LA</div>
       <div>
         <p class="name">Lean Automation</p>
-        <p class="sub">Amazon Ürün Bulucu</p>
+        <p class="sub">Amazon ASIN Grabber</p>
       </div>
     </div>
     <span id="status" class="status">● Hazır</span>
@@ -20,8 +20,8 @@
 
   <main class="body">
     <div class="info" id="info">
-      <b>Amazon sayfasına gidin</b><br />
-      Ürünlerin köşesindeki kutuları işaretleyin; seçilenler burada listelenir.
+      <b>Amazon arama sayfasını aç.</b><br />
+      Sağdaki <b>panel</b> ile ürünleri filtrele, ASIN topla. Buradan da kopyalayabilirsin.
     </div>
 
     <div class="row count-row">
@@ -33,56 +33,12 @@
       <p class="empty">Amazon'da ürün seçin…</p>
     </div>
 
-    <details class="filters">
-      <summary>Filtreler (Tümünü Seç için)</summary>
-      <div class="grid">
-        <label>Min Fiyat<input id="minPrice" type="number" placeholder="Min" /></label>
-        <label>Max Fiyat<input id="maxPrice" type="number" placeholder="Max" /></label>
-        <label>Min Yorum<input id="minReviews" type="number" placeholder="0" /></label>
-        <label>Min Puan
-          <select id="minRating">
-            <option value="">Hepsi</option>
-            <option value="3">3+</option>
-            <option value="4">4+</option>
-            <option value="4.5">4.5+</option>
-          </select>
-        </label>
-      </div>
-      <label class="chk"><input id="prime" type="checkbox" /> Sadece Prime</label>
-    </details>
-
-    <div class="actions">
-      <button id="selectAll" class="btn primary">Tümünü Seç</button>
-      <button id="deselect" class="btn">Seçimi Kaldır</button>
-    </div>
     <div class="actions">
       <button id="copy" class="btn green">Kopyala</button>
       <button id="clear" class="btn danger">Listeyi Temizle</button>
     </div>
 
     <p id="msg" class="msg"></p>
-
-    <div class="divider"></div>
-
-    <div class="row count-row">
-      <span>Hazırlananlar (eBay'e)</span>
-      <span id="prepCount" class="badge green-badge">0</span>
-    </div>
-    <label class="margin-row">
-      Kâr Marjı (%)
-      <input id="marginPct" type="number" value="25" min="0" max="90" />
-    </label>
-    <div class="list" id="prepList">
-      <p class="empty">Amazon ürün sayfasında "Lean'e Aktar"a bas…</p>
-    </div>
-    <div class="actions">
-      <button id="ebayUpload" class="btn primary">eBay'e Yükle</button>
-      <button id="csv" class="btn green">CSV İndir</button>
-    </div>
-    <div class="actions">
-      <button id="prepClear" class="btn danger">Hazırlananları Temizle</button>
-    </div>
-    <p id="prepMsg" class="msg"></p>
   </main>
 
   <script src="popup.js"></script>

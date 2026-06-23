@@ -35,10 +35,11 @@ const steps = [
 
 const features = [
   "Amazon aramasında ürünlere onay kutusu — kârlıları işaretle, ASIN topla",
-  "Fiyat / yorum / puan / Prime filtresiyle toplu seçim",
-  "Ürün sayfasında \"Lean'e Aktar\" — eBay fiyatını marjla otomatik hesaplar",
+  "Sayfa üstünde yüzen panel (sürüklenebilir) — tek tek ya da \"Tümünü Seç\"",
+  "Filtreler: Min/Max Fiyat, Min Yorum, Min Puan, Teslimat (gün), Sadece Prime",
+  "Filtreyle \"Tümünü Seç\" — sadece kritere uyan ürünleri işaretler",
   "Seçili ASIN'leri kopyala → panele \"Toplu ASIN\" ile yapıştır",
-  "eBay listeleme sayfasını ön-doldurma + CSV indirme",
+  "Sadece ASIN toplar — eBay/otomasyon yok, güvenli ve sade",
 ];
 
 export default function ExtensionPage() {
@@ -67,8 +68,8 @@ export default function ExtensionPage() {
       {/* Download card */}
       <div className="bg-gradient-to-br from-violet-600/15 to-blue-600/10 border border-violet-500/20 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
-          <p className="text-white font-semibold">Lean Automation — Amazon Ürün Bulucu</p>
-          <p className="text-sm text-slate-400 mt-1">Sürüm 0.2.0 · Chrome / Edge · ~15 KB</p>
+          <p className="text-white font-semibold">Lean Automation — Amazon ASIN Grabber</p>
+          <p className="text-sm text-slate-400 mt-1">Sürüm 0.3.0 · Chrome / Edge · ~11 KB</p>
         </div>
         <a
           href={EXTENSION_ZIP}
