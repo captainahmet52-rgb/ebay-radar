@@ -21,6 +21,7 @@ import {
   amazonDepotWatchdogQueue,
   amazonTrackingSyncQueue,
   freezeStoresQueue,
+  ebayAutoUploadQueue,
 } from "@/lib/queues";
 
 // AmazonBot radar — taranacak pazarlar
@@ -131,6 +132,15 @@ export async function setupScheduler(): Promise<void> {
     { repeat: { every: 60 * 60 * 1000 } } // 1 saat (ms)
   );
   console.log("[scheduler] freeze-stores kuruldu: her saat");
+
+  // ── ebay-auto-upload: her gün 04:00 UTC (oto-yükleme açık tüm kullanıcılar) ──
+  await clearRepeatableJobs(ebayAutoUploadQueue, "ebay-auto-upload");
+  await ebayAutoUploadQueue.add(
+    "ebay-auto-upload",
+    {}, // userId yok → tüm açık kullanıcılar
+    { repeat: { pattern: "0 4 * * *" } }
+  );
+  console.log("[scheduler] ebay-auto-upload kuruldu: her gün 04:00 UTC");
 }
 
 /**

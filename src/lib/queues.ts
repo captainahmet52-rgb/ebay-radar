@@ -327,6 +327,23 @@ export const dispatchPollOrdersQueue = new Queue<DispatchPollOrdersJobData, void
   }
 );
 
+// ── ebay-auto-upload: oto-yükleme açık kullanıcılara depodan ürün listeler ──
+export interface EbayAutoUploadJobData {
+  userId?: string; // verilmezse tüm açık kullanıcılar
+}
+
+export const ebayAutoUploadQueue = new Queue<EbayAutoUploadJobData, void, string>(
+  "ebay-auto-upload",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 1,
+      removeOnComplete: { count: 20 },
+      removeOnFail: { count: 50 },
+    },
+  }
+);
+
 // ── publish-listing: yeni listing'i eBay'e API ile yayınlar (inventory→offer→publish) ──
 export interface PublishListingJobData {
   listingId: string;

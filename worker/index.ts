@@ -24,6 +24,7 @@ import { createDispatchPollsWorker } from "./jobs/dispatch-polls";
 import { createDispatchPollOrdersWorker } from "./jobs/dispatch-poll-orders";
 import { createFreezeStoresWorker } from "./jobs/freeze-stores";
 import { createPublishListingWorker } from "./jobs/publish-listing";
+import { createEbayAutoUploadWorker } from "./jobs/ebay-auto-upload";
 import { setupScheduler } from "./scheduler";
 
 // ─── Worker'ları başlat ────────────────────────────────────────────────────────
@@ -49,6 +50,7 @@ const workers: Worker[] = [
   createDispatchPollOrdersWorker(connection),
   createFreezeStoresWorker(connection),
   createPublishListingWorker(connection),
+  createEbayAutoUploadWorker(connection),
 ];
 
 console.log(`[worker] ${workers.length} worker aktif:`);

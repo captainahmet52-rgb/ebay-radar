@@ -1,48 +1,46 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { ebayAutoUploadQueue } from "@/lib/queues";
 
+/**
+ * POST /api/auto-upload/run
+ * Kullanıcı için oto-yüklemeyi HEMEN tetikler (BullMQ ebay-auto-upload job'ı).
+ * Worker depodan filtreye uyan ürünleri seçer → Listing + publish-listing ile eBay'e yayınlar.
+ */
 export async function POST() {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Yetkisiz" }, { status: 401 });
 
-  // Kullanıcının ayarlarını çek
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: {
-      id:                    true,
-      productLimit:          true,
-      uploadDailyLimit:      true,
-      uploadMinProfit:       true,
-      uploadMinMarginPct:    true,
-      uploadMinAmazonPrice:  true,
-      uploadMaxAmazonPrice:  true,
-      uploadPrimeOnly:       true,
-      uploadAutoPublish:     true,
-      uploadProfitMarginPct: true,
-      uploadQuantity:        true,
-    },
-  });
+  const userId = session.user.id;
 
-  if (!user) return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 });
+  // Aktif mağaza ve oto-yükleme açık mı, hızlı kontrol
+  const [user, account] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { autoUploadEnabled: true } }),
+    prisma.ebayAccount.findFirst({ where: { userId, isActive: true }, select: { id: true } }),
+  ]);
 
-  // Log kaydı oluştur (gerçek iş BullMQ'da olacak)
-  const log = await prisma.autoUploadLog.create({
-    data: {
-      userId:  session.user.id,
-      status:  "success",
-      productsChecked:  0,
-      productsUploaded: 0,
-      productsSkipped:  0,
-    },
-  });
+  if (!account) {
+    return NextResponse.json(
+      { error: "Aktif eBay mağazası yok. Mağazalarım'dan bir mağaza bağlayıp aktifleştir." },
+      { status: 400 }
+    );
+  }
+  if (!user?.autoUploadEnabled) {
+    return NextResponse.json(
+      { error: "Önce oto-yüklemeyi açıp ayarları kaydet." },
+      { status: 400 }
+    );
+  }
 
-  // TODO: BullMQ'ya auto-upload job'ı ekle
-  // await autoUploadQueue.add("auto-upload", { userId: session.user.id, logId: log.id });
+  await ebayAutoUploadQueue.add(
+    "ebay-auto-upload",
+    { userId },
+    { jobId: `ebay-auto-upload:manual:${userId}:${Date.now()}` }
+  );
 
   return NextResponse.json({
     ok: true,
     message: "Otomatik yükleme başlatıldı. Geçmiş sekmesinden takip edebilirsiniz.",
-    logId: log.id,
   });
 }
