@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import useSWR from "swr";
 import { motion } from "framer-motion";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, CheckCircle, Upload, Zap, Eye } from "lucide-react";
+import { AlertCircle, CheckCircle, Upload, Zap, Eye, Store } from "lucide-react";
 
 interface BulkResult {
   requested: number;
@@ -15,10 +16,29 @@ interface BulkResult {
   productLimit: number;
 }
 
+interface EbayAccountMeta {
+  id: string;
+  ebayUserId: string;
+  marketplace: string;
+}
+
 interface BulkUploadModalProps {
   open: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+}
+
+const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+/** EBAY_US → "US", EBAY_GB → "UK" gibi kısa pazar etiketi. */
+function marketLabel(marketplace: string): string {
+  const map: Record<string, string> = {
+    EBAY_US: "🇺🇸 US",
+    EBAY_GB: "🇬🇧 UK",
+    EBAY_DE: "🇩🇪 DE",
+    EBAY_AU: "🇦🇺 AU",
+  };
+  return map[marketplace] ?? marketplace.replace("EBAY_", "");
 }
 
 export function BulkUploadModal({ open, onClose, onSuccess }: BulkUploadModalProps) {
@@ -27,9 +47,20 @@ export function BulkUploadModal({ open, onClose, onSuccess }: BulkUploadModalPro
   const [stockQty, setStockQty] = useState(1);
   const [intervalSec, setIntervalSec] = useState(1);
   const [mode, setMode] = useState<"auto" | "draft">("auto");
+  const [ebayAccountId, setEbayAccountId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<BulkResult | null>(null);
+
+  const { data: accountsRes } = useSWR(open ? "/api/ebay/accounts" : null, fetcher);
+  const accounts: EbayAccountMeta[] = accountsRes?.data ?? [];
+
+  // İlk mağazayı varsayılan seç (kullanıcı değiştirmediyse)
+  useEffect(() => {
+    if (accounts.length > 0 && !ebayAccountId) {
+      setEbayAccountId(accounts[0].id);
+    }
+  }, [accounts, ebayAccountId]);
 
   async function start() {
     setLoading(true);
@@ -39,7 +70,7 @@ export function BulkUploadModal({ open, onClose, onSuccess }: BulkUploadModalPro
       const res = await fetch("/api/products/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input, profitMarginPct: marginPct, stockQty, intervalSec, mode }),
+        body: JSON.stringify({ input, profitMarginPct: marginPct, stockQty, intervalSec, mode, ebayAccountId: ebayAccountId || undefined }),
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error ?? "Yükleme başarısız");
@@ -91,6 +122,34 @@ export function BulkUploadModal({ open, onClose, onSuccess }: BulkUploadModalPro
               <p className="text-xs text-slate-500 mt-1">ASIN kodları veya Amazon ürün URL&apos;lerini her satıra bir tane gelecek şekilde girin</p>
             </div>
 
+            {/* Hedef mağaza — birden fazla eBay mağazası bağlıysa seçim zorunlu */}
+            {accounts.length === 0 ? (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" /> Önce Ayarlar&apos;dan bir eBay mağazası bağla.
+              </div>
+            ) : (
+              <div>
+                <label className="text-xs font-medium text-slate-300 mb-1.5 flex items-center gap-1.5">
+                  <Store className="h-3.5 w-3.5" /> Hedef Mağaza
+                  {accounts.length > 1 && <span className="text-violet-400">({accounts.length} mağaza)</span>}
+                </label>
+                <select
+                  value={ebayAccountId}
+                  onChange={(e) => setEbayAccountId(e.target.value)}
+                  className={fieldCls}
+                >
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id} className="bg-slate-800">
+                      {a.ebayUserId} — {marketLabel(a.marketplace)}
+                    </option>
+                  ))}
+                </select>
+                {accounts.length > 1 && (
+                  <p className="text-xs text-slate-500 mt-1">Ürünler seçtiğin mağazaya yüklenir; her mağaza kendi pazarına göre fiyatlanır.</p>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="text-xs font-medium text-slate-300 block mb-1.5">Kâr Marjı (%)</label>
@@ -130,7 +189,7 @@ export function BulkUploadModal({ open, onClose, onSuccess }: BulkUploadModalPro
               </div>
             )}
 
-            <Button onClick={start} loading={loading} disabled={!input.trim()} className="w-full">
+            <Button onClick={start} loading={loading} disabled={!input.trim() || !ebayAccountId} className="w-full">
               <Upload className="h-4 w-4" /> Yüklemeyi Başlat
             </Button>
           </>
