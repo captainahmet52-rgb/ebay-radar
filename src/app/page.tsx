@@ -8,8 +8,14 @@ import {
   RefreshCcw, ShoppingCart, Cpu, Target, BarChart2,
   Upload, DollarSign, RotateCcw, FileBarChart,
   Package, MessageSquare, TrendingUp, HeartHandshake,
-  Shield, Lock, Server, Headphones, Star, ArrowRight, ChevronDown,
+  Shield, Lock, Server, Headphones, Star, ArrowRight, ChevronDown, Play,
 } from "lucide-react";
+
+/**
+ * Demo videosu URL'i (YouTube/Vimeo embed linki). Boşsa şık bir yer tutucu gösterilir.
+ * Video çekilince buraya embed linkini yapıştır: örn. "https://www.youtube.com/embed/XXXX"
+ */
+const DEMO_VIDEO_URL = "";
 import { Logo, LogoMark } from "@/components/logo";
 import { FAQ } from "@/lib/faq";
 import { FaqStructuredData } from "@/components/structured-data";
@@ -310,6 +316,36 @@ export default function LandingPage() {
           Amazon, eBay ve Etsy satıcıları için tam otomasyonlu çözümler.
           Listeleme, sipariş, stok ve müşteriyi tek platformdan yönetin.
         </motion.p>
+
+        {/* CTA + güven */}
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.35 }}
+          className="mt-7 flex flex-col items-center gap-4"
+        >
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/register"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-white transition-transform hover:scale-[1.03]"
+              style={{ background: "linear-gradient(135deg,#7c3aed,#3b82f6)", boxShadow: "0 8px 24px rgba(124,58,237,0.35)" }}
+            >
+              7 Gün Ücretsiz Başla <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/register"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-violet-300 transition-colors hover:text-white"
+              style={{ border: "1px solid rgba(124,58,237,0.4)", background: "rgba(124,58,237,0.08)" }}
+            >
+              <HeartHandshake className="h-4 w-4" /> Davet Et, +7 Gün Kazan
+            </Link>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-slate-500">
+            <span className="flex items-center gap-1.5"><Star className="h-3.5 w-3.5 text-emerald-400" /> Mağaza başına 7 gün / 50 ürün ücretsiz</span>
+            <span className="flex items-center gap-1.5"><Lock className="h-3.5 w-3.5 text-emerald-400" /> Kredi kartı gerekmez</span>
+            <span className="flex items-center gap-1.5"><Shield className="h-3.5 w-3.5 text-emerald-400" /> SSL korumalı</span>
+          </div>
+        </motion.div>
       </section>
 
       {/* ══ Platform Kartları ══ */}
@@ -414,6 +450,72 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
+      {/* ══ Nasıl Çalışır + Demo ══ */}
+      <section className="relative z-10 max-w-5xl mx-auto px-6 pb-16">
+        <h2 className="text-3xl md:text-4xl font-black text-center mb-3">Nasıl Çalışır?</h2>
+        <p className="text-slate-400 text-center mb-10">3 adımda otomasyona başla</p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
+          {[
+            { icon: Upload, step: "1", title: "Mağazanı Bağla", desc: "eBay mağazanı tek tıkla güvenli OAuth ile bağla. 7 gün ücretsiz başlar." },
+            { icon: Cpu, step: "2", title: "Otomatik Listele", desc: "Ürünleri ekle; sistem fiyatı pazara göre hesaplar, listeler, stok/fiyatı takip eder." },
+            { icon: DollarSign, step: "3", title: "Sat & Kazan", desc: "Sipariş gelince anında doğrulanır; sen kârına bakarsın, gerisini sistem yapar." },
+          ].map(({ icon: Icon, step, title, desc }, i) => (
+            <motion.div
+              key={title}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: i * 0.1 }}
+              className="rounded-2xl p-6"
+              style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)" }}
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#7c3aed,#3b82f6)" }}>
+                  <Icon className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-3xl font-black text-slate-700">{step}</span>
+              </div>
+              <h3 className="text-white font-bold text-lg mb-1">{title}</h3>
+              <p className="text-slate-400 text-sm leading-relaxed">{desc}</p>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Demo video alanı */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="relative rounded-2xl overflow-hidden"
+          style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          {DEMO_VIDEO_URL ? (
+            <div className="aspect-video w-full">
+              <iframe
+                src={DEMO_VIDEO_URL}
+                title="Lean Automation Demo"
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          ) : (
+            <div
+              className="aspect-video w-full flex flex-col items-center justify-center gap-3"
+              style={{ background: "radial-gradient(circle at 50% 40%, rgba(124,58,237,0.18), rgba(5,5,8,0.6))" }}
+            >
+              <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)" }}>
+                <Play className="h-7 w-7 text-white ml-1" />
+              </div>
+              <p className="text-white font-semibold">Ürün Turu</p>
+              <p className="text-slate-400 text-sm">Demo videosu çok yakında</p>
+            </div>
+          )}
+        </motion.div>
+      </section>
+
       {/* ══ SSS (FAQ) ══ */}
       <section className="relative z-10 max-w-3xl mx-auto px-6 pb-16">
         <FaqStructuredData />
@@ -447,9 +549,9 @@ export default function LandingPage() {
           </div>
           <p className="text-xs text-slate-600">© 2026 Lean Automation. Tüm hakları saklıdır.</p>
           <div className="flex items-center gap-6 text-xs text-slate-500">
-            <a href="#" className="hover:text-white transition-colors">Gizlilik</a>
-            <a href="#" className="hover:text-white transition-colors">Kullanım Şartları</a>
-            <a href="#" className="hover:text-white transition-colors">İletişim</a>
+            <Link href="/privacy" className="hover:text-white transition-colors">Gizlilik</Link>
+            <Link href="/terms" className="hover:text-white transition-colors">Kullanım Şartları</Link>
+            <a href="mailto:captainahmet52@gmail.com" className="hover:text-white transition-colors">İletişim</a>
           </div>
         </div>
       </footer>
