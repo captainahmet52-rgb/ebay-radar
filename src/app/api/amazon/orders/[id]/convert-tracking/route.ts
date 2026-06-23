@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { convertTracking, TRACKING_CONVERSION_FEE_USD } from "@/lib/tracking";
-import { notifyInsufficientBalance, notifyLowBalanceIfNeeded } from "@/lib/admin-notify";
+import { TrackCaptainOutOfCreditsError } from "@/lib/trackcaptain";
+import {
+  notifyInsufficientBalance,
+  notifyLowBalanceIfNeeded,
+  notifyTrackCaptainOutOfCredits,
+} from "@/lib/admin-notify";
 
 /**
  * POST /api/amazon/orders/[id]/convert-tracking
@@ -70,6 +75,11 @@ export const POST = requireAuth(async (_req, { userId, params }) => {
       }),
       prisma.amazonOrder.update({ where: { id }, data: { trackingStatus: "failed" } }),
     ]);
+
+    // Sahibin TrackCaptain kredisi bittiyse → admin panele KRİTİK bildirim
+    if (err instanceof TrackCaptainOutOfCreditsError) {
+      await notifyTrackCaptainOutOfCredits(err.creditBalance).catch(() => {});
+    }
 
     const msg = err instanceof Error ? err.message : "Çevirme başarısız";
     return NextResponse.json({ error: msg, refunded: true }, { status: 502 });

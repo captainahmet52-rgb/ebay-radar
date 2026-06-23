@@ -58,6 +58,18 @@ export async function notifyInsufficientBalance(
   });
 }
 
+/**
+ * Sahibin TrackCaptain kredisi bitti → admin paneline KRİTİK uyarı.
+ * Bu kredi biterse HİÇBİR müşteri geçerli takip numarası alamaz → toplu eBay riski.
+ */
+export async function notifyTrackCaptainOutOfCredits(creditBalance = 0): Promise<void> {
+  await createIfNotDuplicate({
+    type: "trackcaptain_credits",
+    title: "TrackCaptain kredisi BİTTİ (sahibin hesabı)",
+    message: `TrackCaptain kredisi tükendi (kalan: ${creditBalance}). HİÇBİR müşteri takip numarası alamaz → eBay hesap riski. ACİL kredi yükle: trackcaptain.com`,
+  });
+}
+
 /** Başarılı işlem sonrası bakiye eşiğin altına düştüyse → admin paneline UYARI. */
 export async function notifyLowBalanceIfNeeded(userId: string): Promise<void> {
   const user = await prisma.user.findUnique({

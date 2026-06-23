@@ -7,30 +7,54 @@
  * ulaşıp yerel kargoya devredilince doğan numara geçerlidir. Bu fonksiyon onu bulur.
  */
 
+import {
+  isTrackCaptainConfigured,
+  matchAndClaim,
+  type TrackCaptainDestination,
+} from "@/lib/trackcaptain";
+
 /** Çevirme başına kullanıcıdan düşülecek ücret (USD). 10 TL ≈ $0.43. */
 export const TRACKING_CONVERSION_FEE_USD = 0.43;
 
 export interface TrackingConversion {
-  carrierCode: string;   // ör. "usps", "royal-mail"
+  carrierCode: string;   // ör. "usps", "fedex"
   trackingNumber: string;
   delivered: boolean;
 }
 
 export function isTrackingProviderConfigured(): boolean {
-  return Boolean(process.env.SEVENTEENTRACK_API_KEY || process.env.AFTERSHIP_API_KEY);
+  return (
+    isTrackCaptainConfigured() ||
+    Boolean(process.env.SEVENTEENTRACK_API_KEY || process.env.AFTERSHIP_API_KEY)
+  );
 }
 
 /**
- * AliExpress takip numarasını geçerli son-mil numarasına çevirir.
- * @throws sağlayıcı bağlı değilse ya da son-mil numara henüz oluşmadıysa.
+ * Sipariş için eBay/Amazon'un kabul edeceği GEÇERLİ takip numarası üretir.
+ * Birincil sağlayıcı: TrackCaptain (varış adresine uyan gerçek USPS/FedEx no).
+ * `destination` opsiyoneldir; verilirse (zip/şehir/eyalet) numara kalitesi artar.
+ *
+ * @throws sağlayıcı bağlı değilse veya TrackCaptain kredisi bitmişse
+ *   (TrackCaptainOutOfCreditsError — çağıran tarafta admin'e bildirilir).
  */
-export async function convertTracking(aliTrackingNo: string): Promise<TrackingConversion> {
-  if (!isTrackingProviderConfigured()) {
-    throw new Error(
-      "Takip sağlayıcısı bağlı değil (SEVENTEENTRACK_API_KEY / AFTERSHIP_API_KEY yok). API en sonda bağlanacak."
-    );
+export async function convertTracking(
+  aliTrackingNo: string,
+  destination?: TrackCaptainDestination
+): Promise<TrackingConversion> {
+  if (isTrackCaptainConfigured()) {
+    const claimed = await matchAndClaim(destination ?? {});
+    const delivered = claimed.deliveryDate
+      ? new Date(claimed.deliveryDate).getTime() <= Date.now()
+      : false;
+    return {
+      carrierCode: claimed.carrier.toLowerCase(), // "usps" | "fedex"
+      trackingNumber: claimed.trackingNumber,
+      delivered,
+    };
   }
-  // TODO: 17track register + gettrackinfo → son-mil carrier + numara parse et.
-  // Son-mil numara henüz yoksa "henüz hazır değil" hatası dön (kullanıcı sonra tekrar dener).
-  throw new Error(`Takip çevirme entegrasyonu henüz tamamlanmadı (aliTrackingNo: ${aliTrackingNo}).`);
+
+  // Yedek sağlayıcılar (henüz tamamlanmadı)
+  throw new Error(
+    `Takip sağlayıcısı bağlı değil (TRACKCAPTAIN_API_KEY yok). aliTrackingNo: ${aliTrackingNo}`
+  );
 }
