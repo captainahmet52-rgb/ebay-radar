@@ -89,6 +89,9 @@ services:
       # "Reload Compose File"da kayboluyor ve 504 veriyordu. UUID bu kaynağa özel/sabit.
       - "traefik.http.services.http-0-keruvce6zrt77e7z1zis4zbz-app.loadbalancer.server.port=3000"
       - "traefik.http.services.https-0-keruvce6zrt77e7z1zis4zbz-app.loadbalancer.server.port=3000"
+      # App iki ağda; Traefik'in coolify-proxy ile ORTAK ağı (keruvce...) kullanmasını
+      # zorla — yoksa yanlış ağdaki IP'ye gidip 503 veriyor.
+      - "traefik.docker.network=keruvce6zrt77e7z1zis4zbz"
 
   # ── BullMQ Worker ──────────────────────────────────────────────────────────
   worker:
