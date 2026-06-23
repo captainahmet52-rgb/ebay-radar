@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import useSWR from "swr";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +8,20 @@ import { formatDate } from "@/lib/utils";
 import type { FulfillmentStatus } from "@/types";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+function marketLabel(m?: string): string {
+  if (!m) return "—";
+  const map: Record<string, string> = {
+    EBAY_US: "🇺🇸 US", EBAY_GB: "🇬🇧 UK", EBAY_DE: "🇩🇪 DE", EBAY_AU: "🇦🇺 AU",
+  };
+  return map[m] ?? m.replace("EBAY_", "");
+}
+
+interface StoreMeta {
+  id: string;
+  ebayUserId: string;
+  marketplace: string;
+}
 
 interface Order {
   id: string;
@@ -22,13 +37,18 @@ interface Order {
       asin: string;
       title: string;
     };
+    ebayAccount?: {
+      id: string;
+      ebayUserId: string;
+      marketplace: string;
+    };
   };
 }
 
 function SkeletonRow() {
   return (
     <tr>
-      {Array.from({ length: 7 }).map((_, i) => (
+      {Array.from({ length: 8 }).map((_, i) => (
         <td key={i} className="px-4 py-3">
           <div className="shimmer h-4 rounded w-full" />
         </td>
@@ -38,9 +58,13 @@ function SkeletonRow() {
 }
 
 export default function OrdersPage() {
-  const { data: ordersRes, isLoading } = useSWR("/api/orders", fetcher);
+  const [storeFilter, setStoreFilter] = useState("");
+  const ordersUrl = storeFilter ? `/api/orders?ebayAccountId=${storeFilter}` : "/api/orders";
+  const { data: ordersRes, isLoading } = useSWR(ordersUrl, fetcher);
   const { data: stats } = useSWR("/api/orders/stats", fetcher);
+  const { data: accountsRes } = useSWR("/api/ebay/accounts", fetcher);
 
+  const stores: StoreMeta[] = accountsRes?.data ?? [];
   const safeOrders: Order[] = ordersRes?.data ?? [];
   const totalProfit = safeOrders.reduce((sum, o) => sum + (o.netProfit ?? 0), 0);
 
@@ -52,11 +76,25 @@ export default function OrdersPage() {
       className="space-y-6 max-w-7xl mx-auto"
     >
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-white">Siparişler</h1>
           <p className="text-sm text-slate-400 mt-1">Tüm eBay siparişleri</p>
         </div>
+        {stores.length > 1 && (
+          <select
+            value={storeFilter}
+            onChange={(e) => setStoreFilter(e.target.value)}
+            className="bg-slate-800 border border-slate-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+          >
+            <option value="">Tüm mağazalar</option>
+            {stores.map((s) => (
+              <option key={s.id} value={s.id} className="bg-slate-800">
+                {s.ebayUserId} — {marketLabel(s.marketplace)}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* Summary */}
@@ -89,7 +127,7 @@ export default function OrdersPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-700/50 bg-slate-900/60">
-                {["eBay Sipariş ID", "Ürün", "Satış $", "Amazon $", "Net Kâr", "Durum", "Tarih"].map(
+                {["eBay Sipariş ID", "Ürün", "Mağaza", "Satış $", "Amazon $", "Net Kâr", "Durum", "Tarih"].map(
                   (col) => (
                     <th
                       key={col}
@@ -107,7 +145,7 @@ export default function OrdersPage() {
                 : safeOrders.length === 0
                 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-16 text-center text-slate-400">
+                    <td colSpan={8} className="px-4 py-16 text-center text-slate-400">
                       Henüz sipariş yok.
                     </td>
                   </tr>
@@ -132,6 +170,10 @@ export default function OrdersPage() {
                       <p className="text-[10px] text-slate-500 mt-0.5 max-w-[160px] truncate">
                         {order.listing?.product?.title}
                       </p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-xs text-slate-300">{order.listing?.ebayAccount?.ebayUserId ?? "—"}</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">{marketLabel(order.listing?.ebayAccount?.marketplace)}</p>
                     </td>
                     <td className="px-4 py-3 text-white font-semibold font-mono text-xs">
                       ${order.soldPrice.toFixed(2)}

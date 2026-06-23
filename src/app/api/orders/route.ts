@@ -9,9 +9,12 @@ export const GET = requireAuth(async (req, { userId }) => {
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10)));
     const skip = (page - 1) * limit;
     const fulfillmentStatus = searchParams.get("fulfillmentStatus");
+    const ebayAccountId = searchParams.get("ebayAccountId");
 
     const where: Record<string, unknown> = { userId };
     if (fulfillmentStatus) where.fulfillmentStatus = fulfillmentStatus;
+    // Mağazaya göre filtre (sipariş → listing → ebayAccount)
+    if (ebayAccountId) where.listing = { ebayAccountId };
 
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
@@ -28,6 +31,9 @@ export const GET = requireAuth(async (req, { userId }) => {
                   title: true,
                   imageUrl: true,
                 },
+              },
+              ebayAccount: {
+                select: { id: true, ebayUserId: true, marketplace: true },
               },
             },
           },
