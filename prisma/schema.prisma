@@ -72,6 +72,13 @@ model User {
   // Trial
   trialEndsAt DateTime?
 
+  // ─── Referans (davet) sistemi ──────────────────────────────────────────────
+  referralCode       String?  @unique          // bu kullanıcının paylaştığı davet kodu
+  referredById       String?                    // bu kullanıcıyı davet eden kişi
+  referralRewardDays Int      @default(0)        // biriken bonus gün (mağaza denemesine eklenir)
+  referredBy User?  @relation("UserReferrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals  User[] @relation("UserReferrals")
+
   // NextAuth
   accounts Account[]
   sessions Session[]

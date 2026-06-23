@@ -56,10 +56,14 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [callbackUrl, setCallbackUrl] = useState<string | null>(null);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
 
   useEffect(() => {
-    const cb = new URLSearchParams(window.location.search).get("callbackUrl");
+    const params = new URLSearchParams(window.location.search);
+    const cb = params.get("callbackUrl");
     if (cb && cb.startsWith("/")) setCallbackUrl(cb);
+    const ref = params.get("ref");
+    if (ref) setReferralCode(ref.trim().toUpperCase());
   }, []);
 
   const loginHref = callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login";
@@ -82,7 +86,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, referralCode: referralCode ?? undefined }),
       });
 
       const data = await res.json();
@@ -113,6 +117,12 @@ export default function RegisterPage() {
         <h1 className="text-2xl font-bold text-white">Hesap Oluştur</h1>
         <p className="text-slate-400 text-sm mt-2">Ücretsiz başla, istediğin zaman yükselt</p>
       </div>
+
+      {referralCode && !success && (
+        <div className="mb-6 flex items-center justify-center gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm">
+          🎁 Davetle geldin — kayıt olunca <span className="font-semibold">+7 gün bonus</span> kazanırsın!
+        </div>
+      )}
 
       {success ? (
         <motion.div

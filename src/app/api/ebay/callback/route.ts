@@ -4,6 +4,7 @@ import { encryptToken } from "@/lib/crypto";
 import { prisma } from "@/lib/prisma";
 import { normalizeEbayMarketplaceId } from "@/lib/ebay-markets";
 import { addDays, STORE_TRIAL_DAYS } from "@/lib/store-access";
+import { REFERRAL_MAX_BONUS_PER_STORE } from "@/lib/referral";
 
 // getApiBaseUrl is used to build the Identity API URL.
 // isSandbox / getApiBaseUrl are module-private in oauth.ts so we read the
@@ -82,7 +83,7 @@ export async function GET(req: NextRequest) {
     // Kullanıcı var mı?
     const user = await prisma.user.findUnique({
       where: { id: state },
-      select: { id: true, trialEndsAt: true },
+      select: { id: true, trialEndsAt: true, referralRewardDays: true },
     });
     if (!user) {
       return NextResponse.redirect(
@@ -119,7 +120,9 @@ export async function GET(req: NextRequest) {
     const tokenExpiresAt = new Date(Date.now() + tokens.expiresIn * 1000);
 
     // Yeni mağaza: 7 günlük ücretsiz deneme ile AKTİF başlar (50 ürün limiti).
+    // Davet ödülü günleri varsa denemeye eklenir (mağaza başına azami sınırla).
     // Deneme bitince freeze-stores worker'ı otomatik dondurur.
+    const bonusDays = Math.min(user.referralRewardDays ?? 0, REFERRAL_MAX_BONUS_PER_STORE);
     await prisma.ebayAccount.create({
       data: {
         userId: state,
@@ -130,9 +133,17 @@ export async function GET(req: NextRequest) {
         tokenExpiresAt,
         isActive: true,
         activatedAt: new Date(),
-        trialEndsAt: addDays(new Date(), STORE_TRIAL_DAYS),
+        trialEndsAt: addDays(new Date(), STORE_TRIAL_DAYS + bonusDays),
       },
     });
+
+    // Kullanılan davet ödülü günlerini bakiyeden düş
+    if (bonusDays > 0) {
+      await prisma.user.update({
+        where: { id: state },
+        data: { referralRewardDays: { decrement: bonusDays } },
+      });
+    }
 
     // İlk mağaza bağlandıysa trial başlat
     if (!user.trialEndsAt) {

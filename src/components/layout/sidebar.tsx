@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Home,
   Store,
+  Gift,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,7 @@ const navItems = [
   { href: "/dashboard/orders",      label: "Siparişler",    icon: ShoppingCart },
   { href: "/dashboard/auto-upload", label: "Oto Yükleme",   icon: Upload },
   { href: "/dashboard/pricing",     label: "Paketler",      icon: CreditCard },
+  { href: "/dashboard/referral",    label: "Davet Et",      icon: Gift },
   { href: "/dashboard/settings",    label: "Ayarlar",       icon: Settings },
 ];
 
