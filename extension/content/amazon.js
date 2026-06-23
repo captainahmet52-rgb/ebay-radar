@@ -78,29 +78,69 @@
   }).observe(document.body, { childList: true, subtree: true });
 
   // ── Kart filtre yardımcıları ────────────────────────────────────────────────
+  // Çok-yerelli sayı ayrıştırma: "2.249,00" (TR/AB) ve "2,249.00" (US/UK) ikisini de doğru okur.
+  function parseLocaleNumber(text) {
+    if (!text) return null;
+    const m = String(text).trim().match(/[\d.,\s]+/);
+    if (!m) return null;
+    let r = m[0].replace(/\s+/g, "").replace(/[^\d.,]/g, "");
+    if (!r) return null;
+    const dot = r.lastIndexOf(".");
+    const comma = r.lastIndexOf(",");
+    const hasDot = dot >= 0, hasComma = comma >= 0;
+    if (hasDot && hasComma) {
+      // Sonda gelen ondalık ayırıcıdır; diğeri binlik
+      const dec = dot > comma ? "." : ",";
+      const thou = dec === "." ? "," : ".";
+      r = r.split(thou).join("");
+      if (dec === ",") r = r.replace(",", ".");
+    } else if (hasComma) {
+      // Sadece virgül: son gruptaki 2 hane ondalık demek, değilse binlik
+      r = r.length - comma - 1 === 2 ? r.replace(",", ".") : r.replace(/,/g, "");
+    } else if (hasDot) {
+      // Sadece nokta: son grup 2 hane değilse binlik ayırıcıdır
+      if (r.length - dot - 1 !== 2) r = r.replace(/\./g, "");
+    }
+    const v = parseFloat(r);
+    return Number.isFinite(v) ? v : null;
+  }
+
   function cardPrice(card) {
+    // Önce whole+fraction (yerelden bağımsız: binlik whole'da, ondalık fraction'da)
     const whole = card.querySelector(".a-price .a-price-whole");
     if (whole) {
       const w = (whole.textContent || "").replace(/[^\d]/g, "");
-      const frac = (card.querySelector(".a-price .a-price-fraction")?.textContent || "00").replace(/[^\d]/g, "").slice(0, 2);
-      const v = parseFloat(`${w}.${frac || "00"}`);
-      if (Number.isFinite(v)) return v;
+      if (w) {
+        const frac = ((card.querySelector(".a-price .a-price-fraction")?.textContent || "").replace(/[^\d]/g, "") || "00").slice(0, 2).padEnd(2, "0");
+        const v = parseFloat(`${w}.${frac}`);
+        if (Number.isFinite(v)) return v;
+      }
     }
-    const off = card.querySelector(".a-price .a-offscreen");
+    const off = card.querySelector(".a-price .a-offscreen, span.a-price > span.a-offscreen");
     if (off) {
-      const v = parseFloat((off.textContent || "").replace(/[^\d.]/g, ""));
-      if (Number.isFinite(v)) return v;
+      const v = parseLocaleNumber(off.textContent || "");
+      if (v != null) return v;
     }
     return null;
   }
 
   function cardReviews(card) {
-    const el = card.querySelector('[aria-label*="rating"], .s-underline-text, span.a-size-base.s-underline-text');
-    if (!el) return null;
-    const t = (el.textContent || el.getAttribute("aria-label") || "").trim();
-    if (/[\d.]+\s*[bk]/i.test(t)) return Math.round(parseFloat(t.replace(",", ".")) * 1000);
-    const n = parseInt(t.replace(/[^\d]/g, ""), 10);
-    return Number.isFinite(n) ? n : null;
+    const sels = [
+      'span[aria-label*="ratings"]', 'span[aria-label*="rating"]',
+      "[data-csa-c-content-id='alf-customer-ratings-count-component']",
+      "span.a-size-base.s-underline-text", ".s-underline-text",
+    ];
+    for (const s of sels) {
+      const el = card.querySelector(s);
+      if (!el) continue;
+      const t = (el.textContent || el.getAttribute("aria-label") || "").trim();
+      if (!t) continue;
+      if (/[\d.,]+\s*[bk]\b/i.test(t)) return Math.round(parseFloat(t.replace(",", ".")) * 1e3);
+      if (/[\d.,]+\s*m\b/i.test(t)) return Math.round(parseFloat(t.replace(",", ".")) * 1e6);
+      const n = parseInt(t.replace(/[^\d]/g, ""), 10);
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+    return null;
   }
 
   function cardRating(card) {
@@ -128,6 +168,11 @@
   };
   function cardDeliveryDays(card) {
     const txt = (card.textContent || "").toLowerCase();
+    // Hızlı yol: anahtar kelimeler (DTS mantığı)
+    if (/one-day|same-day|tomorrow|overnight|yarın|bugün/i.test(txt)) return 1;
+    if (/two-day|2-day/i.test(txt)) return 2;
+    const kw = txt.match(/(\d+)\s*(day|days|gün)/i);
+    if (kw) return parseInt(kw[1], 10);
     // teslimat/delivery/arrives yakınındaki tarih: "26 haz", "haz 26", "jun 26", "26 june"
     const dayMonth = txt.match(/(\d{1,2})\s+([a-zçğıöşü]{3,9})/i);
     const monthDay = txt.match(/([a-zçğıöşü]{3,9})\s+(\d{1,2})/i);
