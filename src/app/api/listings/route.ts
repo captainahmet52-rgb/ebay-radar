@@ -90,6 +90,14 @@ export const POST = requireAuth(async (req, { userId }) => {
       );
     }
 
+    // Sadece aktif mağazalara listeleme yapılır
+    if (!ebayAccount.isActive) {
+      return NextResponse.json(
+        { error: "Mağaza aktif değil. Mağazalarım'dan aktifleştir.", needActivation: true },
+        { status: 402 }
+      );
+    }
+
     // Kullanıcının kâr marjı ayarı (yüzde) — yoksa ürün varsayılanına düş
     const settings = await prisma.user.findUnique({
       where: { id: userId },

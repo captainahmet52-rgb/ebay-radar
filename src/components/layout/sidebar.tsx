@@ -16,6 +16,7 @@ import {
   CreditCard,
   ShieldCheck,
   Home,
+  Store,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ import { LogoMark } from "@/components/logo";
 // eBayBot paneli — sadece eBay'e ait sayfalar
 const navItems = [
   { href: "/dashboard",             label: "Panel",         icon: LayoutDashboard },
+  { href: "/dashboard/stores",      label: "Mağazalarım",   icon: Store },
   { href: "/dashboard/listings",    label: "eBay Listeler", icon: List },
   { href: "/dashboard/products",    label: "Ürünler",       icon: Package },
   { href: "/dashboard/orders",      label: "Siparişler",    icon: ShoppingCart },

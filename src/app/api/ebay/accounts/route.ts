@@ -1,23 +1,40 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
+import { storeLimitForUser } from "@/lib/plans";
 
 export const GET = requireAuth(async (_req, { userId }) => {
   try {
     // Token alanları HİÇBİR ZAMAN döndürülmez — sadece meta
-    const accounts = await prisma.ebayAccount.findMany({
-      where: { userId },
-      select: {
-        id: true,
-        ebayUserId: true,
-        marketplace: true,
-        tokenExpiresAt: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const [accounts, user] = await Promise.all([
+      prisma.ebayAccount.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          ebayUserId: true,
+          marketplace: true,
+          isActive: true,
+          activatedAt: true,
+          tokenExpiresAt: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { plan: true, trialEndsAt: true, stripeSubscriptionId: true },
+      }),
+    ]);
 
-    return NextResponse.json({ data: accounts });
+    const storeLimit = user
+      ? storeLimitForUser(user.plan, user.trialEndsAt, user.stripeSubscriptionId)
+      : 0;
+    const activeCount = accounts.filter((a) => a.isActive).length;
+
+    return NextResponse.json({
+      data: accounts,
+      meta: { storeLimit, activeCount, plan: user?.plan ?? null },
+    });
   } catch (err) {
     console.error("[ebay/accounts GET]", err);
     return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });

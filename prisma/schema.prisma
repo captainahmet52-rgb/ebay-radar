@@ -96,6 +96,10 @@ model EbayAccount {
   returnPolicyId        String?
   merchantLocationKey   String?
   policiesCheckedAt     DateTime?
+  // Mağaza aktif mi? Bağlanınca pasif gelir; plan limiti dahilinde aktifleştirilir.
+  // Sadece aktif mağazalara ürün yüklenir / radar çalışır.
+  isActive              Boolean   @default(false)
+  activatedAt           DateTime?
   createdAt             DateTime  @default(now())
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)

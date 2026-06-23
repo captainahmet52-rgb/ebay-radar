@@ -7,6 +7,7 @@ export const PLANS = {
     priceMonthly:     29.90,
     productLimit:     300,
     uploadDailyLimit: 150,
+    storeLimit:       1,
     trackingUnlimited: true,
   },
   basic: {
@@ -15,6 +16,7 @@ export const PLANS = {
     priceMonthly:     59.90,
     productLimit:     1_000,
     uploadDailyLimit: 400,
+    storeLimit:       2,
     trackingUnlimited: true,
   },
   growth: {
@@ -23,6 +25,7 @@ export const PLANS = {
     priceMonthly:     99.90,
     productLimit:     3_000,
     uploadDailyLimit: 1_000,
+    storeLimit:       3,
     trackingUnlimited: true,
   },
   pro: {
@@ -31,6 +34,7 @@ export const PLANS = {
     priceMonthly:     149.90,
     productLimit:     5_000,
     uploadDailyLimit: 2_000,
+    storeLimit:       5,
     trackingUnlimited: true,
   },
   enterprise: {
@@ -39,6 +43,7 @@ export const PLANS = {
     priceMonthly:     249.90,
     productLimit:     10_000,
     uploadDailyLimit: 5_000,
+    storeLimit:       10,
     trackingUnlimited: true,
   },
 } as const;
@@ -79,4 +84,28 @@ export function hasActiveAccess(
   subscriptionId: string | null | undefined
 ): boolean {
   return isOnTrial(trialEndsAt) || !!subscriptionId;
+}
+
+// ─── Mağaza Aktifleştirme Limitleri ───────────────────────────────────────────
+
+/** Trial sırasında aktif edilebilecek mağaza sayısı (deneme için 1). */
+export const TRIAL_STORE_LIMIT = 1;
+
+/**
+ * Kullanıcının kaç mağaza aktifleştirebileceğini döndürür.
+ * Aktif abonelik varsa plana göre; sadece trial'daysa TRIAL_STORE_LIMIT;
+ * ikisi de yoksa 0 (önce paket alması gerekir).
+ */
+export function storeLimitForUser(
+  planId: string | null | undefined,
+  trialEndsAt: Date | null | undefined,
+  subscriptionId: string | null | undefined
+): number {
+  if (subscriptionId) {
+    return getPlan(planId ?? "")?.storeLimit ?? 0;
+  }
+  if (isOnTrial(trialEndsAt)) {
+    return TRIAL_STORE_LIMIT;
+  }
+  return 0;
 }

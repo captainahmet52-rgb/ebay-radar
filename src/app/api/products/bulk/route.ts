@@ -47,12 +47,21 @@ export const POST = requireAuth(async (req, { userId }) => {
     return NextResponse.json({ error: "Geçerli ASIN/URL bulunamadı" }, { status: 400 });
   }
 
-  // eBay hesabı (verilmişse o, yoksa kullanıcının ilki)
+  // eBay hesabı: SADECE aktif mağazalar (verilmişse o, yoksa ilk aktif mağaza)
   const account = parsed.data.ebayAccountId
-    ? await prisma.ebayAccount.findFirst({ where: { id: parsed.data.ebayAccountId, userId } })
-    : await prisma.ebayAccount.findFirst({ where: { userId }, orderBy: { createdAt: "asc" } });
+    ? await prisma.ebayAccount.findFirst({ where: { id: parsed.data.ebayAccountId, userId, isActive: true } })
+    : await prisma.ebayAccount.findFirst({ where: { userId, isActive: true }, orderBy: { createdAt: "asc" } });
   if (!account) {
-    return NextResponse.json({ error: "Önce bir eBay mağazası bağla" }, { status: 400 });
+    const hasAny = await prisma.ebayAccount.count({ where: { userId } });
+    return NextResponse.json(
+      {
+        error: hasAny
+          ? "Seçtiğin mağaza aktif değil. Mağazalarım'dan aktifleştir."
+          : "Önce bir eBay mağazası bağla.",
+        needActivation: hasAny > 0,
+      },
+      { status: 400 }
+    );
   }
 
   // Limit: kullanılan = kullanıcının listing sayısı

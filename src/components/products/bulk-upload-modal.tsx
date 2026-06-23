@@ -20,6 +20,7 @@ interface EbayAccountMeta {
   id: string;
   ebayUserId: string;
   marketplace: string;
+  isActive: boolean;
 }
 
 interface BulkUploadModalProps {
@@ -53,7 +54,8 @@ export function BulkUploadModal({ open, onClose, onSuccess }: BulkUploadModalPro
   const [result, setResult] = useState<BulkResult | null>(null);
 
   const { data: accountsRes } = useSWR(open ? "/api/ebay/accounts" : null, fetcher);
-  const accounts: EbayAccountMeta[] = accountsRes?.data ?? [];
+  // Yalnızca AKTİF mağazalara ürün yüklenebilir
+  const accounts: EbayAccountMeta[] = (accountsRes?.data ?? []).filter((a: EbayAccountMeta) => a.isActive);
 
   // İlk mağazayı varsayılan seç (kullanıcı değiştirmediyse)
   useEffect(() => {
@@ -125,7 +127,7 @@ export function BulkUploadModal({ open, onClose, onSuccess }: BulkUploadModalPro
             {/* Hedef mağaza — birden fazla eBay mağazası bağlıysa seçim zorunlu */}
             {accounts.length === 0 ? (
               <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
-                <AlertCircle className="h-4 w-4 flex-shrink-0" /> Önce Ayarlar&apos;dan bir eBay mağazası bağla.
+                <AlertCircle className="h-4 w-4 flex-shrink-0" /> Aktif mağaza yok. Mağazalarım&apos;dan bir mağaza bağlayıp aktifleştir.
               </div>
             ) : (
               <div>
