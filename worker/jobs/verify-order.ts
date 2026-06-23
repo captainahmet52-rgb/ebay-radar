@@ -6,6 +6,7 @@ import type { ConnectionOptions } from "bullmq";
 import { prisma } from "@/lib/prisma";
 import { fetchAmazonProduct } from "@/lib/scraper";
 import { cancelOrder } from "@/lib/ebay/fulfillment";
+import { fulfillEbayOrder } from "@/lib/ebay/fulfill-order";
 import type { VerifyOrderJobData } from "@/lib/queues";
 
 // ─── Job işleyici ─────────────────────────────────────────────────────────────
@@ -180,6 +181,22 @@ async function processVerifyOrder(
     job.log(
       `SIPARIŞ DOĞRULANDI: ${orderId} | Amazon: $${liveAmazonPrice?.toFixed(2)} | Satış: $${soldPrice.toFixed(2)}`
     );
+
+    // 5. Oto-kargolama açıksa: takip no al + eBay'e yükle (cüzdandan $0.43)
+    //    Kargolama hatası verify job'ını DÜŞÜRMEZ (kendi içinde iade/bildirim yapar).
+    const owner = await prisma.user.findUnique({
+      where: { id: order.userId },
+      select: { ebayAutoFulfill: true },
+    });
+    if (owner?.ebayAutoFulfill) {
+      try {
+        const r = await fulfillEbayOrder(orderId);
+        job.log(`OTO-KARGOLANDI: ${orderId} | ${r.carrierCode} ${r.trackingNumber}`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        job.log(`Oto-kargolama yapılamadı (${orderId}): ${msg}`);
+      }
+    }
   }
 }
 

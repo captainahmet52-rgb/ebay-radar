@@ -30,6 +30,8 @@ interface Order {
   amazonPrice?: number;
   netProfit?: number;
   fulfillmentStatus: FulfillmentStatus;
+  trackingNumber?: string | null;
+  carrierCode?: string | null;
   verifiedAt?: string;
   createdAt: string;
   listing?: {
@@ -48,7 +50,7 @@ interface Order {
 function SkeletonRow() {
   return (
     <tr>
-      {Array.from({ length: 8 }).map((_, i) => (
+      {Array.from({ length: 9 }).map((_, i) => (
         <td key={i} className="px-4 py-3">
           <div className="shimmer h-4 rounded w-full" />
         </td>
@@ -60,13 +62,33 @@ function SkeletonRow() {
 export default function OrdersPage() {
   const [storeFilter, setStoreFilter] = useState("");
   const ordersUrl = storeFilter ? `/api/orders?ebayAccountId=${storeFilter}` : "/api/orders";
-  const { data: ordersRes, isLoading } = useSWR(ordersUrl, fetcher);
+  const { data: ordersRes, isLoading, mutate } = useSWR(ordersUrl, fetcher);
   const { data: stats } = useSWR("/api/orders/stats", fetcher);
   const { data: accountsRes } = useSWR("/api/ebay/accounts", fetcher);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const stores: StoreMeta[] = accountsRes?.data ?? [];
   const safeOrders: Order[] = ordersRes?.data ?? [];
   const totalProfit = safeOrders.reduce((sum, o) => sum + (o.netProfit ?? 0), 0);
+
+  async function fulfill(id: string) {
+    setBusyId(id);
+    try {
+      const res = await fetch(`/api/orders/${id}/fulfill`, { method: "POST" });
+      const j = await res.json();
+      if (res.ok) {
+        mutate();
+      } else if (j.needTopUp) {
+        alert("Yetersiz bakiye — cüzdana yükle, sonra tekrar dene.");
+      } else {
+        alert(j.error ?? "Kargolama başarısız.");
+      }
+    } catch {
+      alert("Bir hata oluştu.");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   return (
     <motion.div
@@ -127,7 +149,7 @@ export default function OrdersPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-700/50 bg-slate-900/60">
-                {["eBay Sipariş ID", "Ürün", "Mağaza", "Satış $", "Amazon $", "Net Kâr", "Durum", "Tarih"].map(
+                {["eBay Sipariş ID", "Ürün", "Mağaza", "Satış $", "Amazon $", "Net Kâr", "Durum", "Kargo", "Tarih"].map(
                   (col) => (
                     <th
                       key={col}
@@ -145,7 +167,7 @@ export default function OrdersPage() {
                 : safeOrders.length === 0
                 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-16 text-center text-slate-400">
+                    <td colSpan={9} className="px-4 py-16 text-center text-slate-400">
                       Henüz sipariş yok.
                     </td>
                   </tr>
@@ -188,6 +210,22 @@ export default function OrdersPage() {
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={order.fulfillmentStatus} />
+                    </td>
+                    <td className="px-4 py-3">
+                      {order.trackingNumber ? (
+                        <div>
+                          <p className="font-mono text-[11px] text-emerald-400">{order.trackingNumber}</p>
+                          <p className="text-[10px] text-slate-500 uppercase">{order.carrierCode}</p>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => fulfill(order.id)}
+                          disabled={busyId === order.id}
+                          className="text-xs font-medium px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50 whitespace-nowrap"
+                        >
+                          {busyId === order.id ? "…" : "Kargola"}
+                        </button>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-slate-500 text-xs">
                       {formatDate(order.createdAt)}

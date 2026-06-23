@@ -68,6 +68,8 @@ model User {
   uploadProfitMarginPct Float    @default(30)
   uploadQuantity        Int      @default(1)
   uploadAutoPublish     Boolean  @default(true)
+  // eBay sipariş gelince otomatik takip al (TrackCaptain) + eBay'e yükle (cüzdandan $0.43)
+  ebayAutoFulfill       Boolean  @default(false)
 
   // Trial
   trialEndsAt DateTime?
@@ -191,6 +193,12 @@ model Order {
   amazonPriceAtSale Float?
   netProfit         Float?
   ebayFulfillmentId String?
+  // eBay sipariş satır kalemi (kargo bildirimi için gerekli — poll-orders'ta kaydedilir)
+  ebayLineItemId    String?
+  // TrackCaptain'dan alınıp eBay'e yüklenen geçerli takip
+  trackingNumber    String?
+  carrierCode       String?   // usps | fedex
+  shippedAt         DateTime?
   cancellationReason String?
   verifiedAt        DateTime?
   // pending | verified | cancelled | fulfilled

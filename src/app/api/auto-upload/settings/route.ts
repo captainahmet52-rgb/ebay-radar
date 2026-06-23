@@ -19,6 +19,8 @@ const settingsSchema = z.object({
   uploadProfitMarginPct: z.number().min(0).max(100),
   uploadQuantity:        z.number().int().min(1),
   uploadAutoPublish:     z.boolean(),
+  // eBay sipariş gelince otomatik takip al + eBay'e yükle (opsiyonel — geriye uyumlu)
+  ebayAutoFulfill:       z.boolean().optional(),
 });
 
 export async function GET() {
@@ -43,6 +45,7 @@ export async function GET() {
       uploadProfitMarginPct: true,
       uploadQuantity:        true,
       uploadAutoPublish:     true,
+      ebayAutoFulfill:       true,
     },
   });
 
@@ -79,6 +82,7 @@ export async function PATCH(req: NextRequest) {
       uploadProfitMarginPct: true,
       uploadQuantity:        true,
       uploadAutoPublish:     true,
+      ebayAutoFulfill:       true,
     },
   });
 

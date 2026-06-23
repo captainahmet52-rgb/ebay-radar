@@ -114,12 +114,16 @@ async function processPollOrders(job: Job<PollOrdersJobData>): Promise<void> {
           ? Number.parseFloat(ebayOrder.totalAmount)
           : null;
 
+      // Kargo bildirimi için ilk satır kalemi ID'si (varsa)
+      const ebayLineItemId = ebayOrder.lineItems.find((li) => li.lineItemId)?.lineItemId ?? null;
+
       // c. Order kaydı oluştur.
       const order = await prisma.order.create({
         data: {
           userId: listing.userId,
           listingId: listing.id,
           ebayOrderId: ebayOrder.orderId,
+          ebayLineItemId,
           soldPrice: Number.isFinite(soldPrice) ? soldPrice : null,
           fulfillmentStatus: "pending",
         },
