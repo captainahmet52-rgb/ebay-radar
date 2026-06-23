@@ -80,18 +80,8 @@ services:
         condition: service_completed_successfully
     networks:
       - ebay_net
-      - coolify
     ports:
       - "3000:3000"
-    expose:
-      - "3000"
-    labels:
-      # Traefik backend port'unu SABİTLE (UUID bu kaynağa özel/sabit).
-      - "traefik.http.services.http-0-keruvce6zrt77e7z1zis4zbz-app.loadbalancer.server.port=3000"
-      - "traefik.http.services.https-0-keruvce6zrt77e7z1zis4zbz-app.loadbalancer.server.port=3000"
-      # Coolify-proxy (Traefik) backend'lere KENDİ "coolify" ağından ulaşır.
-      # App bu ağda olmalı + Traefik bu ağı kullanmalı — yoksa 503.
-      - "traefik.docker.network=coolify"
 
   # ── BullMQ Worker ──────────────────────────────────────────────────────────
   worker:
@@ -164,7 +154,3 @@ volumes:
 networks:
   ebay_net:
     driver: bridge
-  # Coolify'ın proxy (Traefik) ağı — dışarıdan erişim için app bu ağa bağlanır.
-  coolify:
-    external: true
-    name: coolify
