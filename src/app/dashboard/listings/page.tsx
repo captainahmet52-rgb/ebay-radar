@@ -14,6 +14,8 @@ interface Listing {
   currentPrice: number;
   currentQty: number;
   status: ListingStatus;
+  publishStage?: string | null;
+  lastEbayError?: string | null;
   product: {
     asin: string;
     title: string;
@@ -23,10 +25,34 @@ interface Listing {
   };
 }
 
+/** Yayın durumu rozeti: yüklendi ✓ / yükleniyor… / yüklenmedi (sebep). */
+function PublishStatus({ listing }: { listing: Listing }) {
+  if (listing.ebayListingId) {
+    return <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-400">Yüklendi ✓</span>;
+  }
+  if (listing.lastEbayError) {
+    return (
+      <span
+        className="text-xs px-2 py-1 rounded-full bg-red-500/15 text-red-400 cursor-help"
+        title={listing.lastEbayError}
+      >
+        Yüklenmedi
+      </span>
+    );
+  }
+  const inProgress = ["pending_publish", "inventory_done", "offer_created"].includes(
+    listing.publishStage ?? ""
+  );
+  if (inProgress) {
+    return <span className="text-xs px-2 py-1 rounded-full bg-blue-500/15 text-blue-400">Yükleniyor…</span>;
+  }
+  return <span className="text-xs text-slate-500">—</span>;
+}
+
 function SkeletonRow() {
   return (
     <tr>
-      {Array.from({ length: 7 }).map((_, i) => (
+      {Array.from({ length: 8 }).map((_, i) => (
         <td key={i} className="px-4 py-3">
           <div className="shimmer h-4 rounded w-full" />
         </td>
@@ -74,7 +100,7 @@ export default function ListingsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-700/50 bg-slate-900/60">
-                {["Ürün", "eBay Fiyatı", "Adet", "Durum", "eBay Mağaza", "eBay ID", "Eylemler"].map(
+                {["Ürün", "eBay Fiyatı", "Adet", "Yayın", "Durum", "eBay Mağaza", "eBay ID", "Eylemler"].map(
                   (col) => (
                     <th
                       key={col}
@@ -92,7 +118,7 @@ export default function ListingsPage() {
                 : listings.length === 0
                 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-16 text-center text-slate-400">
+                    <td colSpan={8} className="px-4 py-16 text-center text-slate-400">
                       Henüz liste yok. Ürünler sayfasından ürün ekleyin.
                     </td>
                   </tr>
@@ -116,6 +142,9 @@ export default function ListingsPage() {
                     </td>
                     <td className="px-4 py-3 text-slate-300 text-xs">
                       {listing.currentQty} adet
+                    </td>
+                    <td className="px-4 py-3">
+                      <PublishStatus listing={listing} />
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={listing.status === "active" ? "active" : listing.status === "paused" ? "paused" : "out"} />

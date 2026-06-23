@@ -327,6 +327,25 @@ export const dispatchPollOrdersQueue = new Queue<DispatchPollOrdersJobData, void
   }
 );
 
+// ── publish-listing: yeni listing'i eBay'e API ile yayınlar (inventory→offer→publish) ──
+export interface PublishListingJobData {
+  listingId: string;
+  ebayAccountId: string;
+}
+
+export const publishListingQueue = new Queue<PublishListingJobData, void, string>(
+  "publish-listing",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { type: "exponential", delay: 5000 },
+      removeOnComplete: { count: 100 },
+      removeOnFail: { count: 200 },
+    },
+  }
+);
+
 // ── freeze-stores: süresi biten (deneme/paket) mağazaları otomatik dondurur ──
 export interface FreezeStoresJobData {
   _trigger?: string;

@@ -4,7 +4,7 @@ import type { ConnectionOptions } from "bullmq";
 import { prisma } from "@/lib/prisma";
 import { fetchAmazonProduct } from "@/lib/scraper";
 import { calculateEbayPriceForMarket, isPriceSpike } from "@/lib/repricer";
-import { updateListingQueue, type PollProductJobData } from "@/lib/queues";
+import { updateListingQueue, publishListingQueue, type PollProductJobData } from "@/lib/queues";
 
 // ─── Kuyruktaki tüm aktif listing'leri duraklat ────────────────────────────────
 async function pauseAllListings(productId: string): Promise<void> {
@@ -30,6 +30,8 @@ async function processPollProduct(
           id: true,
           ebaySite: true,
           marginPct: true,
+          ebayAccountId: true,
+          ebayListingId: true,
           user: { select: { uploadProfitMarginPct: true } },
         },
       },
@@ -173,6 +175,8 @@ async function processPollProduct(
   }
 
   // Her listing için marj: önce liste batch marjı, sonra kullanıcı marjı, sonra ürün varsayılanı
+  let publishCount = 0;
+  let updateCount = 0;
   await Promise.all(
     activeListings.map(async (listing) => {
       const marginPct = listing.marginPct ?? listing.user?.uploadProfitMarginPct;
@@ -187,6 +191,24 @@ async function processPollProduct(
         margin
       );
 
+      // Fiyat/stok'u DB'ye yaz — publish bu değerleri kullanır.
+      await prisma.listing.update({
+        where: { id: listing.id },
+        data: { currentPrice: ebayPrice, currentQty: newQty },
+      });
+
+      if (!listing.ebayListingId) {
+        // Henüz eBay'de yok → API ile YAYINLA (inventory→offer→publish)
+        publishCount++;
+        return publishListingQueue.add(
+          "publish-listing",
+          { listingId: listing.id, ebayAccountId: listing.ebayAccountId },
+          { jobId: `publish-listing:${listing.id}:${Date.now()}` }
+        );
+      }
+
+      // Zaten yayında → fiyat/stok güncelle
+      updateCount++;
       return updateListingQueue.add(
         "update-listing",
         { listingId: listing.id, price: ebayPrice, qty: newQty },
@@ -196,7 +218,7 @@ async function processPollProduct(
   );
 
   job.log(
-    `Tamamlandı: ${product.asin} | Amazon: $${newAmazonPrice.toFixed(2)} → eBay: $${newEbayPrice.toFixed(2)} | Stok: ${stockStatus}(${stockQty ?? "∞"}) | ${activeListings.length} listing kuyruğa eklendi`
+    `Tamamlandı: ${product.asin} | Amazon: $${newAmazonPrice.toFixed(2)} → eBay: $${newEbayPrice.toFixed(2)} | Stok: ${stockStatus}(${stockQty ?? "∞"}) | yayınla=${publishCount} güncelle=${updateCount}`
   );
 }
 
