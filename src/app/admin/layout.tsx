@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -11,6 +12,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!session?.user?.email || !adminEmails.includes(session.user.email)) {
     redirect("/dashboard");
   }
+
+  const unreadNotifs = await prisma.adminNotification.count({ where: { isRead: false } }).catch(() => 0);
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -30,6 +33,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </a>
         <a href="/admin/affiliates" className="text-sm text-slate-300 hover:text-white transition-colors">
           Ortaklar
+        </a>
+        <a href="/admin/notifications" className="text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-1.5">
+          Bildirimler
+          {unreadNotifs > 0 && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500 text-white">
+              {unreadNotifs}
+            </span>
+          )}
         </a>
         <a href="/admin/depot" className="text-sm text-slate-300 hover:text-white transition-colors">
           Depo

@@ -472,3 +472,20 @@ model CouponRedemption {
 
   @@unique([couponId, userId])
 }
+
+// ─── Admin Bildirimleri (bakiye uyarıları vb.) ──────────────────────────────
+// Kullanıcı kredi cüzdanı bitince/azalınca admin panele düşer. Kritik: bakiye
+// biterse tracking dönüşümü yapılamaz → sipariş geçerli kargosuz kalır → eBay riski.
+model AdminNotification {
+  id        String   @id @default(cuid())
+  type      String   // balance_empty | balance_low | ...
+  title     String
+  message   String
+  userId    String?  // ilgili kullanıcı (varsa)
+  userEmail String?  // hızlı gösterim için anlık kopya
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([isRead])
+  @@index([type, userId, isRead])
+}

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { convertTracking, TRACKING_CONVERSION_FEE_USD } from "@/lib/tracking";
+import { notifyInsufficientBalance, notifyLowBalanceIfNeeded } from "@/lib/admin-notify";
 
 /**
  * POST /api/amazon/orders/[id]/convert-tracking
@@ -27,6 +28,8 @@ export const POST = requireAuth(async (_req, { userId, params }) => {
     data: { creditBalanceUsd: { decrement: FEE } },
   });
   if (reserve.count === 0) {
+    // Bakiye yetersiz → admin panele KRİTİK bildirim düş (sipariş kargosuz kalmasın)
+    await notifyInsufficientBalance(userId, "takip kodu çevirme").catch(() => {});
     return NextResponse.json(
       { error: "Yetersiz bakiye", needTopUp: true, feeUsd: FEE },
       { status: 402 }
@@ -53,6 +56,9 @@ export const POST = requireAuth(async (_req, { userId, params }) => {
         },
       }),
     ]);
+
+    // Ücret düşüldü — bakiye eşiğin altına indiyse admin panele UYARI düş
+    await notifyLowBalanceIfNeeded(userId).catch(() => {});
 
     return NextResponse.json({ ok: true, order: updated, chargedUsd: FEE });
   } catch (err) {
