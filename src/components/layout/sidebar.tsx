@@ -19,6 +19,7 @@ import {
   Store,
   Gift,
   Handshake,
+  Chrome,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,7 @@ const navItems = [
   { href: "/dashboard/products",    label: "Ürünler",       icon: Package },
   { href: "/dashboard/orders",      label: "Siparişler",    icon: ShoppingCart },
   { href: "/dashboard/auto-upload", label: "Oto Yükleme",   icon: Upload },
+  { href: "/dashboard/extension",   label: "Eklenti",       icon: Chrome },
   { href: "/dashboard/pricing",     label: "Paketler",      icon: CreditCard },
   { href: "/dashboard/referral",    label: "Davet Et",      icon: Gift },
   { href: "/dashboard/affiliate",   label: "Ortaklık",      icon: Handshake },

@@ -549,6 +549,7 @@ export default function LandingPage() {
           </div>
           <p className="text-xs text-slate-600">© 2026 Lean Automation. Tüm hakları saklıdır.</p>
           <div className="flex items-center gap-6 text-xs text-slate-500">
+            <a href="/lean-automation-extension.zip" download className="hover:text-white transition-colors">Chrome Eklentisi</a>
             <Link href="/privacy" className="hover:text-white transition-colors">Gizlilik</Link>
             <Link href="/terms" className="hover:text-white transition-colors">Kullanım Şartları</Link>
             <a href="mailto:captainahmet52@gmail.com" className="hover:text-white transition-colors">İletişim</a>
