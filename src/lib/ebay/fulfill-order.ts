@@ -1,11 +1,16 @@
 /**
- * eBay sipariş kargolama akışı (otomatik).
+ * eBay sipariş kargolama akışı — İKİ AŞAMA.
  *
- * Akış: cüzdandan $0.43 rezerve → TrackCaptain'dan GEÇERLİ takip no al →
- * o numarayı müşterinin eBay mağazasına (OAuth token'ıyla) yükle → "kargolandı".
- * Hata olursa cüzdan iade edilir. Token/secret loglanmaz.
+ * 1) claimTrackingForOrder: cüzdandan $0.43 rezerve → TrackCaptain'dan GEÇERLİ takip
+ *    no al → kaydet + kullanıcıya göster (REVEAL). eBay'e HENÜZ yüklemez.
+ *    Hata olursa cüzdan iade edilir.
+ * 2) pushTrackingToEbay: kullanıcı "eBay'e Gönder" deyince kayıtlı numarayı
+ *    müşterinin eBay mağazasına (OAuth token'ıyla) yükler → "kargolandı".
+ *
+ * fulfillEbayOrder = ikisini arka arkaya çağırır (eski otomatik akış / verify-order için).
  *
  * Sahibin TrackCaptain kredisi biterse veya müşteri cüzdanı yetersizse admin'e bildirim.
+ * Token/secret loglanmaz.
  */
 
 import { prisma } from "@/lib/prisma";
@@ -31,44 +36,47 @@ function ebayCarrierCode(carrier: string): string {
   return carrier.toUpperCase();
 }
 
+export interface ClaimResult {
+  trackingNumber: string;
+  carrierCode: string;
+}
+
 export interface FulfillResult {
   trackingNumber: string;
   carrierCode: string;
 }
 
 /**
- * Bir eBay siparişini kargolar: takip no al → eBay'e yükle → kaydet.
+ * 1. AŞAMA — Takip numarası üret (TrackCaptain) + cüzdandan $0.43 düş + kaydet.
+ * eBay'e YÜKLEMEZ; numarayı döndürür (kullanıcı ekranında gösterilir).
+ * Idempotent: numara zaten üretilmişse tekrar ücret almaz, mevcut numarayı döndürür.
  * @throws InsufficientWalletError | TrackCaptainOutOfCreditsError | Error
  */
-export async function fulfillEbayOrder(orderId: string): Promise<FulfillResult> {
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    include: { listing: { include: { ebayAccount: true } } },
-  });
-
+export async function claimTrackingForOrder(orderId: string): Promise<ClaimResult> {
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) throw new Error("Sipariş bulunamadı");
-  if (order.fulfillmentStatus === "fulfilled" || order.trackingNumber) {
-    throw new Error("Sipariş zaten kargolandı");
+
+  // Zaten üretilmiş → tekrar ücret alma (idempotent)
+  if (order.trackingNumber) {
+    return { trackingNumber: order.trackingNumber, carrierCode: order.carrierCode ?? "usps" };
   }
   if (!order.ebayOrderId || !order.ebayLineItemId) {
-    throw new Error("eBay sipariş/satır bilgisi eksik — kargo yüklenemez");
+    throw new Error("eBay sipariş/satır bilgisi eksik — takip oluşturulamaz");
   }
 
-  const account = order.listing.ebayAccount;
   const FEE = TRACKING_CONVERSION_FEE_USD;
 
-  // 1. Ücreti rezerve et — yalnızca yeterli bakiye varsa (atomik koşullu update)
+  // Ücreti rezerve et — yalnızca yeterli bakiye varsa (atomik koşullu update)
   const reserve = await prisma.user.updateMany({
     where: { id: order.userId, creditBalanceUsd: { gte: FEE } },
     data: { creditBalanceUsd: { decrement: FEE } },
   });
   if (reserve.count === 0) {
-    await notifyInsufficientBalance(order.userId, "eBay sipariş kargolama").catch(() => {});
+    await notifyInsufficientBalance(order.userId, "takip kodu oluşturma").catch(() => {});
     throw new InsufficientWalletError();
   }
 
   try {
-    // 2. TrackCaptain'dan geçerli numara al — alıcı adresine uyan (VTR kalitesi)
     const conv = await convertTracking(order.amazonTrackingNo ?? "", {
       city: order.shipToCity ?? undefined,
       state: order.shipToState ?? undefined,
@@ -76,31 +84,18 @@ export async function fulfillEbayOrder(orderId: string): Promise<FulfillResult> 
       country: order.shipToCountry ?? "US",
     });
 
-    // 3. Müşterinin eBay mağazasına yükle
-    const fulfillmentId = await createShippingFulfillment(
-      account.id,
-      order.ebayOrderId,
-      conv.trackingNumber,
-      ebayCarrierCode(conv.carrierCode),
-      order.ebayLineItemId
-    );
-
-    // 4. Kaydet + ledger
     await prisma.$transaction([
       prisma.creditTransaction.create({
-        data: { userId: order.userId, amountUsd: -FEE, type: "tracking_conversion", refId: order.id, note: "eBay sipariş kargo takip" },
+        data: { userId: order.userId, amountUsd: -FEE, type: "tracking_conversion", refId: order.id, note: "eBay takip kodu üretimi" },
       }),
       prisma.order.update({
         where: { id: order.id },
         data: {
           trackingNumber: conv.trackingNumber,
           carrierCode: conv.carrierCode,
-          ebayFulfillmentId: fulfillmentId,
-          shippedAt: new Date(),
-          fulfillmentStatus: "fulfilled",
-          // Managed fulfillment akışındaysa tamamlandı + takip ödemesi işaretle
+          // Managed akıştaysa: numara hazır, eBay'e gönderilmeyi bekliyor
           ...(order.managedStatus
-            ? { managedStatus: "completed", trackingChargePaidAt: new Date() }
+            ? { managedStatus: "awaiting_ebay_push", trackingChargePaidAt: new Date() }
             : {}),
         },
       }),
@@ -112,7 +107,7 @@ export async function fulfillEbayOrder(orderId: string): Promise<FulfillResult> 
     await prisma.$transaction([
       prisma.user.update({ where: { id: order.userId }, data: { creditBalanceUsd: { increment: FEE } } }),
       prisma.creditTransaction.create({
-        data: { userId: order.userId, amountUsd: FEE, type: "refund", refId: order.id, note: "Kargolama başarısız — iade" },
+        data: { userId: order.userId, amountUsd: FEE, type: "refund", refId: order.id, note: "Takip üretimi başarısız — iade" },
       }),
     ]);
 
@@ -121,4 +116,61 @@ export async function fulfillEbayOrder(orderId: string): Promise<FulfillResult> 
     }
     throw err;
   }
+}
+
+/**
+ * 2. AŞAMA — Kayıtlı takip numarasını müşterinin eBay mağazasına yükler.
+ * Idempotent: zaten yüklenmişse tekrar yüklemez. Ücret almaz (1. aşamada alındı);
+ * bu yüzden eBay hatasında iade YOK — kullanıcı tekrar "eBay'e Gönder" diyebilir.
+ * @throws Error
+ */
+export async function pushTrackingToEbay(orderId: string): Promise<FulfillResult> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { listing: { include: { ebayAccount: true } } },
+  });
+  if (!order) throw new Error("Sipariş bulunamadı");
+
+  // Zaten yüklenmiş → idempotent
+  if (order.ebayFulfillmentId || order.fulfillmentStatus === "fulfilled") {
+    return { trackingNumber: order.trackingNumber ?? "", carrierCode: order.carrierCode ?? "usps" };
+  }
+  if (!order.trackingNumber) {
+    throw new Error("Önce takip kodu oluşturulmalı");
+  }
+  if (!order.ebayOrderId || !order.ebayLineItemId) {
+    throw new Error("eBay sipariş/satır bilgisi eksik — kargo yüklenemez");
+  }
+
+  const account = order.listing.ebayAccount;
+
+  const fulfillmentId = await createShippingFulfillment(
+    account.id,
+    order.ebayOrderId,
+    order.trackingNumber,
+    ebayCarrierCode(order.carrierCode ?? "usps"),
+    order.ebayLineItemId
+  );
+
+  await prisma.order.update({
+    where: { id: order.id },
+    data: {
+      ebayFulfillmentId: fulfillmentId,
+      shippedAt: new Date(),
+      fulfillmentStatus: "fulfilled",
+      ...(order.managedStatus ? { managedStatus: "completed" } : {}),
+    },
+  });
+
+  return { trackingNumber: order.trackingNumber, carrierCode: order.carrierCode ?? "usps" };
+}
+
+/**
+ * Tek seferde kargola (eski otomatik akış / verify-order auto-fulfill için):
+ * takip no üret → eBay'e yükle.
+ * @throws InsufficientWalletError | TrackCaptainOutOfCreditsError | Error
+ */
+export async function fulfillEbayOrder(orderId: string): Promise<FulfillResult> {
+  await claimTrackingForOrder(orderId);
+  return pushTrackingToEbay(orderId);
 }

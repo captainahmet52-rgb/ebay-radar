@@ -95,7 +95,8 @@ export default function OrdersPage() {
   }
   const fulfill = (id: string) => post(id, "fulfill");
   const payOrder = (id: string) => post(id, "pay-order", "Sipariş ödemesi alındı.");
-  const payTracking = (id: string) => post(id, "pay-tracking", "Takip kodu oluşturuldu ✓");
+  const payTracking = (id: string) => post(id, "pay-tracking", "Takip kodu oluşturuldu ✓ Şimdi eBay'e gönder.");
+  const pushTracking = (id: string) => post(id, "push-tracking", "Takip kodu eBay'e gönderildi ✓");
 
   return (
     <motion.div
@@ -219,7 +220,21 @@ export default function OrdersPage() {
                       <Badge variant={order.fulfillmentStatus} />
                     </td>
                     <td className="px-4 py-3">
-                      {order.trackingNumber ? (
+                      {order.trackingNumber && order.managedStatus === "awaiting_ebay_push" ? (
+                        <div className="space-y-1.5">
+                          <div>
+                            <p className="font-mono text-[11px] text-emerald-400">{order.trackingNumber}</p>
+                            <p className="text-[10px] text-slate-500 uppercase">{order.carrierCode}</p>
+                          </div>
+                          <button
+                            onClick={() => pushTracking(order.id)}
+                            disabled={busyId === order.id}
+                            className="text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50 whitespace-nowrap"
+                          >
+                            {busyId === order.id ? "…" : "eBay'e Gönder ↗"}
+                          </button>
+                        </div>
+                      ) : order.trackingNumber ? (
                         <div>
                           <p className="font-mono text-[11px] text-emerald-400">{order.trackingNumber}</p>
                           <p className="text-[10px] text-slate-500 uppercase">{order.carrierCode}</p>

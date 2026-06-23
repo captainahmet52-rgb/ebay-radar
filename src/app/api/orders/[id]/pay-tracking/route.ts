@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
-import { fulfillEbayOrder, InsufficientWalletError } from "@/lib/ebay/fulfill-order";
+import { claimTrackingForOrder, InsufficientWalletError } from "@/lib/ebay/fulfill-order";
 import { TrackCaptainOutOfCreditsError } from "@/lib/trackcaptain";
 
 /**
  * POST /api/orders/[id]/pay-tracking
- * Kullanıcı takip ücretini öder → o AN sistem TrackCaptain'dan geçerli no üretir,
- * eBay'e yükler ve numarayı kullanıcıya gösterir (reveal). Ücret fulfillEbayOrder içinde
+ * Kullanıcı takip ücretini öder → o AN sistem TrackCaptain'dan geçerli no üretir ve
+ * kullanıcıya GÖSTERİR (reveal). eBay'e HENÜZ yüklenmez — kullanıcı ekrandaki
+ * "eBay'e Gönder" butonuna basınca yüklenir (push-tracking). Ücret claim içinde
  * cüzdandan düşülür ($0.43); hata olursa iade edilir.
  */
 export const POST = requireAuth(async (_req, { userId, params }) => {
@@ -23,8 +24,8 @@ export const POST = requireAuth(async (_req, { userId, params }) => {
   }
 
   try {
-    const result = await fulfillEbayOrder(id);
-    // Geçerli takip no kullanıcıya gösterilir (reveal)
+    const result = await claimTrackingForOrder(id);
+    // Geçerli takip no kullanıcıya gösterilir (reveal); eBay'e yükleme ayrı butonla
     return NextResponse.json({ ok: true, trackingNumber: result.trackingNumber, carrierCode: result.carrierCode });
   } catch (err) {
     if (err instanceof InsufficientWalletError) {

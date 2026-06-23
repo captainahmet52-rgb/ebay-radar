@@ -33,6 +33,8 @@ const STATUS_LABEL: Record<string, string> = {
   awaiting_admin: "🔵 Admin: Amazon'dan al + bilgileri gir",
   awaiting_order_payment: "🟡 Kullanıcı sipariş ödemesi bekleniyor",
   awaiting_tracking_payment: "🟠 Kullanıcı takip ödemesi bekleniyor",
+  awaiting_ebay_push: "🟢 Takip üretildi — kullanıcı eBay'e gönderecek",
+  completed: "✅ Tamamlandı — eBay'e yüklendi",
 };
 
 function addrText(s: ShipTo): string {
