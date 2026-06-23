@@ -106,21 +106,35 @@ services:
       - ebay_net
 
   # ── Günlük Yedek (PostgreSQL) ──────────────────────────────────────────────
+  # Script container'a GÖMÜLÜ (dış dosya mount'u yok — Coolify'da tek-dosya bind çalışmıyor).
+  # Yedekler kalıcı named volume'da (backups_data). Her gün 03:00'te pg_dump + gzip, 30 gün saklar.
   backup:
     image: postgres:16-alpine
     container_name: ebay_backup
     restart: unless-stopped
-    env_file: .env
     environment:
       PGPASSWORD: ebay_pass
     volumes:
-      - ./backups:/backups
-      - ./scripts/backup.sh:/backup.sh:ro
-    entrypoint: >
-      sh -c "
-        echo '0 3 * * * sh /backup.sh' | crontab - &&
+      - backups_data:/backups
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        cat > /backup.sh <<'EOF'
+        #!/bin/sh
+        set -e
+        DATE=$$(date +%Y%m%d_%H%M%S)
+        FILE="/backups/ebay_db_$${DATE}.sql.gz"
+        echo "[$$(date '+%F %T')] Yedek basliyor..."
+        pg_dump -h postgres -U ebay_user -d ebay_db --no-password --clean --if-exists | gzip > "$$FILE"
+        echo "[$$(date '+%F %T')] Tamam: $$FILE ($$(du -h "$$FILE" | cut -f1))"
+        find /backups -name "*.sql.gz" -mtime +30 -delete
+        EOF
+        chmod +x /backup.sh
+        echo "0 3 * * * sh /backup.sh >> /backups/backup.log 2>&1" | crontab -
+        echo "[backup] cron kuruldu (03:00 gunluk). Ilk yedek simdi aliniyor..."
+        sh /backup.sh || echo "[backup] ilk yedek hatasi (postgres hazir olmayabilir)"
         crond -f -l 2
-      "
     depends_on:
       postgres:
         condition: service_healthy
@@ -132,6 +146,8 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  backups_data:
     driver: local
 
 # ── Network ────────────────────────────────────────────────────────────────
