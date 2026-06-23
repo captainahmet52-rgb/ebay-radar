@@ -45,6 +45,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </span>
           )}
         </a>
+        <a href="/admin/stock-health" className="text-sm text-slate-300 hover:text-white transition-colors">
+          Stok Sagligi
+        </a>
         <a href="/admin/depot" className="text-sm text-slate-300 hover:text-white transition-colors">
           Depo
         </a>

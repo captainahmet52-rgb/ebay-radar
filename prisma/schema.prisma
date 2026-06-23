@@ -149,9 +149,18 @@ model Product {
   lastScrapedAt       DateTime?
   // active | paused
   status              String    @default("active")
+  // Neden duraklatıldı? out_of_stock | low_stock | price_spike | floor | stale | manual
+  // (auto-recovery yalnız stok/fiyat kaynaklı duraklatmaları yeniden açar; manual'a dokunmaz)
+  pauseReason         String?
+  // Üst üste başarısız tarama sayısı + son tarama hatası (bayat-veri koruması + gözlem)
+  scrapeFailCount     Int       @default(0)
+  lastScrapeError     String?
   createdAt           DateTime  @default(now())
 
   listings Listing[]
+
+  @@index([status, pollTier, lastScrapedAt])
+  @@index([status, pauseReason, lastScrapedAt])
 }
 
 // ─── Kullanıcı listelemeleri ──────────────────────────────────────────────────

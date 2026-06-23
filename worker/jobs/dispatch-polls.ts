@@ -1,17 +1,20 @@
-// dispatch-polls worker — aktif ürünleri tier'a göre poll-product kuyruğuna ekler.
-// Her 5 dakikada bir çalışır (scheduler tarafından tetiklenir).
+// dispatch-polls worker — stok takibinin kalbi. Her 5 dakikada bir çalışır.
 //
-// Tier süresi:
-//   hot    → 15 dakikadan eskiyse ekle
-//   normal → 2 saatten eskiyse ekle
-//   dead   → 12 saatten eskiyse ekle
+// 3 görev yapar:
+//   1) BAYAT-VERİ KORUMASI: çok uzun süredir taranamayan AKTİF ürünleri güvenlik için
+//      duraklat (eBay'e qty 0) → oversell önle.
+//   2) NORMAL TARAMA: aktif ürünleri tier'a göre poll-product'a gönder.
+//        hot 15dk / normal 2sa / dead 12sa
+//   3) AUTO-RECOVERY: stok/fiyat kaynaklı DURAKLATILMIŞ ürünleri saatte bir yeniden
+//      değerlendir → düzelmişse poll-product otomatik geri açar.
 //
 // Güvenlik: hiçbir token/secret loglanmaz.
 
 import { Worker, Job } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
 import { prisma } from "@/lib/prisma";
-import { pollProductQueue } from "@/lib/queues";
+import { pollProductQueue, updateListingQueue } from "@/lib/queues";
+import { notifyScraperFailing } from "@/lib/admin-notify";
 import type { DispatchPollsJobData } from "@/lib/queues";
 
 const TIER_THRESHOLDS_MS = {
@@ -20,90 +23,142 @@ const TIER_THRESHOLDS_MS = {
   dead: 12 * 60 * 60 * 1000,  // 12 saat
 } as const;
 
-const MAX_PER_RUN = 200;
+// Tier başına tur bütçesi — hot ASLA aç kalmasın diye cömert; dead düşük.
+const TIER_BUDGET = { hot: 600, normal: 300, dead: 100 } as const;
 
-async function processDispatchPolls(job: Job<DispatchPollsJobData>): Promise<void> {
-  const now = new Date();
+// Bayat-veri eşiği: aktif ama bu kadar süredir başarıyla taranamamış → güvenlik duraklatması.
+const STALE_MS = 6 * 60 * 60 * 1000; // 6 saat
+const STALE_MAX_PER_RUN = 300;
 
-  let totalQueued = 0;
-  let totalSkipped = 0;
+// Auto-recovery: duraklatılmış ürün bu kadar süre sonra yeniden denenir.
+const RECOVERY_MS = 60 * 60 * 1000; // 1 saat
+const RECOVERY_BUDGET = 150;
+const RECOVERABLE_REASONS = ["out_of_stock", "low_stock", "price_spike", "floor", "stale"];
 
+// ── 1) Bayat-veri koruması ──────────────────────────────────────────────────
+async function guardStaleProducts(now: Date): Promise<number> {
+  const cutoff = new Date(now.getTime() - STALE_MS);
+  const stale = await prisma.product.findMany({
+    where: { status: "active", lastScrapedAt: { lt: cutoff } },
+    select: { id: true, asin: true },
+    take: STALE_MAX_PER_RUN,
+  });
+  if (stale.length === 0) return 0;
+
+  const ids = stale.map((p) => p.id);
+
+  // eBay'de yayında olan listing'leri qty 0'a çekmek için önce bul
+  const listings = await prisma.listing.findMany({
+    where: { productId: { in: ids }, status: "active" },
+    select: { id: true, currentPrice: true, ebayListingId: true },
+  });
+
+  await prisma.product.updateMany({
+    where: { id: { in: ids } },
+    data: { status: "paused", pauseReason: "stale" },
+  });
+  await prisma.listing.updateMany({
+    where: { productId: { in: ids }, status: "active" },
+    data: { status: "paused", currentQty: 0 },
+  });
+
+  // eBay'de gerçekten duraklat (oversell koruması)
+  await Promise.all(
+    listings
+      .filter((l) => l.ebayListingId)
+      .map((l) =>
+        updateListingQueue.add(
+          "update-listing",
+          { listingId: l.id, price: l.currentPrice ?? 0, qty: 0 },
+          { jobId: `update-listing:${l.id}:${Date.now()}` }
+        )
+      )
+  );
+
+  // Admin'e tek (dedup'lı) uyarı — tarama bozuk olabilir
+  await notifyScraperFailing(stale[0].asin, `${stale.length} ürün 6+ saattir taranamadı`).catch(() => {});
+
+  return stale.length;
+}
+
+// ── 2) Normal tarama (tier'a göre) ──────────────────────────────────────────
+async function dispatchActive(now: Date): Promise<number> {
+  let queued = 0;
   for (const [tier, thresholdMs] of Object.entries(TIER_THRESHOLDS_MS)) {
-    // Her tier için kalan kapasiteyi hesapla
-    const remaining = MAX_PER_RUN - totalQueued;
-    if (remaining <= 0) break;
-
+    const budget = TIER_BUDGET[tier as keyof typeof TIER_BUDGET];
     const cutoff = new Date(now.getTime() - thresholdMs);
 
     const products = await prisma.product.findMany({
       where: {
         status: "active",
         pollTier: tier,
-        OR: [
-          { lastScrapedAt: null },
-          { lastScrapedAt: { lt: cutoff } },
-        ],
+        OR: [{ lastScrapedAt: null }, { lastScrapedAt: { lt: cutoff } }],
       },
-      select: { id: true, asin: true, lastScrapedAt: true },
-      take: remaining,
+      select: { id: true },
+      take: budget,
+      orderBy: { lastScrapedAt: { sort: "asc", nulls: "first" } },
     });
 
-    for (const product of products) {
-      try {
-        // jobId ile duplicate koruması — aynı ürün zaten kuyruktaysa eklenmez
-        await pollProductQueue.add(
-          "poll-product",
-          { productId: product.id },
-          {
-            jobId: `poll-product:${product.id}`,
-            // Mevcut job'ı ezme — sadece yoksa ekle
-          }
-        );
-        totalQueued++;
-      } catch (err) {
-        // "Job already exists" hatası normal — duplicate koruması çalışıyor
-        const errMsg = err instanceof Error ? err.message : String(err);
-        if (!errMsg.includes("already exists") && !errMsg.includes("duplicate")) {
-          console.error(`[dispatch-polls] Kuyruğa ekleme hatası: product=${product.id} | ${errMsg}`);
-        }
-        totalSkipped++;
-      }
+    for (const p of products) {
+      await pollProductQueue.add(
+        "poll-product",
+        { productId: p.id },
+        { jobId: `poll-product:${p.id}` }
+      );
+      queued++;
     }
-
-    await job.log(
-      `Tier=${tier}: ${products.length} ürün bulundu, cutoff=${cutoff.toISOString()}`
-    );
   }
+  return queued;
+}
 
-  await job.log(
-    `Tamamlandı: kuyruğa eklenen=${totalQueued} | atlanan(duplicate)=${totalSkipped}`
-  );
+// ── 3) Auto-recovery (duraklatılmış stok/fiyat ürünleri) ────────────────────
+async function dispatchRecovery(now: Date): Promise<number> {
+  const cutoff = new Date(now.getTime() - RECOVERY_MS);
+  const products = await prisma.product.findMany({
+    where: {
+      status: "paused",
+      pauseReason: { in: RECOVERABLE_REASONS },
+      OR: [{ lastScrapedAt: null }, { lastScrapedAt: { lt: cutoff } }],
+    },
+    select: { id: true },
+    take: RECOVERY_BUDGET,
+    orderBy: { lastScrapedAt: { sort: "asc", nulls: "first" } },
+  });
 
-  console.log(
-    `[dispatch-polls] Tamamlandı: kuyruğa eklenen=${totalQueued} | atlanan=${totalSkipped}`
-  );
+  let queued = 0;
+  for (const p of products) {
+    await pollProductQueue.add(
+      "poll-product",
+      { productId: p.id, recovery: true },
+      { jobId: `poll-product:${p.id}` }
+    );
+    queued++;
+  }
+  return queued;
+}
+
+async function processDispatchPolls(job: Job<DispatchPollsJobData>): Promise<void> {
+  const now = new Date();
+
+  const staled = await guardStaleProducts(now);
+  const active = await dispatchActive(now);
+  const recovered = await dispatchRecovery(now);
+
+  await job.log(`bayat-duraklatma=${staled} | normal-tarama=${active} | recovery=${recovered}`);
+  console.log(`[dispatch-polls] bayat=${staled} | tarama=${active} | recovery=${recovered}`);
 }
 
 export function createDispatchPollsWorker(connection: ConnectionOptions): Worker {
-  const worker = new Worker<DispatchPollsJobData>(
-    "dispatch-polls",
-    processDispatchPolls,
-    { connection, concurrency: 1 } // Tek çalışsın — paralel dispatch istenmiyor
+  const worker = new Worker<DispatchPollsJobData>("dispatch-polls", processDispatchPolls, {
+    connection,
+    concurrency: 1,
+  });
+
+  worker.on("completed", (job) => console.log(`[dispatch-polls] ✓ ${job.id}`));
+  worker.on("failed", (job, err) =>
+    console.error(`[dispatch-polls] ✗ ${job?.id} | ${err.message}`)
   );
-
-  worker.on("completed", (job) => {
-    console.log(`[dispatch-polls] ✓ Job tamamlandı: ${job.id}`);
-  });
-
-  worker.on("failed", (job, err) => {
-    console.error(
-      `[dispatch-polls] ✗ Job başarısız: ${job?.id} | Hata: ${err.message}`
-    );
-  });
-
-  worker.on("error", (err) => {
-    console.error("[dispatch-polls] Worker hatası:", err);
-  });
+  worker.on("error", (err) => console.error("[dispatch-polls] Worker hatası:", err));
 
   return worker;
 }

@@ -70,6 +70,30 @@ export async function notifyTrackCaptainOutOfCredits(creditBalance = 0): Promise
   });
 }
 
+/**
+ * Scraper (ScrapingBee) kotası/kredisi bitti → admin paneline KRİTİK uyarı.
+ * Bu biterse TÜM stok/fiyat takibi durur → oversell + eBay hesap riski.
+ */
+export async function notifyScraperOutOfCredits(detail = ""): Promise<void> {
+  await createIfNotDuplicate({
+    type: "scraper_credits",
+    title: "Scraper kotası BİTTİ (ScrapingBee)",
+    message: `ScrapingBee kotası/kredisi tükendi${detail ? ` (${detail})` : ""}. TÜM stok/fiyat takibi durdu → oversell riski. ACİL kota yükle: scrapingbee.com`,
+  });
+}
+
+/**
+ * Scraper sürekli hata veriyor (kota dışı) → admin paneline uyarı.
+ * Tek tük hata normaldir; bu yalnızca bir ürün güvenlik için duraklatıldığında çağrılır.
+ */
+export async function notifyScraperFailing(asin: string, detail = ""): Promise<void> {
+  await createIfNotDuplicate({
+    type: "scraper_failing",
+    title: "Stok taranamıyor — ürün güvenlik için duraklatıldı",
+    message: `ASIN ${asin} uzun süredir taranamadı${detail ? ` (${detail})` : ""}. Bayat veriyle satış riskine karşı listing'leri duraklatıldı. Tarama düzelince otomatik geri açılır.`,
+  });
+}
+
 /** Başarılı işlem sonrası bakiye eşiğin altına düştüyse → admin paneline UYARI. */
 export async function notifyLowBalanceIfNeeded(userId: string): Promise<void> {
   const user = await prisma.user.findUnique({

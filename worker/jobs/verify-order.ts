@@ -4,10 +4,11 @@
 import { Worker, Job } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
 import { prisma } from "@/lib/prisma";
-import { fetchAmazonProduct } from "@/lib/scraper";
+import { fetchAmazonProduct, ScraperOutOfCreditsError } from "@/lib/scraper";
 import { cancelOrder } from "@/lib/ebay/fulfillment";
 import { fulfillEbayOrder } from "@/lib/ebay/fulfill-order";
-import type { VerifyOrderJobData } from "@/lib/queues";
+import { notifyScraperOutOfCredits } from "@/lib/admin-notify";
+import { updateListingQueue, type VerifyOrderJobData } from "@/lib/queues";
 
 // ─── Job işleyici ─────────────────────────────────────────────────────────────
 async function processVerifyOrder(
@@ -58,8 +59,17 @@ async function processVerifyOrder(
     `Sipariş doğrulanıyor: ${orderId} | ASIN: ${product.asin} | Satış fiyatı: $${soldPrice}`
   );
 
-  // 2. ScrapingBee ile CANLI Amazon verisi çek
-  const scraped = await fetchAmazonProduct(product.asin);
+  // 2. ScrapingBee ile CANLI Amazon verisi çek.
+  //    Hata olursa job FAIL eder → sipariş "pending" kalır (fail-closed: asla körlemesine onaylama).
+  let scraped;
+  try {
+    scraped = await fetchAmazonProduct(product.asin, product.amazonMarket ?? "US");
+  } catch (err) {
+    if (err instanceof ScraperOutOfCreditsError) {
+      await notifyScraperOutOfCredits("sipariş doğrulama").catch(() => {});
+    }
+    throw err;
+  }
 
   const liveAmazonPrice = scraped.price;
   const { stockStatus, stockQty } = scraped;
@@ -121,13 +131,22 @@ async function processVerifyOrder(
       },
     });
 
-    // Listing'i duraklat
+    // Listing'i duraklat (DB) + eBay'de gerçekten qty 0 yap (oversell koruması)
     await prisma.listing.update({
       where: { id: listing.id },
       data: { status: "paused", currentQty: 0 },
     });
+    if (listing.ebayListingId) {
+      await updateListingQueue
+        .add(
+          "update-listing",
+          { listingId: listing.id, price: listing.currentPrice ?? 0, qty: 0 },
+          { jobId: `update-listing:${listing.id}:${Date.now()}` }
+        )
+        .catch(() => {});
+    }
 
-    // Product durumunu güncelle
+    // Product durumunu güncelle (recovery'nin geri açabilmesi için pauseReason)
     await prisma.product.update({
       where: { id: product.id },
       data: {
@@ -135,6 +154,7 @@ async function processVerifyOrder(
         amazonStockStatus: stockStatus,
         amazonStockQty: stockQty,
         status: "paused",
+        pauseReason: stockStatus === "low" ? "low_stock" : "out_of_stock",
         lastScrapedAt: now,
       },
     });

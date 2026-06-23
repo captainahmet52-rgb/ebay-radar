@@ -27,6 +27,8 @@ export const connection = parseRedisUrl(redisUrl);
 // ─── Job veri tipleri ──────────────────────────────────────────────────────────
 export interface PollProductJobData {
   productId: string;
+  // true → duraklatılmış ürünü yeniden değerlendir (auto-recovery)
+  recovery?: boolean;
 }
 
 export interface VerifyOrderJobData {
@@ -53,7 +55,9 @@ export const pollProductQueue = new Queue<PollProductJobData, void, string>("pol
       type: "exponential",
       delay: 5000, // 5 sn → 10 sn → 20 sn
     },
-    removeOnComplete: { count: 100 },
+    // Stable jobId (poll-product:<id>) kullanılıyor; tamamlanan job HEMEN silinmeli ki
+    // bir sonraki tarama turunda aynı ürün tekrar kuyruğa eklenebilsin (tıkanma önleme).
+    removeOnComplete: true,
     removeOnFail: { count: 500 },
   },
 });
