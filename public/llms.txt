@@ -10,8 +10,10 @@ Lean Automation, e-ticaret satıcılarının birden fazla pazar yerindeki işlem
 
 ## Temel Bilgiler
 
-- Ücretsiz deneme: Mağaza bağlandığında 7 gün / 50 ürün ücretsiz, kredi kartı gerekmez.
-- Fiyatlandırma: Farklı ürün limitleri ve özelliklere sahip 5 paket.
+- Ücretsiz deneme: Her mağaza bağlandığında 7 gün / 50 ürün ücretsiz, kredi kartı gerekmez. Süre bitince mağaza otomatik dondurulur, paket alınınca tekrar açılır.
+- Fiyatlandırma: Aylık 29,90$ – 249,90$ arası 5 paket (Starter, Basic, Growth, Pro, Enterprise). Paketler ürün limiti, günlük yükleme ve aktif mağaza sayısına göre değişir.
+- Çoklu mağaza: Bir kullanıcı birden fazla eBay mağazası bağlayabilir; her mağaza kendi pazarına (ABD/İngiltere/Almanya/Avustralya) göre fiyatlanır.
+- Davet programı: Arkadaşını davet et, ikiniz de 7 gün bedava kazanın.
 - Fiyat/stok takibi: Ürünler risk grubuna göre kademeli taranır (sık / saatlik / günlük).
 - Dil: Türkçe arayüz.
 
@@ -20,7 +22,9 @@ Lean Automation, e-ticaret satıcılarının birden fazla pazar yerindeki işlem
 - Ana sayfa: /
 - AmazonBot: /amazon
 - EtsyBot: /etsy
+- Gizlilik Politikası: /privacy
+- Kullanım Şartları: /terms
 
 ## İletişim
 
-- Web: https://lean-automation.com
+- Web: https://leanautomation.pro

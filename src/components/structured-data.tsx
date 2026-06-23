@@ -1,5 +1,21 @@
 import { SITE } from "@/lib/site";
 import { FAQ } from "@/lib/faq";
+import { PLAN_LIST } from "@/lib/plans";
+
+const FEATURE_LIST = [
+  "Amazon → eBay otomatik ürün listeleme",
+  "Pazar yerine göre akıllı fiyatlandırma (repricer)",
+  "Stok ve fiyat senkronizasyonu",
+  "Sipariş anı canlı doğrulama",
+  "Çoklu mağaza yönetimi",
+  "Otomatik sipariş takibi ve iade yönetimi",
+  "Kâr ve performans analitiği",
+  "Amazon ve Etsy pazar yeri desteği",
+];
+
+const prices = PLAN_LIST.map((p) => p.priceMonthly);
+const LOW_PRICE = Math.min(...prices).toFixed(2);
+const HIGH_PRICE = Math.max(...prices).toFixed(2);
 
 /** Tek bir JSON-LD script'i basar. */
 function JsonLd({ data }: { data: Record<string, unknown> }) {
@@ -37,17 +53,23 @@ export function StructuredData() {
     },
     {
       "@type": "SoftwareApplication",
+      "@id": `${SITE.url}/#software`,
       name: SITE.name,
       applicationCategory: "BusinessApplication",
+      applicationSubCategory: "E-commerce Automation",
       operatingSystem: "Web",
       url: SITE.url,
       description: SITE.description,
       inLanguage: "tr-TR",
+      featureList: FEATURE_LIST,
+      publisher: { "@id": `${SITE.url}/#organization` },
       offers: {
-        "@type": "Offer",
-        price: "0",
+        "@type": "AggregateOffer",
         priceCurrency: "USD",
-        description: "7 gün / 50 ürün ücretsiz deneme",
+        lowPrice: LOW_PRICE,
+        highPrice: HIGH_PRICE,
+        offerCount: PLAN_LIST.length,
+        description: "Mağaza başına 7 gün / 50 ürün ücretsiz deneme; aylık paketler.",
       },
     },
   ];
