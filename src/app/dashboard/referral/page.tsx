@@ -5,7 +5,7 @@ import useSWR from "swr";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Gift, Copy, Check, Users, CalendarPlus, Share2 } from "lucide-react";
+import { Gift, Copy, Check, Users, CalendarPlus, Share2, Ticket } from "lucide-react";
 
 interface ReferralData {
   code: string;
@@ -18,11 +18,39 @@ interface ReferralData {
 const fetcher = (url: string) => fetch(url).then((r) => r.json()) as Promise<ReferralData>;
 
 export default function ReferralPage() {
-  const { data } = useSWR<ReferralData>("/api/referral", fetcher);
+  const { data, mutate } = useSWR<ReferralData>("/api/referral", fetcher);
   const [copied, setCopied] = useState(false);
+  const [coupon, setCoupon] = useState("");
+  const [couponMsg, setCouponMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [redeeming, setRedeeming] = useState(false);
 
   const link = data?.link ?? "";
   const reward = data?.rewardPerInvite ?? 7;
+
+  async function redeemCoupon() {
+    if (!coupon.trim()) return;
+    setRedeeming(true);
+    setCouponMsg(null);
+    try {
+      const res = await fetch("/api/coupons/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: coupon.trim() }),
+      });
+      const j = await res.json();
+      if (res.ok) {
+        setCouponMsg({ ok: true, text: `+${j.rewardDays} gün eklendi! 🎉` });
+        setCoupon("");
+        mutate();
+      } else {
+        setCouponMsg({ ok: false, text: j.error ?? "Kupon kullanılamadı." });
+      }
+    } catch {
+      setCouponMsg({ ok: false, text: "Bir hata oluştu." });
+    } finally {
+      setRedeeming(false);
+    }
+  }
 
   async function copy() {
     if (!link) return;
@@ -99,6 +127,27 @@ export default function ReferralPage() {
           <p className="text-xs text-slate-500 text-center">
             Davet kodun: <span className="font-mono text-slate-300">{data.code}</span>
           </p>
+        )}
+      </Card>
+
+      {/* Kupon kodu */}
+      <Card className="p-5 space-y-3">
+        <p className="text-sm font-medium text-slate-300 flex items-center gap-2">
+          <Ticket className="h-4 w-4 text-violet-400" /> Kupon Kodun Var mı?
+        </p>
+        <div className="flex gap-2">
+          <input
+            value={coupon}
+            onChange={(e) => setCoupon(e.target.value.toUpperCase())}
+            placeholder="ÖRN: ILK50"
+            className="flex-1 bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-2.5 text-sm text-white font-mono uppercase focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+          />
+          <Button onClick={redeemCoupon} loading={redeeming} disabled={!coupon.trim()}>
+            Kullan
+          </Button>
+        </div>
+        {couponMsg && (
+          <p className={`text-xs ${couponMsg.ok ? "text-emerald-400" : "text-red-400"}`}>{couponMsg.text}</p>
         )}
       </Card>
 

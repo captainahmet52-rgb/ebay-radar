@@ -25,6 +25,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <a href="/admin/user-stores" className="text-sm text-slate-300 hover:text-white transition-colors">
           Musteri Magazalari
         </a>
+        <a href="/admin/coupons" className="text-sm text-slate-300 hover:text-white transition-colors">
+          Kuponlar
+        </a>
+        <a href="/admin/affiliates" className="text-sm text-slate-300 hover:text-white transition-colors">
+          Ortaklar
+        </a>
         <a href="/admin/depot" className="text-sm text-slate-300 hover:text-white transition-colors">
           Depo
         </a>

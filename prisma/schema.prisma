@@ -78,6 +78,12 @@ model User {
   referralRewardDays Int      @default(0)        // biriken bonus gün (mağaza denemesine eklenir)
   referredBy User?  @relation("UserReferrals", fields: [referredById], references: [id], onDelete: SetNull)
   referrals  User[] @relation("UserReferrals")
+  couponRedemptions CouponRedemption[]
+
+  // ─── Affiliate (ortaklık — komisyonlu tanıtım) ─────────────────────────────
+  isAffiliate         Boolean @default(false)  // admin onaylar
+  commissionRatePct   Float   @default(0)        // ör. 20 = %20 komisyon
+  commissionBalanceUsd Float  @default(0)        // biriken (ödenmemiş) komisyon
 
   // NextAuth
   accounts Account[]
@@ -437,4 +443,32 @@ model ProductDistribution {
   listing      Listing?     @relation(fields: [listingId], references: [id])
 
   @@unique([userId, depotProductId])
+}
+
+// ─── Kupon (indirim/bonus gün kodları) ──────────────────────────────────────
+// Kupon kullanılınca kullanıcının referralRewardDays bakiyesine bonus gün ekler.
+// (Sosyal medyada "ILK50" gibi kodlar paylaşılır.)
+model Coupon {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  rewardDays  Int                              // kullanıcıya eklenen bonus gün
+  maxUses     Int?                             // null = sınırsız
+  usedCount   Int       @default(0)
+  expiresAt   DateTime?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  redemptions CouponRedemption[]
+}
+
+model CouponRedemption {
+  id        String   @id @default(cuid())
+  couponId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([couponId, userId])
 }
