@@ -82,6 +82,13 @@ services:
       - ebay_net
     ports:
       - "3000:3000"
+    expose:
+      - "3000"
+    labels:
+      # Traefik backend port'unu SABİTLE — Coolify'ın otomatik port bağı bazen
+      # "Reload Compose File"da kayboluyor ve 504 veriyordu. UUID bu kaynağa özel/sabit.
+      - "traefik.http.services.http-0-keruvce6zrt77e7z1zis4zbz-app.loadbalancer.server.port=3000"
+      - "traefik.http.services.https-0-keruvce6zrt77e7z1zis4zbz-app.loadbalancer.server.port=3000"
 
   # ── BullMQ Worker ──────────────────────────────────────────────────────────
   worker:
