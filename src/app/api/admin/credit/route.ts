@@ -22,23 +22,8 @@ export const POST = requireAdmin(async (req) => {
   }
 
   const { email, amountUsd, note } = parsed.data;
-  const user = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true, creditBalanceUsd: true },
-  });
+  const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
   if (!user) return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 });
-
-  // Bakiye asla 0'ın altına düşemez — atomik cüzdan mantığını korur.
-  // Negatif düşürme bakiyeyi aşıyorsa işlemi reddet (clamp değil, reddet).
-  if (user.creditBalanceUsd + amountUsd < 0) {
-    return NextResponse.json(
-      {
-        error: "Yetersiz bakiye: bu düşürme bakiyeyi negatife çekerdi",
-        balanceUsd: user.creditBalanceUsd,
-      },
-      { status: 400 }
-    );
-  }
 
   const [updated] = await prisma.$transaction([
     prisma.user.update({

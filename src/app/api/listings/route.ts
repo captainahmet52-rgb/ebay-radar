@@ -65,20 +65,7 @@ export const POST = requireAuth(async (req, { userId }) => {
       );
     }
 
-    // eBay hesabı sahipliği (IDOR koruması): hesap MUTLAKA mevcut oturum
-    // kullanıcısına ait olmalı — başkasının mağazasına listeleme engellenir.
-    const ebayAccount = await prisma.ebayAccount.findFirst({
-      where: { id: ebayAccountId, userId },
-    });
-
-    if (!ebayAccount) {
-      return NextResponse.json(
-        { error: "eBay hesabı bulunamadı veya erişim yetkiniz yok" },
-        { status: 404 }
-      );
-    }
-
-    // Ürün global ASIN deposundan gelir (kullanıcıya özel değil), yine de var olmalı.
+    // Ürün sahipliği: bu kullanıcının listesinde mi?
     const product = await prisma.product.findUnique({ where: { id: productId } });
     if (!product) {
       return NextResponse.json({ error: "Ürün bulunamadı" }, { status: 404 });
@@ -91,15 +78,15 @@ export const POST = requireAuth(async (req, { userId }) => {
       );
     }
 
-    // Mükerrer önleme: bu kullanıcının bu ürün için zaten bir listesi var mı?
-    const existing = await prisma.listing.findFirst({
-      where: { userId, productId },
-      select: { id: true },
+    // eBay hesabı kullanıcıya ait mi?
+    const ebayAccount = await prisma.ebayAccount.findFirst({
+      where: { id: ebayAccountId, userId },
     });
-    if (existing) {
+
+    if (!ebayAccount) {
       return NextResponse.json(
-        { error: "Bu ürün için zaten bir listeniz var" },
-        { status: 409 }
+        { error: "eBay hesabı bulunamadı veya erişim yetkiniz yok" },
+        { status: 404 }
       );
     }
 

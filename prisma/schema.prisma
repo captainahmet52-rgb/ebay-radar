@@ -262,10 +262,6 @@ model Order {
   listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId],    references: [id], onDelete: Cascade)
 
-  // Aynı eBay siparişi iki kez Order'a dönüşmesin (çift fulfillment / çift ücret).
-  // eBay sipariş kimliği marketplace hesabı başına benzersizdir → kullanıcıya scope.
-  // ebayOrderId null olan satırlar Postgres'te benzersiz indekste çakışmaz.
-  @@unique([userId, ebayOrderId])
   @@index([managedStatus])
 }
 

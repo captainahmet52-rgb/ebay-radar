@@ -1,17 +1,13 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/api-helpers";
+import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { isAliExpressConfigured } from "@/lib/aliexpress";
 
 /**
  * GET /api/amazon/depot
  * Kalıcı AmazonDepotProduct deposu — radarın yazdığı gerçek ürünler + sayımlar.
- *
- * AmazonDepotProduct global/paylaşılan bir admin-curated radar katalogudur
- * (modelde userId yoktur, sadece admin radar worker'ı yazar). Maliyet/BSR/satıcı
- * sayısı gibi iç radar istihbaratını içerir; bu yüzden sadece admin görebilir.
  */
-export const GET = requireAdmin(async () => {
+export const GET = requireAuth(async () => {
   const [total, active, paused, products] = await Promise.all([
     prisma.amazonDepotProduct.count(),
     prisma.amazonDepotProduct.count({ where: { status: "active" } }),
