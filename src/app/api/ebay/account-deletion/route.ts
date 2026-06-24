@@ -39,21 +39,39 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   // Kullanıcı hesap silme bildirimi — eBay 200/204 bekler.
+  //
+  // GÜVENLİK: Bu uç doğrulanmamış (unauthenticated) istemcilere açıktır.
+  // Bildirimin gerçekliği DOĞRULANMADAN ASLA yıkıcı silme yapılmaz —
+  // aksi halde herkes POST atıp eBay hesap kayıtlarını silebilir.
+  //
+  // eBay bildirimleri x-ebay-signature ile imzalar. Tam ECDSA imza doğrulaması
+  // eBay'in public key'ini çekmeyi gerektirir; o kurulmadan paylaşılan
+  // doğrulama token'ı (panelde girilen, .env'deki EBAY_DELETION_VERIFICATION_TOKEN)
+  // ile gerçeklik kapısı koruyoruz. Token eşleşmezse: silme YAPMA, sadece 200 dön.
   try {
-    const body = (await req.json()) as {
+    const token = process.env.EBAY_DELETION_VERIFICATION_TOKEN;
+    const signature = req.headers.get("x-ebay-signature");
+    const verified = Boolean(token) && signature === token;
+
+    const body = (await req.json().catch(() => null)) as {
       notification?: { data?: { username?: string; userId?: string } };
-    };
+    } | null;
     const username = body?.notification?.data?.username;
     const ebayUserId = body?.notification?.data?.userId;
-    console.log("[ebay-deletion] Silme bildirimi:", username ?? ebayUserId ?? "bilinmiyor");
+    console.log(
+      "[ebay-deletion] Silme bildirimi:",
+      username ?? ebayUserId ?? "bilinmiyor",
+      verified ? "(doğrulandı)" : "(DOĞRULANMADI — silme atlandı)"
+    );
 
-    // İlgili eBay hesabını/verisini sistemden kaldır (varsa)
-    if (ebayUserId) {
+    // Yalnızca doğrulanmış bildirimlerde yıkıcı silme yapılır.
+    if (verified && ebayUserId) {
       const { prisma } = await import("@/lib/prisma");
       await prisma.ebayAccount.deleteMany({ where: { ebayUserId } }).catch(() => {});
     }
   } catch {
     // gövde parse edilemese de eBay'e 200 dönmeliyiz
   }
+  // eBay her durumda 200/204 bekler — doğrulanmamış istek de sessizce ack edilir.
   return new NextResponse(null, { status: 200 });
 }

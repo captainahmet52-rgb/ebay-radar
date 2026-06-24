@@ -148,7 +148,18 @@ async function processPollProduct(job: Job<PollProductJobData>): Promise<void> {
 
   const shouldPause = newQty === 0 || pauseReason !== null;
 
-  // 5. Ürünü güncelle (başarılı tarama → fail sayacı sıfırlanır)
+  // 5. OVERSELL FRENİ — sıralama kritik: duraklatılacaksa ÖNCE eBay'i güvene al,
+  //    SONRA DB'yi paused yap. pauseAllListings qty 0 işini BullMQ'ya (Redis'te
+  //    kalıcı) koyar → süreç burada çökse bile eBay sonunda qty 0'a iner.
+  //    Ters sırada (önce DB paused) çökersek DB "duraklatıldı" der ama eBay'de
+  //    ürün satılabilir kalır = OVERSELL. Bu sırada (pauseAllListings sonrası,
+  //    product.update öncesi) çökersek ürün "active" kalır ve sonraki tarama
+  //    tekrar duraklatır (pauseAllListings idempotent, zararsız tekrar).
+  if (shouldPause) {
+    await pauseAllListings(productId);
+  }
+
+  // 6. Ürünü güncelle (başarılı tarama → fail sayacı sıfırlanır)
   await prisma.product.update({
     where: { id: productId },
     data: {
@@ -182,7 +193,6 @@ async function processPollProduct(job: Job<PollProductJobData>): Promise<void> {
 
   if (shouldPause) {
     job.log(`Duraklatıldı (${pauseReason}) stok=${stockStatus}(${stockQty ?? "∞"}): ${product.asin}`);
-    await pauseAllListings(productId);
     return;
   }
 

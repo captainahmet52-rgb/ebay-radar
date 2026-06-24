@@ -3,11 +3,10 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import useSWR from "swr";
-import { Plus, Trash2, ExternalLink, CreditCard, Zap } from "lucide-react";
+import { Plus, Trash2, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useSession } from "next-auth/react";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -28,13 +27,9 @@ const EBAY_MARKET_LABELS: Record<string, string> = {
 const fadeUp = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 } };
 
 export default function SettingsPage() {
-  const { data: session } = useSession();
   const { data: accountsRes, mutate } = useSWR("/api/ebay/accounts", fetcher);
   const accounts: EbayAccount[] = accountsRes?.data ?? [];
   const [connectingEbay, setConnectingEbay] = useState(false);
-  const [stripeLoading, setStripeLoading] = useState<string | null>(null);
-
-  const plan = (session?.user?.plan ?? "free") as "free" | "pro" | "enterprise";
 
   const handleEbayConnect = async () => {
     setConnectingEbay(true);
@@ -53,36 +48,6 @@ export default function SettingsPage() {
     if (!confirm("Bu hesabı kaldırmak istediğinize emin misiniz?")) return;
     await fetch(`/api/ebay/accounts/${id}`, { method: "DELETE" });
     mutate();
-  };
-
-  const handleStripeCheckout = async (plan: string) => {
-    setStripeLoading(plan);
-    try {
-      const res = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
-      });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-    } catch {
-      alert("Ödeme sayfası açılamadı.");
-    } finally {
-      setStripeLoading(null);
-    }
-  };
-
-  const handleStripePortal = async () => {
-    setStripeLoading("portal");
-    try {
-      const res = await fetch("/api/stripe/portal", { method: "POST" });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-    } catch {
-      alert("Müşteri portalı açılamadı.");
-    } finally {
-      setStripeLoading(null);
-    }
   };
 
   return (
@@ -161,59 +126,6 @@ export default function SettingsPage() {
                 </motion.div>
               ))
             )}
-          </div>
-        </Card>
-      </motion.section>
-
-      {/* Section 2: Subscription */}
-      <motion.section variants={fadeUp} initial="initial" animate="animate" transition={{ delay: 0.3 }}>
-        <Card>
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-white">Abonelik Planı</h2>
-            <p className="text-sm text-slate-400 mt-1">Mevcut planınız ve yükseltme seçenekleri</p>
-          </div>
-
-          <div className="flex items-center gap-3 p-4 bg-slate-800/50 border border-slate-700/30 rounded-xl mb-6">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600/20 to-blue-600/20 flex items-center justify-center">
-              <CreditCard className="h-5 w-5 text-violet-400" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-white">Mevcut Plan</p>
-              <p className="text-xs text-slate-400 mt-0.5">Aktif aboneliğiniz</p>
-            </div>
-            <Badge variant={plan} />
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            {plan !== "pro" && plan !== "enterprise" && (
-              <Button
-                onClick={() => handleStripeCheckout("pro")}
-                loading={stripeLoading === "pro"}
-                size="sm"
-              >
-                <Zap className="h-4 w-4" />
-                Pro&apos;ya Yükselt — $29/ay
-              </Button>
-            )}
-            {plan !== "enterprise" && (
-              <Button
-                variant="secondary"
-                onClick={() => handleStripeCheckout("enterprise")}
-                loading={stripeLoading === "enterprise"}
-                size="sm"
-              >
-                Enterprise&apos;e Geç — $99/ay
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              onClick={handleStripePortal}
-              loading={stripeLoading === "portal"}
-              size="sm"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Müşteri Portalı
-            </Button>
           </div>
         </Card>
       </motion.section>

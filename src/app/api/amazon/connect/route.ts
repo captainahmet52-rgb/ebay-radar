@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { requireAuth } from "@/lib/api-helpers";
+import { signState } from "@/lib/oauth-state";
 
 /**
  * GET /api/amazon/connect?region=na|eu
@@ -20,8 +22,10 @@ export const GET = requireAuth(async (req, { userId }) => {
   const { searchParams } = new URL(req.url);
   const region = (searchParams.get("region") ?? "na").toLowerCase() === "eu" ? "eu" : "na";
 
-  // state = userId:region (callback'te pazar tespiti için bölge gerekli)
-  const state = `${userId}:${region}`;
+  // CSRF koruması: ham userId:region değil, imzalı + kısa ömürlü state.
+  // Bölge bilgisi callback'te pazar tespiti için payload'da taşınır.
+  const nonce = randomBytes(16).toString("hex");
+  const state = signState({ userId, nonce, region });
   const consentBase =
     region === "eu"
       ? "https://sellercentral-europe.amazon.com/apps/authorize/consent"
