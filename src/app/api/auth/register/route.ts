@@ -2,8 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { ensureReferralCode, REFERRAL_REWARD_DAYS } from "@/lib/referral";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  // Brute-force / kötüye kullanım koruması — IP başına sabit pencere.
+  const ip = getClientIp(req);
+  const limit = rateLimit(`register:${ip}`);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Çok fazla deneme. Lütfen daha sonra tekrar deneyin." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
+    );
+  }
+
   try {
     const body = await req.json() as { email?: string; password?: string; referralCode?: string };
     const { email, password } = body;

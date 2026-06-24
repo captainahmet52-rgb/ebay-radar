@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { exchangeCodeForTokens } from "@/lib/ebay/oauth";
 import { encryptToken } from "@/lib/crypto";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { verifyState } from "@/lib/oauth-state";
 import { normalizeEbayMarketplaceId } from "@/lib/ebay-markets";
 import { addDays, STORE_TRIAL_DAYS } from "@/lib/store-access";
 import { REFERRAL_MAX_BONUS_PER_STORE } from "@/lib/referral";
@@ -72,7 +74,7 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const code = searchParams.get("code");
-    const state = searchParams.get("state"); // state = userId
+    const state = searchParams.get("state"); // imzalı state
 
     if (!code || !state) {
       return NextResponse.redirect(
@@ -80,9 +82,32 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // CSRF: state imzalı + kısa ömürlü olmalı. Geçersiz/expired ise reddet.
+    const verified = verifyState(state);
+    if (!verified) {
+      return NextResponse.redirect(
+        new URL("/dashboard/settings?error=invalid_state", req.url)
+      );
+    }
+
+    // Hesabı bağlayacağımız userId DAİMA mevcut oturumdan gelir; state yalnız
+    // CSRF koruması içindir. Oturum yoksa veya state ile eşleşmiyorsa reddet.
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.redirect(
+        new URL("/dashboard/settings?error=not_authenticated", req.url)
+      );
+    }
+    if (session.user.id !== verified.userId) {
+      return NextResponse.redirect(
+        new URL("/dashboard/settings?error=state_mismatch", req.url)
+      );
+    }
+    const ownerUserId = session.user.id;
+
     // Kullanıcı var mı?
     const user = await prisma.user.findUnique({
-      where: { id: state },
+      where: { id: ownerUserId },
       select: { id: true, trialEndsAt: true, referralRewardDays: true },
     });
     if (!user) {
@@ -125,7 +150,7 @@ export async function GET(req: NextRequest) {
     const bonusDays = Math.min(user.referralRewardDays ?? 0, REFERRAL_MAX_BONUS_PER_STORE);
     await prisma.ebayAccount.create({
       data: {
-        userId: state,
+        userId: ownerUserId,
         ebayUserId: identity.userId,
         marketplace: identity.marketplace, // pazar otomatik tespit edildi
         oauthTokenEncrypted,
@@ -140,17 +165,17 @@ export async function GET(req: NextRequest) {
     // Kullanılan davet ödülü günlerini bakiyeden düş
     if (bonusDays > 0) {
       await prisma.user.update({
-        where: { id: state },
+        where: { id: ownerUserId },
         data: { referralRewardDays: { decrement: bonusDays } },
       });
     }
 
     // İlk mağaza bağlandıysa trial başlat
     if (!user.trialEndsAt) {
-      const accountCount = await prisma.ebayAccount.count({ where: { userId: state } });
+      const accountCount = await prisma.ebayAccount.count({ where: { userId: ownerUserId } });
       if (accountCount === 1) {
         await prisma.user.update({
-          where: { id: state },
+          where: { id: ownerUserId },
           data: { trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
         });
       }

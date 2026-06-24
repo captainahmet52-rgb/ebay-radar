@@ -319,6 +319,40 @@ export async function pauseListing(
 }
 
 /**
+ * Listing'i KALICI olarak sonlandır (withdraw). Silmeden önce çağrılır.
+ *
+ * Akış (oversell güvenli sıralama):
+ *   1. SKU varsa önce qty 0 (bulk_update_price_quantity) → ürün anında satın
+ *      alınamaz hale gelir. withdraw başarısız olsa bile satılamaz.
+ *   2. offerId varsa offer/{offerId}/withdraw → marketplace listingi sonlanır.
+ *
+ * withdraw idempotenttir; offer zaten geri çekilmişse eBay hata dönebilir,
+ * ama qty 0 adımı zaten oversell'i kapatmıştır.
+ */
+export async function endListing(
+  ebayAccountId: string,
+  sku: string | null,
+  offerId: string | null
+): Promise<void> {
+  const client = await buildClient(ebayAccountId);
+
+  // 1. Önce stoğu sıfırla — satın alınamaz hale getir (oversell kapanır).
+  if (sku) {
+    await client.post(`/sell/inventory/v1/bulk_update_price_quantity`, {
+      requests: [{ sku, shipToLocationAvailability: { quantity: 0 } }],
+    });
+  }
+
+  // 2. Offer'ı geri çek — marketplace ilanı sonlanır.
+  if (offerId) {
+    await client.post(
+      `/sell/inventory/v1/offer/${encodeURIComponent(offerId)}/withdraw`,
+      {}
+    );
+  }
+}
+
+/**
  * Listing'i yeniden aktif et.
  * Çağırandan ÖNCE fiyat yeniden hesaplanmış olmalı (CLAUDE.md Bölüm 4).
  * SKU ile stok açılır, offerId ile fiyat güncellenir.
