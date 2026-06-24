@@ -3,7 +3,7 @@
 // connection: URL string veya {host,port} config — type çakışmasını önler.
 
 import { Queue } from "bullmq";
-import type { ConnectionOptions } from "bullmq";
+import type { ConnectionOptions, QueueOptions } from "bullmq";
 
 const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
 
@@ -23,6 +23,32 @@ function parseRedisUrl(url: string): ConnectionOptions {
 }
 
 export const connection = parseRedisUrl(redisUrl);
+
+// KRİTİK — build sırasında Redis'e bağlanma.
+// `next build`in "Collecting page data" aşaması API route modüllerini import eder;
+// bu modüldeki her `new Queue()` BullMQ'yu Redis'e ZORLA bağlatır (BullMQ lazyConnect'i
+// dinlemez). Build ortamında 'redis' adresi çözülemez → ENOTFOUND retry fırtınası →
+// build exit 255 ile çöker. Next build sırasında NEXT_PHASE === "phase-production-build"
+// olur; o anda gerçek Queue yerine, erişilirse hata fırlatan bir stub döndürürüz
+// (build'de kuyruk metodu zaten çağrılmaz). Runtime'da (next start + worker süreci)
+// NEXT_PHASE bu değer DEĞİLDİR → normal Queue oluşturulur ve çalışır.
+const IS_BUILD = process.env.NEXT_PHASE === "phase-production-build";
+
+function createQueue<D = unknown, R = unknown, N extends string = string>(
+  name: string,
+  opts: QueueOptions
+): Queue<D, R, N> {
+  if (IS_BUILD) {
+    return new Proxy({} as Queue<D, R, N>, {
+      get(_target, prop) {
+        throw new Error(
+          `BullMQ kuyruğu '${name}' build aşamasında kullanılamaz (erişilen: ${String(prop)})`
+        );
+      },
+    });
+  }
+  return new Queue<D, R, N>(name, opts);
+}
 
 // ─── Job veri tipleri ──────────────────────────────────────────────────────────
 export interface PollProductJobData {
@@ -47,7 +73,7 @@ export interface PollOrdersJobData {
 
 // ─── Kuyruklar ─────────────────────────────────────────────────────────────────
 // 3. generic param (NameType) açıkça string — ExtractNameType string literal hatasını önler
-export const pollProductQueue = new Queue<PollProductJobData, void, string>("poll-product", {
+export const pollProductQueue = createQueue<PollProductJobData, void, string>("poll-product", {
   connection,
   defaultJobOptions: {
     attempts: 3,
@@ -62,7 +88,7 @@ export const pollProductQueue = new Queue<PollProductJobData, void, string>("pol
   },
 });
 
-export const verifyOrderQueue = new Queue<VerifyOrderJobData, void, string>("verify-order", {
+export const verifyOrderQueue = createQueue<VerifyOrderJobData, void, string>("verify-order", {
   connection,
   defaultJobOptions: {
     attempts: 2,
@@ -76,7 +102,7 @@ export const verifyOrderQueue = new Queue<VerifyOrderJobData, void, string>("ver
   },
 });
 
-export const updateListingQueue = new Queue<UpdateListingJobData, void, string>(
+export const updateListingQueue = createQueue<UpdateListingJobData, void, string>(
   "update-listing",
   {
     connection,
@@ -92,7 +118,7 @@ export const updateListingQueue = new Queue<UpdateListingJobData, void, string>(
   }
 );
 
-export const pollOrdersQueue = new Queue<PollOrdersJobData, void, string>("poll-orders", {
+export const pollOrdersQueue = createQueue<PollOrdersJobData, void, string>("poll-orders", {
   connection,
   defaultJobOptions: {
     attempts: 3,
@@ -114,7 +140,7 @@ export interface DistributeProductsJobData {
   userId?: string; // undefined ise tüm kullanıcılara dağıt
 }
 
-export const radarScanQueue = new Queue<RadarScanJobData, void, string>("radar-scan", {
+export const radarScanQueue = createQueue<RadarScanJobData, void, string>("radar-scan", {
   connection,
   defaultJobOptions: {
     attempts: 3,
@@ -124,7 +150,7 @@ export const radarScanQueue = new Queue<RadarScanJobData, void, string>("radar-s
   },
 });
 
-export const distributeProductsQueue = new Queue<DistributeProductsJobData, void, string>(
+export const distributeProductsQueue = createQueue<DistributeProductsJobData, void, string>(
   "distribute-products",
   {
     connection,
@@ -142,7 +168,7 @@ export interface AmazonRadarScanJobData {
   market: string; // us | uk | ae | sa
 }
 
-export const amazonRadarScanQueue = new Queue<AmazonRadarScanJobData, void, string>(
+export const amazonRadarScanQueue = createQueue<AmazonRadarScanJobData, void, string>(
   "amazon-radar-scan",
   {
     connection,
@@ -160,7 +186,7 @@ export interface AmazonAutoUploadJobData {
   userId?: string; // undefined → oto-yükleme açık tüm kullanıcılar
 }
 
-export const amazonAutoUploadQueue = new Queue<AmazonAutoUploadJobData, void, string>(
+export const amazonAutoUploadQueue = createQueue<AmazonAutoUploadJobData, void, string>(
   "amazon-auto-upload",
   {
     connection,
@@ -178,7 +204,7 @@ export interface AmazonPollProductJobData {
   depotProductId: string;
 }
 
-export const amazonPollProductQueue = new Queue<AmazonPollProductJobData, void, string>(
+export const amazonPollProductQueue = createQueue<AmazonPollProductJobData, void, string>(
   "amazon-poll-product",
   {
     connection,
@@ -196,7 +222,7 @@ export interface AmazonVerifyOrderJobData {
   orderId: string;
 }
 
-export const amazonVerifyOrderQueue = new Queue<AmazonVerifyOrderJobData, void, string>(
+export const amazonVerifyOrderQueue = createQueue<AmazonVerifyOrderJobData, void, string>(
   "amazon-verify-order",
   {
     connection,
@@ -214,7 +240,7 @@ export interface AmazonFulfillOrderJobData {
   orderId: string;
 }
 
-export const amazonFulfillOrderQueue = new Queue<AmazonFulfillOrderJobData, void, string>(
+export const amazonFulfillOrderQueue = createQueue<AmazonFulfillOrderJobData, void, string>(
   "amazon-fulfill-order",
   {
     connection,
@@ -232,7 +258,7 @@ export interface AmazonTrackingSyncJobData {
   _trigger?: string;
 }
 
-export const amazonTrackingSyncQueue = new Queue<AmazonTrackingSyncJobData, void, string>(
+export const amazonTrackingSyncQueue = createQueue<AmazonTrackingSyncJobData, void, string>(
   "amazon-tracking-sync",
   {
     connection,
@@ -249,7 +275,7 @@ export interface AmazonDepotWatchdogJobData {
   _trigger?: string;
 }
 
-export const amazonDepotWatchdogQueue = new Queue<AmazonDepotWatchdogJobData, void, string>(
+export const amazonDepotWatchdogQueue = createQueue<AmazonDepotWatchdogJobData, void, string>(
   "amazon-depot-watchdog",
   {
     connection,
@@ -266,7 +292,7 @@ export interface AmazonPollOrdersJobData {
   amazonAccountId?: string; // undefined → tüm Amazon hesapları
 }
 
-export const amazonPollOrdersQueue = new Queue<AmazonPollOrdersJobData, void, string>(
+export const amazonPollOrdersQueue = createQueue<AmazonPollOrdersJobData, void, string>(
   "amazon-poll-orders",
   {
     connection,
@@ -284,7 +310,7 @@ export interface RefreshTokensJobData {
   ebayAccountId?: string; // undefined ise süresi yaklaşan tüm hesapları yenile
 }
 
-export const refreshTokensQueue = new Queue<RefreshTokensJobData, void, string>(
+export const refreshTokensQueue = createQueue<RefreshTokensJobData, void, string>(
   "refresh-tokens",
   {
     connection,
@@ -303,7 +329,7 @@ export interface DispatchPollsJobData {
   _trigger?: string; // boş data, sadece tetikleyici
 }
 
-export const dispatchPollsQueue = new Queue<DispatchPollsJobData, void, string>(
+export const dispatchPollsQueue = createQueue<DispatchPollsJobData, void, string>(
   "dispatch-polls",
   {
     connection,
@@ -319,7 +345,7 @@ export interface DispatchPollOrdersJobData {
   _trigger?: string;
 }
 
-export const dispatchPollOrdersQueue = new Queue<DispatchPollOrdersJobData, void, string>(
+export const dispatchPollOrdersQueue = createQueue<DispatchPollOrdersJobData, void, string>(
   "dispatch-poll-orders",
   {
     connection,
@@ -336,7 +362,7 @@ export interface EbayAutoUploadJobData {
   userId?: string; // verilmezse tüm açık kullanıcılar
 }
 
-export const ebayAutoUploadQueue = new Queue<EbayAutoUploadJobData, void, string>(
+export const ebayAutoUploadQueue = createQueue<EbayAutoUploadJobData, void, string>(
   "ebay-auto-upload",
   {
     connection,
@@ -354,7 +380,7 @@ export interface PublishListingJobData {
   ebayAccountId: string;
 }
 
-export const publishListingQueue = new Queue<PublishListingJobData, void, string>(
+export const publishListingQueue = createQueue<PublishListingJobData, void, string>(
   "publish-listing",
   {
     connection,
@@ -372,7 +398,7 @@ export interface RetierProductsJobData {
   _trigger?: string;
 }
 
-export const retierProductsQueue = new Queue<RetierProductsJobData, void, string>(
+export const retierProductsQueue = createQueue<RetierProductsJobData, void, string>(
   "retier-products",
   {
     connection,
@@ -389,7 +415,7 @@ export interface ScraperUsageCheckJobData {
   _trigger?: string;
 }
 
-export const scraperUsageCheckQueue = new Queue<ScraperUsageCheckJobData, void, string>(
+export const scraperUsageCheckQueue = createQueue<ScraperUsageCheckJobData, void, string>(
   "scraper-usage-check",
   {
     connection,
@@ -406,7 +432,7 @@ export interface FreezeStoresJobData {
   _trigger?: string;
 }
 
-export const freezeStoresQueue = new Queue<FreezeStoresJobData, void, string>(
+export const freezeStoresQueue = createQueue<FreezeStoresJobData, void, string>(
   "freeze-stores",
   {
     connection,
