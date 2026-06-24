@@ -6,7 +6,6 @@ import useSWR from "swr";
 import { Plus, Trash2, ExternalLink, CreditCard, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useSession } from "next-auth/react";
 
@@ -32,8 +31,6 @@ export default function SettingsPage() {
   const { data: session } = useSession();
   const { data: accountsRes, mutate } = useSWR("/api/ebay/accounts", fetcher);
   const accounts: EbayAccount[] = accountsRes?.data ?? [];
-  const [margin, setMargin] = useState(20);
-  const [minPrice, setMinPrice] = useState("15");
   const [connectingEbay, setConnectingEbay] = useState(false);
   const [stripeLoading, setStripeLoading] = useState<string | null>(null);
 
@@ -168,61 +165,7 @@ export default function SettingsPage() {
         </Card>
       </motion.section>
 
-      {/* Section 2: Pricing Rules */}
-      <motion.section variants={fadeUp} initial="initial" animate="animate" transition={{ delay: 0.2 }}>
-        <Card>
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-white">Fiyatlandırma Kuralları</h2>
-            <p className="text-sm text-slate-400 mt-1">Repricer motorunun davranışını özelleştirin</p>
-          </div>
-
-          <div className="space-y-6">
-            {/* Margin slider */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium text-slate-300">Hedef Kâr Marjı</label>
-                <span className="text-sm font-bold text-violet-400">%{margin}</span>
-              </div>
-              <input
-                type="range"
-                min={10}
-                max={40}
-                value={margin}
-                onChange={(e) => setMargin(Number(e.target.value))}
-                className="w-full h-2 rounded-full appearance-none bg-slate-700 cursor-pointer
-                           [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5
-                           [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full
-                           [&::-webkit-slider-thumb]:bg-gradient-to-r [&::-webkit-slider-thumb]:from-violet-600
-                           [&::-webkit-slider-thumb]:to-blue-600 [&::-webkit-slider-thumb]:shadow-lg"
-              />
-              <div className="flex justify-between text-xs text-slate-500 mt-1">
-                <span>%10</span>
-                <span>%40</span>
-              </div>
-            </div>
-
-            {/* Min price */}
-            <div className="max-w-xs">
-              <Input
-                label="Minimum Ürün Fiyatı ($)"
-                type="number"
-                value={minPrice}
-                onChange={(e) => setMinPrice(e.target.value)}
-                placeholder="15"
-              />
-              <p className="text-xs text-slate-500 mt-1.5">
-                Bu fiyatın altındaki ürünler otomatik atlanır.
-              </p>
-            </div>
-
-            <Button variant="secondary" size="sm" disabled>
-              Kaydet (Yakında)
-            </Button>
-          </div>
-        </Card>
-      </motion.section>
-
-      {/* Section 3: Subscription */}
+      {/* Section 2: Subscription */}
       <motion.section variants={fadeUp} initial="initial" animate="animate" transition={{ delay: 0.3 }}>
         <Card>
           <div className="mb-6">
