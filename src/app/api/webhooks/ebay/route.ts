@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { verifyOrderQueue } from "@/lib/queues";
 
@@ -88,39 +87,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true });
     }
 
-    // Dedup: aynı eBay siparişi zaten kayıtlıysa tekrar oluşturma (idempotent).
-    // poll-orders ile aynı koruma — webhook + polling aynı siparişi yakalayabilir.
-    const existing = await prisma.order.findFirst({
-      where: { userId: listing.userId, ebayOrderId },
-      select: { id: true },
+    // Order kaydı oluştur (pending)
+    const order = await prisma.order.create({
+      data: {
+        userId: listing.userId,
+        listingId,
+        ebayOrderId,
+        fulfillmentStatus: "pending",
+      },
     });
-    if (existing) {
-      return NextResponse.json({ received: true, orderId: existing.id, duplicate: true });
-    }
-
-    // Order kaydı oluştur (pending). Yarış durumunda (userId, ebayOrderId) benzersiz
-    // kısıtı ikinci create'i P2002 ile engeller → çift satır oluşmaz.
-    let order: { id: string };
-    try {
-      order = await prisma.order.create({
-        data: {
-          userId: listing.userId,
-          listingId,
-          ebayOrderId,
-          fulfillmentStatus: "pending",
-        },
-        select: { id: true },
-      });
-    } catch (createErr) {
-      if (
-        createErr instanceof Prisma.PrismaClientKnownRequestError &&
-        createErr.code === "P2002"
-      ) {
-        // Eşzamanlı istek aynı siparişi oluşturdu — çift değil, sessizce ack.
-        return NextResponse.json({ received: true, duplicate: true });
-      }
-      throw createErr;
-    }
 
     // BullMQ kuyruğuna doğrulama job'ı ekle
     await verifyOrderQueue.add(

@@ -13,25 +13,9 @@ function setMsg(t, ok = true) {
 function render(list) {
   $("count").textContent = String(list.length);
   const box = $("list");
-
-  // Güvenli render: ASIN'ler depodan gelir → innerHTML yerine textContent ile düğüm kur
-  // (depo zehirlenmesinde DOM-injection riskini kapatır).
-  box.textContent = "";
-  if (list.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "empty";
-    empty.textContent = "Amazon'da ürün seçin…";
-    box.appendChild(empty);
-    return;
-  }
-  const frag = document.createDocumentFragment();
-  for (const a of list) {
-    const item = document.createElement("div");
-    item.className = "item";
-    item.textContent = a;
-    frag.appendChild(item);
-  }
-  box.appendChild(frag);
+  box.innerHTML = list.length
+    ? list.map((a) => `<div class="item">${a}</div>`).join("")
+    : '<p class="empty">Amazon\'da ürün seçin…</p>';
 }
 
 async function load() {
