@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Navbar içi anchor linkleri yumuşak kaydırsın */
+html { scroll-behavior: smooth; }
+
 /* Custom scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #0f172a; }

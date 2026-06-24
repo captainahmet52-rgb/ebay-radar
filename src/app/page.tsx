@@ -8,7 +8,7 @@ import {
   RefreshCcw, ShoppingCart, Cpu, Target, BarChart2,
   Upload, DollarSign, RotateCcw, FileBarChart,
   Package, MessageSquare, TrendingUp, HeartHandshake,
-  Shield, Lock, Server, Headphones, Star, ArrowRight, ChevronDown, Play,
+  Shield, Lock, Server, Headphones, Star, ArrowRight, ChevronDown, Play, Check,
 } from "lucide-react";
 
 /**
@@ -17,6 +17,7 @@ import {
  */
 const DEMO_VIDEO_URL = "";
 import { Logo, LogoMark } from "@/components/logo";
+import { PLAN_LIST } from "@/lib/plans";
 import { FAQ } from "@/lib/faq";
 import { FaqStructuredData } from "@/components/structured-data";
 
@@ -231,13 +232,19 @@ export default function LandingPage() {
         </Link>
 
         <div className="hidden md:flex items-center gap-10">
-          {["Ana Sayfa", "Özellikler", "Fiyatlandırma", "Entegrasyonlar", "Kaynaklar"].map((l, i) => (
+          {[
+            { label: "Ana Sayfa", href: "#anasayfa" },
+            { label: "Özellikler", href: "#ozellikler" },
+            { label: "Fiyatlandırma", href: "#fiyatlandirma" },
+            { label: "Entegrasyonlar", href: "#entegrasyonlar" },
+            { label: "Kaynaklar", href: "#kaynaklar" },
+          ].map(({ label, href }, i) => (
             <a
-              key={l}
-              href="#"
+              key={label}
+              href={href}
               className="relative text-[#9ca3af] hover:text-white text-sm transition-colors duration-200 group"
             >
-              {l}
+              {label}
               {i === 0 && (
                 <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-violet-500" />
               )}
@@ -274,7 +281,7 @@ export default function LandingPage() {
       </nav>
 
       {/* ══ Hero ══ */}
-      <section className="relative z-10 text-center pt-8 pb-6 px-6">
+      <section id="anasayfa" className="relative z-10 text-center pt-8 pb-6 px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -349,7 +356,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══ Platform Kartları ══ */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 pb-6">
+      <section id="entegrasyonlar" className="relative z-10 max-w-7xl mx-auto px-6 pb-6 scroll-mt-24">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
           {/* Amazon */}
@@ -451,7 +458,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══ Nasıl Çalışır + Demo ══ */}
-      <section className="relative z-10 max-w-5xl mx-auto px-6 pb-16">
+      <section id="ozellikler" className="relative z-10 max-w-5xl mx-auto px-6 pb-16 scroll-mt-24">
         <h2 className="text-3xl md:text-4xl font-black text-center mb-3">Nasıl Çalışır?</h2>
         <p className="text-slate-400 text-center mb-10">3 adımda otomasyona başla</p>
 
@@ -516,8 +523,75 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
+      {/* ══ Fiyatlandırma ══ */}
+      <section id="fiyatlandirma" className="relative z-10 max-w-7xl mx-auto px-6 pb-16 scroll-mt-24">
+        <h2 className="text-3xl md:text-4xl font-black text-center mb-3">Fiyatlandırma</h2>
+        <p className="text-slate-400 text-center mb-10">
+          Her pakette 7 gün ücretsiz deneme. İstediğin zaman yükselt veya iptal et.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {PLAN_LIST.map((plan) => {
+            const popular = plan.id === "growth";
+            return (
+              <motion.div
+                key={plan.id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4 }}
+                className="relative rounded-2xl p-5 flex flex-col"
+                style={{
+                  background: popular ? "rgba(124,58,237,0.10)" : "rgba(255,255,255,0.025)",
+                  border: popular ? "1px solid rgba(139,92,246,0.5)" : "1px solid rgba(255,255,255,0.07)",
+                }}
+              >
+                {popular && (
+                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full bg-violet-600 text-white">
+                    En Popüler
+                  </span>
+                )}
+                <h3 className="text-white font-bold text-lg">{plan.name}</h3>
+                <div className="mt-2 mb-4">
+                  <span className="text-3xl font-black text-white">${plan.priceMonthly.toFixed(2)}</span>
+                  <span className="text-slate-500 text-sm">/ay</span>
+                </div>
+                <ul className="space-y-2 text-sm text-slate-300 flex-1">
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-violet-400 flex-shrink-0" />
+                    {plan.productLimit.toLocaleString("tr-TR")} ürün
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-violet-400 flex-shrink-0" />
+                    {plan.storeLimit} mağaza
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-violet-400 flex-shrink-0" />
+                    Günde {plan.uploadDailyLimit.toLocaleString("tr-TR")} yükleme
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-violet-400 flex-shrink-0" />
+                    Sınırsız takip kodu
+                  </li>
+                </ul>
+                <Link
+                  href="/register"
+                  className={`mt-5 text-center text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors ${
+                    popular
+                      ? "bg-violet-600 hover:bg-violet-500 text-white"
+                      : "bg-white/5 hover:bg-white/10 text-white border border-white/10"
+                  }`}
+                >
+                  Ücretsiz Başla
+                </Link>
+              </motion.div>
+            );
+          })}
+        </div>
+      </section>
+
       {/* ══ SSS (FAQ) ══ */}
-      <section className="relative z-10 max-w-3xl mx-auto px-6 pb-16">
+      <section id="kaynaklar" className="relative z-10 max-w-3xl mx-auto px-6 pb-16 scroll-mt-24">
         <FaqStructuredData />
         <h2 className="text-3xl md:text-4xl font-black text-center mb-3">Sık Sorulan Sorular</h2>
         <p className="text-slate-400 text-center mb-10">
