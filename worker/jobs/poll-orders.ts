@@ -24,7 +24,7 @@ import type { PollOrdersJobData } from "@/lib/queues";
 async function findListing(
   ebayAccountId: string,
   ebayOrder: EbayOrder
-): Promise<{ id: string; userId: string } | null> {
+): Promise<{ id: string; userId: string; productId: string } | null> {
   const skus = ebayOrder.lineItems
     .map((li) => li.sku)
     .filter((s): s is string => typeof s === "string" && s.length > 0);
@@ -50,7 +50,7 @@ async function findListing(
       ebayAccountId,
       OR: orConditions,
     },
-    select: { id: true, userId: true },
+    select: { id: true, userId: true, productId: true },
   });
 }
 
@@ -141,7 +141,16 @@ async function processPollOrders(job: Job<PollOrdersJobData>): Promise<void> {
         select: { id: true },
       });
 
-      // d. verify-order kuyruğuna ekle.
+      // d. Satış sinyali: ürünü "son satış"la işaretle + sık taramaya (hot) al.
+      //    Satan ürün = canlı talep = oversell riski en yüksek → yakından izle.
+      await prisma.product
+        .update({
+          where: { id: listing.productId },
+          data: { lastSoldAt: new Date(), pollTier: "hot" },
+        })
+        .catch(() => {});
+
+      // e. verify-order kuyruğuna ekle.
       await verifyOrderQueue.add("verify-order", { orderId: order.id });
 
       createdCount++;

@@ -147,6 +147,8 @@ model Product {
   // hot | normal | dead
   pollTier            String    @default("normal")
   lastScrapedAt       DateTime?
+  // Bu ürünün herhangi bir mağazada en son satıldığı an (satış-hızına göre tier için)
+  lastSoldAt          DateTime?
   // active | paused
   status              String    @default("active")
   // Neden duraklatıldı? out_of_stock | low_stock | price_spike | floor | stale | manual
@@ -157,10 +159,32 @@ model Product {
   lastScrapeError     String?
   createdAt           DateTime  @default(now())
 
-  listings Listing[]
+  listings       Listing[]
+  stockSnapshots StockSnapshot[]
 
   @@index([status, pollTier, lastScrapedAt])
   @@index([status, pauseReason, lastScrapedAt])
+  @@index([status, lastSoldAt])
+}
+
+// ─── Stok/fiyat geçmişi (her başarılı taramada bir kayıt) ─────────────────────
+// Flapping (açıl-kapan) tespiti, "neden duraklatıldı" debug ve trend grafiği için.
+model StockSnapshot {
+  id          String   @id @default(cuid())
+  productId   String
+  amazonPrice Float?
+  // in_stock | low | out | unknown
+  stockStatus String
+  stockQty    Int?
+  ebayPrice   Float?
+  // poll | verify | recovery
+  source      String   @default("poll")
+  createdAt   DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, createdAt])
+  @@index([createdAt])
 }
 
 // ─── Kullanıcı listelemeleri ──────────────────────────────────────────────────

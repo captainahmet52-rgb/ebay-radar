@@ -83,6 +83,18 @@ export async function notifyScraperOutOfCredits(detail = ""): Promise<void> {
 }
 
 /**
+ * Scraper kotası eşiği (örn. %80) geçti → admin paneline ÖN-UYARI (kota bitmeden).
+ * Kota bitmeden haber verir ki sürpriz kesinti olmasın.
+ */
+export async function notifyScraperQuotaLow(used: number, max: number, pct: number): Promise<void> {
+  await createIfNotDuplicate({
+    type: "scraper_quota_low",
+    title: `Scraper kotası %${Math.round(pct * 100)} doldu`,
+    message: `ScrapingBee kotası ${used}/${max} (%${Math.round(pct * 100)}) kullanıldı. Bitmeden kota yükle — bitince TÜM stok takibi durur: scrapingbee.com`,
+  });
+}
+
+/**
  * Scraper sürekli hata veriyor (kota dışı) → admin paneline uyarı.
  * Tek tük hata normaldir; bu yalnızca bir ürün güvenlik için duraklatıldığında çağrılır.
  */

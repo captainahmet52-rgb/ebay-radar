@@ -9,6 +9,8 @@ interface StockHealth {
   listings: { active: number; paused: number };
   pauseReasons: { reason: string; count: number }[];
   tiers: { tier: string; count: number }[];
+  activity: { snapshots24h: number; recoveries24h: number };
+  scraper: { used: number; max: number; pct: number } | null;
   recentErrors: { asin: string; scrapeFailCount: number; lastScrapeError: string | null; lastScrapedAt: string | null }[];
 }
 
@@ -55,6 +57,30 @@ export default function StockHealthPage() {
         <Stat label="Tarama hatası olan" value={p.scrapeFailing} tone={p.scrapeFailing > 0 ? "bad" : "good"} />
         <Stat label="Hiç taranmamış" value={p.neverScraped} tone={p.neverScraped > 0 ? "warn" : "default"} />
         <Stat label="Aktif listing" value={data.listings.active} />
+      </div>
+
+      {/* Scraper kotası + 24 saat aktivite */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="p-4 rounded-xl border border-slate-700/50 bg-slate-900/60 col-span-2">
+          <p className="text-xs text-slate-400 mb-1">Scraper kotası (ScrapingBee)</p>
+          {data.scraper ? (
+            <>
+              <p className={`text-lg font-bold ${data.scraper.pct >= 0.8 ? "text-red-400" : data.scraper.pct >= 0.6 ? "text-amber-400" : "text-emerald-400"}`}>
+                {data.scraper.used} / {data.scraper.max} (%{Math.round(data.scraper.pct * 100)})
+              </p>
+              <div className="h-2 mt-2 rounded-full bg-slate-800 overflow-hidden">
+                <div
+                  className={`h-full ${data.scraper.pct >= 0.8 ? "bg-red-500" : data.scraper.pct >= 0.6 ? "bg-amber-500" : "bg-emerald-500"}`}
+                  style={{ width: `${Math.min(100, Math.round(data.scraper.pct * 100))}%` }}
+                />
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-slate-500">Kota okunamadı</p>
+          )}
+        </div>
+        <Stat label="24sa tarama kaydı" value={data.activity.snapshots24h} />
+        <Stat label="24sa oto geri açılan" value={data.activity.recoveries24h} tone="good" />
       </div>
 
       <div className="grid sm:grid-cols-2 gap-4">

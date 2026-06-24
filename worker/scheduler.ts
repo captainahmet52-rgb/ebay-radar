@@ -22,6 +22,8 @@ import {
   amazonTrackingSyncQueue,
   freezeStoresQueue,
   ebayAutoUploadQueue,
+  retierProductsQueue,
+  scraperUsageCheckQueue,
 } from "@/lib/queues";
 
 // AmazonBot radar — taranacak pazarlar
@@ -132,6 +134,24 @@ export async function setupScheduler(): Promise<void> {
     { repeat: { every: 60 * 60 * 1000 } } // 1 saat (ms)
   );
   console.log("[scheduler] freeze-stores kuruldu: her saat");
+
+  // ── retier-products: her gün 01:30 UTC (satış-hızına göre tarama grubu) ──────
+  await clearRepeatableJobs(retierProductsQueue, "retier-products");
+  await retierProductsQueue.add(
+    "retier-products",
+    {},
+    { repeat: { pattern: "30 1 * * *" } }
+  );
+  console.log("[scheduler] retier-products kuruldu: her gün 01:30 UTC");
+
+  // ── scraper-usage-check: her 3 saatte bir (kota %80 ön-uyarı) ───────────────
+  await clearRepeatableJobs(scraperUsageCheckQueue, "scraper-usage-check");
+  await scraperUsageCheckQueue.add(
+    "scraper-usage-check",
+    {},
+    { repeat: { every: 3 * 60 * 60 * 1000 } }
+  );
+  console.log("[scheduler] scraper-usage-check kuruldu: her 3 saat");
 
   // ── ebay-auto-upload: her gün 04:00 UTC (oto-yükleme açık tüm kullanıcılar) ──
   await clearRepeatableJobs(ebayAutoUploadQueue, "ebay-auto-upload");

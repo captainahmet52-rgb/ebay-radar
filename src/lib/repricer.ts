@@ -107,6 +107,21 @@ export function isPriceSpike(oldPrice: number, newPrice: number): boolean {
   return increase > 0.50;
 }
 
+/** Fiyat histerezisi eşiği — bunun altındaki değişimde eBay güncellenmez. */
+export const PRICE_HYSTERESIS_PCT = 0.02;
+
+/**
+ * Yeni fiyat eskisinden anlamlı ölçüde farklı mı? (eBay API churn'ünü azaltır.)
+ * Eski değer yoksa/0 ise her zaman "anlamlı" sayılır.
+ */
+export function isSignificantChange(
+  oldValue: number | null | undefined,
+  newValue: number
+): boolean {
+  if (oldValue == null || oldValue <= 0) return true;
+  return Math.abs(newValue - oldValue) / oldValue >= PRICE_HYSTERESIS_PCT;
+}
+
 /**
  * Ürün için tam repricer çıktısı.
  * Stok durumu + fiyat spike kontrolü dahil.

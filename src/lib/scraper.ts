@@ -99,6 +99,34 @@ export function parseStock(availability: string | null | undefined): {
   return { stockStatus: "unknown", stockQty: null };
 }
 
+export interface ScraperUsage {
+  used: number;
+  max: number;
+  pct: number; // 0..1
+}
+
+/**
+ * ScrapingBee kota kullanımı (kredi). Kota %80'i geçince admin uyarısı için kullanılır.
+ * @throws yapılandırma yoksa veya API hatası
+ */
+export async function getScraperUsage(): Promise<ScraperUsage> {
+  const apiKey = process.env.SCRAPINGBEE_API_KEY;
+  if (!apiKey) throw new Error("SCRAPINGBEE_API_KEY tanımlı değil");
+
+  const res = await fetch(`https://app.scrapingbee.com/api/v1/usage?api_key=${apiKey}`);
+  if (!res.ok) {
+    throw new Error(`ScrapingBee usage hatası: ${res.status}`);
+  }
+  const data = (await res.json()) as {
+    max_api_credit?: number;
+    used_api_credit?: number;
+  };
+  const max = data.max_api_credit ?? 0;
+  const used = data.used_api_credit ?? 0;
+  const pct = max > 0 ? used / max : 0;
+  return { used, max, pct };
+}
+
 const AMAZON_DOMAINS: Record<string, { url: string; country: string }> = {
   US: { url: "https://www.amazon.com",     country: "us" },
   UK: { url: "https://www.amazon.co.uk",   country: "gb" },

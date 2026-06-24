@@ -4,7 +4,7 @@ import { Worker, Job } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
 import { prisma } from "@/lib/prisma";
 import { fetchAmazonProduct, ScraperOutOfCreditsError } from "@/lib/scraper";
-import { calculateEbayPriceForMarket, isPriceSpike, determineQty } from "@/lib/repricer";
+import { calculateEbayPriceForMarket, isPriceSpike, determineQty, isSignificantChange } from "@/lib/repricer";
 import { notifyScraperOutOfCredits } from "@/lib/admin-notify";
 import { updateListingQueue, publishListingQueue, type PollProductJobData } from "@/lib/queues";
 
@@ -49,6 +49,8 @@ async function processPollProduct(job: Job<PollProductJobData>): Promise<void> {
           ebayAccountId: true,
           ebayListingId: true,
           status: true,
+          currentPrice: true,
+          currentQty: true,
           lastEbayError: true,
           ebayAccount: { select: { isActive: true } },
           user: { select: { uploadProfitMarginPct: true } },
@@ -88,6 +90,21 @@ async function processPollProduct(job: Job<PollProductJobData>): Promise<void> {
       await notifyScraperOutOfCredits(msg.slice(0, 120)).catch(() => {});
     }
     throw err; // BullMQ retry etsin; sürekli fail → watchdog duraklatır
+  }
+
+  // 2b. Spike DOĞRULAMA — tek bozuk taramadan boş yere duraklatma. Fiyat zıpladıysa
+  //     bir kez daha çek; ikinci tarama gerçek veridir. (Tükendi'de doğrulama yok, hız önemli.)
+  if (
+    scraped.price !== null &&
+    product.amazonPrice &&
+    isPriceSpike(product.amazonPrice, scraped.price)
+  ) {
+    job.log(`Fiyat zıpladı ($${product.amazonPrice}→$${scraped.price}), doğrulanıyor: ${product.asin}`);
+    try {
+      scraped = await fetchAmazonProduct(product.asin, product.amazonMarket ?? "US");
+    } catch {
+      // Doğrulama çekilemezse ilk veriyle devam (güvenli taraf: spike → duraklat)
+    }
   }
 
   const newAmazonPrice = scraped.price; // null olabilir (out/unknown)
@@ -149,6 +166,20 @@ async function processPollProduct(job: Job<PollProductJobData>): Promise<void> {
     },
   });
 
+  // Stok/fiyat geçmişi (flapping tespiti + trend + debug)
+  await prisma.stockSnapshot
+    .create({
+      data: {
+        productId,
+        amazonPrice: newAmazonPrice,
+        stockStatus,
+        stockQty,
+        ebayPrice: newEbayPrice,
+        source: recovery ? "recovery" : "poll",
+      },
+    })
+    .catch(() => {});
+
   if (shouldPause) {
     job.log(`Duraklatıldı (${pauseReason}) stok=${stockStatus}(${stockQty ?? "∞"}): ${product.asin}`);
     await pauseAllListings(productId);
@@ -171,6 +202,7 @@ async function processPollProduct(job: Job<PollProductJobData>): Promise<void> {
   let publishCount = 0;
   let updateCount = 0;
   let reactivateCount = 0;
+  let skipCount = 0;
 
   await Promise.all(
     eligible.map(async (listing) => {
@@ -188,7 +220,7 @@ async function processPollProduct(job: Job<PollProductJobData>): Promise<void> {
       const wasPaused = listing.status === "paused";
       if (wasPaused) reactivateCount++;
 
-      // Fiyat/stok + status'u DB'ye yaz (paused→active reaktivasyon dahil)
+      // Fiyat/stok + status'u DB'ye her zaman yaz (kayıt taze kalsın)
       await prisma.listing.update({
         where: { id: listing.id },
         data: { currentPrice: ebayPrice, currentQty: newQty, status: "active" },
@@ -202,6 +234,16 @@ async function processPollProduct(job: Job<PollProductJobData>): Promise<void> {
           { jobId: `publish-listing:${listing.id}:${Date.now()}` }
         );
       }
+
+      // HİSTEREZİS: reaktivasyon/stok değişimi yoksa ve fiyat farkı önemsizse
+      // eBay'e dokunma (gereksiz API trafiği + fiyat flapping önlenir).
+      const priceChanged = isSignificantChange(listing.currentPrice, ebayPrice);
+      const qtyChanged = listing.currentQty !== newQty;
+      if (!wasPaused && !priceChanged && !qtyChanged) {
+        skipCount++;
+        return undefined;
+      }
+
       updateCount++;
       return updateListingQueue.add(
         "update-listing",
@@ -212,7 +254,7 @@ async function processPollProduct(job: Job<PollProductJobData>): Promise<void> {
   );
 
   job.log(
-    `Tamamlandı${recovery ? " (RECOVERY)" : ""}: ${product.asin} | eBay: $${newEbayPrice?.toFixed(2) ?? "?"} | stok: ${stockStatus}(${stockQty ?? "∞"}) | yayınla=${publishCount} güncelle=${updateCount} reaktive=${reactivateCount}`
+    `Tamamlandı${recovery ? " (RECOVERY)" : ""}: ${product.asin} | eBay: $${newEbayPrice?.toFixed(2) ?? "?"} | stok: ${stockStatus}(${stockQty ?? "∞"}) | yayınla=${publishCount} güncelle=${updateCount} reaktive=${reactivateCount} atlanan(histerezis)=${skipCount}`
   );
 }
 

@@ -367,6 +367,40 @@ export const publishListingQueue = new Queue<PublishListingJobData, void, string
   }
 );
 
+// ── retier-products: satış-hızına göre tarama grubu (hot/normal/dead) ayarlar ──
+export interface RetierProductsJobData {
+  _trigger?: string;
+}
+
+export const retierProductsQueue = new Queue<RetierProductsJobData, void, string>(
+  "retier-products",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 1,
+      removeOnComplete: { count: 10 },
+      removeOnFail: { count: 20 },
+    },
+  }
+);
+
+// ── scraper-usage-check: ScrapingBee kotası %80'i geçince admin'i UYARIR ──
+export interface ScraperUsageCheckJobData {
+  _trigger?: string;
+}
+
+export const scraperUsageCheckQueue = new Queue<ScraperUsageCheckJobData, void, string>(
+  "scraper-usage-check",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 1,
+      removeOnComplete: { count: 10 },
+      removeOnFail: { count: 20 },
+    },
+  }
+);
+
 // ── freeze-stores: süresi biten (deneme/paket) mağazaları otomatik dondurur ──
 export interface FreezeStoresJobData {
   _trigger?: string;

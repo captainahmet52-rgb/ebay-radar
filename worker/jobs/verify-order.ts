@@ -78,6 +78,19 @@ async function processVerifyOrder(
     `Canlı Amazon verisi: fiyat=$${liveAmazonPrice ?? "N/A"}, stok=${stockStatus}(${stockQty ?? "∞"})`
   );
 
+  // Stok geçmişine kaydet (sipariş-anı canlı kontrol)
+  await prisma.stockSnapshot
+    .create({
+      data: {
+        productId: product.id,
+        amazonPrice: liveAmazonPrice,
+        stockStatus,
+        stockQty,
+        source: "verify",
+      },
+    })
+    .catch(() => {});
+
   let cancellationReason: string | null = null;
 
   // 3a. Stok kontrolü: "out" veya kritik az stok (1–2 adet) → iptal
