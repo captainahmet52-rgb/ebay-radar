@@ -38,7 +38,7 @@ export function TrialBanner() {
           </span>
         </div>
         <Link
-          href="/dashboard/settings"
+          href="/dashboard/stores"
           className="flex-shrink-0 text-xs bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-lg transition-colors font-medium"
         >
           Mağaza Bağla

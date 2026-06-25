@@ -24,7 +24,7 @@ const PAGES = [
   { icon: CreditCard, name: "Paketler", desc: "Abonelik planların. Ürün sayısı, mağaza sayısı ve günlük yükleme limiti pakete göre değişir (Starter → Enterprise)." },
   { icon: Gift, name: "Davet Et", desc: "Davet kodunu paylaş; davet ettiğin kişi kaydolunca ikiniz de bonus süre kazanırsınız." },
   { icon: Handshake, name: "Ortaklık", desc: "Tanıtım ortağı ol, getirdiğin müşterilerden komisyon kazan (admin onayıyla aktifleşir)." },
-  { icon: Settings, name: "Ayarlar", desc: "Hesap ayarların ve eBay mağaza bağlantın buradan yönetilir." },
+  { icon: Settings, name: "Ayarlar", desc: "Hesap ayarların buradan yönetilir. (eBay mağaza bağlama 'Mağazalarım' sayfasında.)" },
 ];
 
 const RULES = [
@@ -113,7 +113,7 @@ export default function HelpPage() {
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">
           <Link
-            href="/dashboard/settings"
+            href="/dashboard/stores"
             className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white transition-colors"
           >
             eBay Bağla <ArrowRight className="h-4 w-4" />

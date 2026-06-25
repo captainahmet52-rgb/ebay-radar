@@ -51,7 +51,7 @@ export default function DashboardPage() {
               Ürün Ekle
             </Button>
           </Link>
-          <Link href="/dashboard/settings">
+          <Link href="/dashboard/stores">
             <Button variant="ghost" size="sm">
               <Zap className="h-4 w-4" />
               eBay Bağla

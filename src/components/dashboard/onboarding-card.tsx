@@ -32,7 +32,7 @@ export function OnboardingCard({ status }: OnboardingCardProps) {
       title: "eBay Mağazanı Bağla",
       desc: "Tek tıkla güvenli OAuth ile bağla. Her mağaza 7 gün ücretsiz başlar.",
       done: status.hasEbayAccount,
-      href: "/dashboard/settings",
+      href: "/dashboard/stores",
       cta: "Bağla",
     },
     {
