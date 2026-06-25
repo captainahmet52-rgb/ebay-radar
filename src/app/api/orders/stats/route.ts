@@ -29,6 +29,9 @@ export const GET = requireAuth(async (_req, { userId }) => {
       lastMonthProfitResult,
       windowOrders,
       recentOrdersRaw,
+      ebayAccountCount,
+      listingCount,
+      userPref,
     ] = await Promise.all([
       // Toplam kâr (fulfilled siparişler)
       prisma.order.aggregate({
@@ -81,6 +84,10 @@ export const GET = requireAuth(async (_req, { userId }) => {
           listing: { select: { product: { select: { asin: true } } } },
         },
       }),
+      // Onboarding (Başlarken rehberi) durumu
+      prisma.ebayAccount.count({ where: { userId } }),
+      prisma.listing.count({ where: { userId } }),
+      prisma.user.findUnique({ where: { id: userId }, select: { autoUploadEnabled: true } }),
     ]);
 
     const totalProfit = totalProfitResult._sum.netProfit ?? 0;
@@ -139,6 +146,12 @@ export const GET = requireAuth(async (_req, { userId }) => {
       avgProfitPerOrder,
       dailyProfit,
       recentOrders,
+      onboarding: {
+        hasEbayAccount: ebayAccountCount > 0,
+        hasProducts: listingCount > 0,
+        autoUploadEnabled: userPref?.autoUploadEnabled ?? false,
+        hasOrders: totalOrders > 0,
+      },
     });
   } catch (err) {
     console.error("[orders/stats GET]", err);

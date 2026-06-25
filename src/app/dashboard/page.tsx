@@ -7,6 +7,7 @@ import { DollarSign, List, TrendingUp, Clock, Plus, Zap } from "lucide-react";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { ProfitChart } from "@/components/dashboard/profit-chart";
 import { RecentOrders } from "@/components/dashboard/recent-orders";
+import { OnboardingCard } from "@/components/dashboard/onboarding-card";
 import { Button } from "@/components/ui/button";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -58,6 +59,9 @@ export default function DashboardPage() {
           </Link>
         </motion.div>
       </div>
+
+      {/* Başlarken rehberi — hesap boşken görünür, adımlar bitince kaybolur */}
+      <OnboardingCard status={stats?.onboarding} />
 
       {/* Stats grid */}
       <motion.div
