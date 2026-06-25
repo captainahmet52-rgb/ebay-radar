@@ -33,23 +33,10 @@ function CustomTooltip({ active, payload, label }: TooltipProps<number, string>)
   );
 }
 
-// Generate mock 30-day data
-function generateMockData(): ProfitData[] {
-  const data: ProfitData[] = [];
-  let base = 800;
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const label = d.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" });
-    base += (Math.random() - 0.3) * 200;
-    data.push({ date: label, profit: Math.max(200, Math.round(base)) });
-  }
-  return data;
-}
-
 export function ProfitChart({ data }: ProfitChartProps) {
-  const chartData = data ?? generateMockData();
+  const chartData = data ?? [];
   const totalProfit = chartData.reduce((sum, d) => sum + d.profit, 0);
+  const hasData = chartData.some((d) => d.profit > 0);
 
   return (
     <motion.div
@@ -71,6 +58,14 @@ export function ProfitChart({ data }: ProfitChartProps) {
       </div>
 
       <div className="h-52">
+        {!hasData ? (
+          <div className="h-full flex flex-col items-center justify-center text-center">
+            <p className="text-sm text-slate-400">Henüz kâr verisi yok</p>
+            <p className="text-xs text-slate-600 mt-1">
+              Mağaza bağlayıp satış oldukça grafik burada dolacak
+            </p>
+          </div>
+        ) : (
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
             <defs>
@@ -109,6 +104,7 @@ export function ProfitChart({ data }: ProfitChartProps) {
             />
           </AreaChart>
         </ResponsiveContainer>
+        )}
       </div>
     </motion.div>
   );

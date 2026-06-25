@@ -17,14 +17,6 @@ interface RecentOrdersProps {
   orders?: RecentOrder[];
 }
 
-const mockOrders: RecentOrder[] = [
-  { id: "EB-001", asin: "B09G9HD6PD", salePrice: 145.20, netProfit: 29.04, status: "verified",  date: "08.06.2026" },
-  { id: "EB-002", asin: "B08N5WRWNW", salePrice:  89.99, netProfit: 18.00, status: "fulfilled",  date: "08.06.2026" },
-  { id: "EB-003", asin: "B07XJ8C8F5", salePrice: 212.50, netProfit: 42.50, status: "pending",    date: "07.06.2026" },
-  { id: "EB-004", asin: "B0CH7K6P2V", salePrice:  67.80, netProfit: 13.56, status: "cancelled", date: "07.06.2026" },
-  { id: "EB-005", asin: "B09B8RNKWL", salePrice: 158.00, netProfit: 31.60, status: "verified",  date: "06.06.2026" },
-];
-
 const container = {
   animate: { transition: { staggerChildren: 0.08 } },
 };
@@ -34,7 +26,7 @@ const item = {
   animate: { opacity: 1, x: 0 },
 };
 
-export function RecentOrders({ orders = mockOrders }: RecentOrdersProps) {
+export function RecentOrders({ orders = [] }: RecentOrdersProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -44,6 +36,12 @@ export function RecentOrders({ orders = mockOrders }: RecentOrdersProps) {
     >
       <h3 className="text-sm font-medium text-slate-400 mb-4">Son Siparişler</h3>
 
+      {orders.length === 0 ? (
+        <div className="py-10 text-center">
+          <p className="text-sm text-slate-400">Henüz sipariş yok</p>
+          <p className="text-xs text-slate-600 mt-1">İlk satışın burada görünecek</p>
+        </div>
+      ) : (
       <motion.div variants={container} initial="initial" animate="animate" className="space-y-3">
         {orders.map((order) => (
           <motion.div
@@ -66,6 +64,7 @@ export function RecentOrders({ orders = mockOrders }: RecentOrdersProps) {
           </motion.div>
         ))}
       </motion.div>
+      )}
     </motion.div>
   );
 }

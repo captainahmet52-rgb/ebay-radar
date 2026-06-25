@@ -68,34 +68,31 @@ export default function DashboardPage() {
       >
         <StatsCard
           title="Toplam Kâr"
-          value={stats?.totalProfit ?? 12480}
+          value={stats?.totalProfit ?? 0}
           prefix="$"
-          change={8.2}
           icon={<DollarSign />}
           color="violet"
           delay={0}
         />
         <StatsCard
           title="Aktif Listeler"
-          value={stats?.totalOrders ?? 247}
-          change={3.5}
+          value={stats?.activeListings ?? 0}
           icon={<List />}
           color="blue"
           delay={0.1}
         />
         <StatsCard
           title="Bu Ay Kâr"
-          value={stats?.thisMonthProfit ?? 3920}
+          value={stats?.thisMonthProfit ?? 0}
           prefix="$"
-          change={12.1}
+          change={stats?.thisMonthChange ?? undefined}
           icon={<TrendingUp />}
           color="green"
           delay={0.2}
         />
         <StatsCard
           title="Bekleyen Sipariş"
-          value={stats?.pendingOrders ?? 14}
-          change={-2.3}
+          value={stats?.pendingOrders ?? 0}
           icon={<Clock />}
           color="amber"
           delay={0.3}
@@ -105,10 +102,10 @@ export default function DashboardPage() {
       {/* Chart + Recent orders */}
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <ProfitChart />
+          <ProfitChart data={stats?.dailyProfit} />
         </div>
         <div>
-          <RecentOrders />
+          <RecentOrders orders={stats?.recentOrders} />
         </div>
       </div>
 
@@ -120,9 +117,9 @@ export default function DashboardPage() {
         className="grid grid-cols-3 gap-4"
       >
         {[
-          { label: "Başarı Oranı", value: `%${stats?.successRate ?? 94.2}`, color: "text-emerald-400" },
-          { label: "Ort. Kâr/Sipariş", value: "$31.40", color: "text-violet-400" },
-          { label: "Aktif Scraper", value: "Çalışıyor", color: "text-blue-400" },
+          { label: "Başarı Oranı", value: `%${stats?.successRate ?? 0}`, color: "text-emerald-400" },
+          { label: "Ort. Kâr/Sipariş", value: `$${(stats?.avgProfitPerOrder ?? 0).toFixed(2)}`, color: "text-violet-400" },
+          { label: "Toplam Sipariş", value: `${stats?.totalOrders ?? 0}`, color: "text-blue-400" },
         ].map((item) => (
           <div
             key={item.label}
