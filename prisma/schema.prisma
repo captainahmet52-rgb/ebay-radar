@@ -262,6 +262,8 @@ model Order {
   listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId],    references: [id], onDelete: Cascade)
 
+  // NOT: Çift sipariş koruması şimdilik UYGULAMA seviyesinde (findFirst guard +
+  // P2002 catch). DB unique kısıtı ayrı ve dikkatli bir deploy'da eklenecek.
   @@index([managedStatus])
 }
 

@@ -12,6 +12,7 @@
 
 import { Worker, Job } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getNewOrders, type EbayOrder } from "@/lib/ebay/fulfillment";
 import { verifyOrderQueue } from "@/lib/queues";
@@ -119,27 +120,43 @@ async function processPollOrders(job: Job<PollOrdersJobData>): Promise<void> {
       const ship = ebayOrder.shipTo;
 
       // c. Order kaydı oluştur. managedStatus=awaiting_admin → admin sipariş havuzuna düşer.
-      const order = await prisma.order.create({
-        data: {
-          userId: listing.userId,
-          listingId: listing.id,
-          ebayOrderId: ebayOrder.orderId,
-          ebayLineItemId,
-          soldPrice: Number.isFinite(soldPrice) ? soldPrice : null,
-          fulfillmentStatus: "pending",
-          managedStatus: "awaiting_admin",
-          // Alıcı adresi (PII — sadece admin görür)
-          shipToName: ship?.name ?? null,
-          shipToLine1: ship?.line1 ?? null,
-          shipToLine2: ship?.line2 ?? null,
-          shipToCity: ship?.city ?? null,
-          shipToState: ship?.state ?? null,
-          shipToZip: ship?.zip ?? null,
-          shipToCountry: ship?.country ?? null,
-          shipToPhone: ship?.phone ?? null,
-        },
-        select: { id: true },
-      });
+      //    Eşzamanlı poll (concurrency>1) aynı siparişi aynı anda yakalayabilir; bu yüzden
+      //    findFirst guard'a EK olarak (userId, ebayOrderId) benzersiz kısıtı vardır. Yarış
+      //    durumunda ikinci create P2002 fırlatır → ikinci satır OLUŞMAZ, atlanır.
+      let order: { id: string };
+      try {
+        order = await prisma.order.create({
+          data: {
+            userId: listing.userId,
+            listingId: listing.id,
+            ebayOrderId: ebayOrder.orderId,
+            ebayLineItemId,
+            soldPrice: Number.isFinite(soldPrice) ? soldPrice : null,
+            fulfillmentStatus: "pending",
+            managedStatus: "awaiting_admin",
+            // Alıcı adresi (PII — sadece admin görür)
+            shipToName: ship?.name ?? null,
+            shipToLine1: ship?.line1 ?? null,
+            shipToLine2: ship?.line2 ?? null,
+            shipToCity: ship?.city ?? null,
+            shipToState: ship?.state ?? null,
+            shipToZip: ship?.zip ?? null,
+            shipToCountry: ship?.country ?? null,
+            shipToPhone: ship?.phone ?? null,
+          },
+          select: { id: true },
+        });
+      } catch (createErr) {
+        // Benzersiz kısıt ihlali (userId, ebayOrderId) → bu sipariş zaten var. Çift değil.
+        if (
+          createErr instanceof Prisma.PrismaClientKnownRequestError &&
+          createErr.code === "P2002"
+        ) {
+          skippedExisting++;
+          continue;
+        }
+        throw createErr;
+      }
 
       // d. Satış sinyali: ürünü "son satış"la işaretle + sık taramaya (hot) al.
       //    Satan ürün = canlı talep = oversell riski en yüksek → yakından izle.

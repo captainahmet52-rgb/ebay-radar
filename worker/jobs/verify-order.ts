@@ -91,37 +91,46 @@ async function processVerifyOrder(
     })
     .catch(() => {});
 
-  let cancellationReason: string | null = null;
+  // Makine-okunur iptal sebebi kodu (analitik + pauseReason + eBay enum eşlemesi için).
+  // null → iptal yok. "out_of_stock" | "low_stock" | "price_spike".
+  let cancelCode: "out_of_stock" | "low_stock" | "price_spike" | null = null;
+  // İnsan-okunur açıklama (loglar için).
+  let cancelDetail: string | null = null;
 
   // 3a. Stok kontrolü: "out" veya kritik az stok (1–2 adet) → iptal
   if (stockStatus === "out") {
-    cancellationReason = "Amazon stoku tükendi";
+    cancelCode = "out_of_stock";
+    cancelDetail = "Amazon stoku tükendi";
   } else if (stockStatus === "low") {
     const qty = stockQty ?? 1;
     if (qty < 3) {
-      cancellationReason = `Amazon stok kritik seviyede düşük: ${qty} adet`;
+      cancelCode = "low_stock";
+      cancelDetail = `Amazon stok kritik seviyede düşük: ${qty} adet`;
     }
   }
 
   // 3b. Fiyat kontrolü: Canlı Amazon fiyatı satış fiyatının %20'sinden fazla üstündeyse → iptal
   // Formül: satışta kazanılan margin = (soldPrice - amazon_cost) / soldPrice
   // Eğer amazon maliyeti arttıysa margin erimişse iptal et
-  if (!cancellationReason && liveAmazonPrice !== null) {
+  if (cancelCode === null && liveAmazonPrice !== null) {
     // Satışta varsayılan komisyon + target margin ile kırılım noktası
     // Kırılım: liveAmazonPrice > soldPrice'ın %20 üstü = zarar guarantee
     const priceThreshold = soldPrice * 1.2; // soldPrice'ın %20 üstü
     if (liveAmazonPrice > priceThreshold) {
-      cancellationReason = `Amazon fiyatı çok yükseldi: $${liveAmazonPrice.toFixed(2)} > eşik $${priceThreshold.toFixed(2)}`;
+      cancelCode = "price_spike";
+      cancelDetail = `Amazon fiyatı çok yükseldi: $${liveAmazonPrice.toFixed(2)} > eşik $${priceThreshold.toFixed(2)}`;
     }
   }
 
   // 4. Sonucu kaydet
   const now = new Date();
 
-  if (cancellationReason) {
+  if (cancelCode) {
     // Önce eBay'de siparişi gerçekten iptal et. Başarısız olursa hata fırlar,
     // job retry yapar — DB'yi "cancelled" işaretleyip eBay'de canlı bırakmayız.
     // Token/secret loglanmaz; ebayOrderId yoksa eBay'de iptal edilecek bir şey yok.
+    // eBay'in kabul ettiği enum sınırlı; satıcı-karşılayamıyor (stok/fiyat) → OUT_OF_STOCK.
+    // Gerçek iç sebep (price_spike dahil) DB'ye cancelCode olarak ayrıca yazılır.
     if (order.ebayOrderId) {
       await cancelOrder(
         listing.ebayAccountId,
@@ -139,7 +148,7 @@ async function processVerifyOrder(
       where: { id: orderId },
       data: {
         fulfillmentStatus: "cancelled",
-        cancellationReason: "out_of_stock",
+        cancellationReason: cancelCode,
         verifiedAt: now,
       },
     });
@@ -167,17 +176,17 @@ async function processVerifyOrder(
         amazonStockStatus: stockStatus,
         amazonStockQty: stockQty,
         status: "paused",
-        pauseReason: stockStatus === "low" ? "low_stock" : "out_of_stock",
+        pauseReason: cancelCode,
         lastScrapedAt: now,
       },
     });
 
     job.log(
-      `SIPARIŞ İPTAL: ${orderId} | Sebep: ${cancellationReason}`
+      `SIPARIŞ İPTAL: ${orderId} | Sebep: ${cancelCode} (${cancelDetail ?? "—"})`
     );
 
     console.warn(
-      `[verify-order] ⚠ Sipariş eBay'de iptal edildi: ${orderId} | Sebep: ${cancellationReason} | eBay order: ${order.ebayOrderId ?? "N/A"}`
+      `[verify-order] ⚠ Sipariş eBay'de iptal edildi: ${orderId} | Sebep: ${cancelCode} (${cancelDetail ?? "—"}) | eBay order: ${order.ebayOrderId ?? "N/A"}`
     );
   } else {
     // Sipariş onaylandı

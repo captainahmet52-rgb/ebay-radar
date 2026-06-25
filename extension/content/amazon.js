@@ -352,9 +352,26 @@
     if (!list || !count) return;
     const arr = Array.from(selected);
     count.textContent = String(arr.length);
-    list.innerHTML = arr.length
-      ? arr.map((a) => `<div class="la-item">${a}</div>`).join("")
-      : '<p class="la-empty">Ürün seç…</p>';
+
+    // Güvenli render: ASIN'ler depodan/sayfadan gelir. innerHTML + string birleştirme
+    // depo zehirlenmesinde DOM-injection riski taşır. Bunun yerine düğümleri elle kurup
+    // değeri textContent ile yazıyoruz (HTML olarak yorumlanmaz).
+    list.textContent = "";
+    if (arr.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "la-empty";
+      empty.textContent = "Ürün seç…";
+      list.appendChild(empty);
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    for (const a of arr) {
+      const item = document.createElement("div");
+      item.className = "la-item";
+      item.textContent = a;
+      frag.appendChild(item);
+    }
+    list.appendChild(frag);
   }
 
   let msgTimer = null;

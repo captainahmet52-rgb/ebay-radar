@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encryptToken } from "@/lib/crypto";
+import { auth } from "@/lib/auth";
+import { verifyState } from "@/lib/oauth-state";
 import { exchangeSpapiCode, getSpapiAccessToken, detectMarketFromParticipations } from "@/lib/amazon-spapi";
 
 /**
@@ -12,14 +14,27 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("spapi_oauth_code");
   const sellerId = searchParams.get("selling_partner_id");
-  const state = searchParams.get("state"); // userId:region
+  const state = searchParams.get("state"); // imzalı state (userId + region)
 
   if (!code || !state) {
     return NextResponse.redirect(new URL("/amazon/settings?error=missing_params", req.url));
   }
 
-  const [userId, regionRaw] = state.split(":");
-  const region = regionRaw === "eu" ? "eu" : "na";
+  // CSRF: state imzalı + kısa ömürlü olmalı. Geçersiz/expired ise reddet.
+  const verified = verifyState(state);
+  if (!verified) {
+    return NextResponse.redirect(new URL("/amazon/settings?error=invalid_state", req.url));
+  }
+
+  const region = verified.region === "eu" ? "eu" : "na";
+
+  // Hesabı bağlayacağımız userId imzalı state'ten gelir. Oturum mevcutsa
+  // (kullanıcı aynı tarayıcıda giriş yapmışsa) eşleşmeyi zorunlu tut.
+  const session = await auth();
+  if (session?.user?.id && session.user.id !== verified.userId) {
+    return NextResponse.redirect(new URL("/amazon/settings?error=state_mismatch", req.url));
+  }
+  const userId = verified.userId;
 
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
   if (!user) {
