@@ -49,9 +49,8 @@ export async function GET() {
     };
     return NextResponse.json(overview);
   } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Bilinmeyen hata" },
-      { status: 500 }
-    );
+    // İç hata detayını client'a SIZDIRMA — sadece server'da logla.
+    console.error("[etsy/overview]", e instanceof Error ? e.message : String(e));
+    return NextResponse.json({ error: "Etsy verileri alınamadı" }, { status: 500 });
   }
 }

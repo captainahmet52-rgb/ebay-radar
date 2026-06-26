@@ -126,7 +126,11 @@ export const pollOrdersQueue = createQueue<PollOrdersJobData, void, string>("pol
       type: "exponential",
       delay: 5000,
     },
-    removeOnComplete: { count: 100 },
+    // Stable jobId (poll-orders:<accountId>) kullanılıyor. Tamamlanan job geçmişte
+    // tutulursa (count: 100) aynı jobId tekrar EKLENEMEZ → sonraki dispatch turunda
+    // o hesabın siparişleri ÇEKİLMEZ = sipariş çekme tıkanır. pollProductQueue gibi
+    // tamamlananı HEMEN sil ki her tur tekrar enqueue edilebilsin.
+    removeOnComplete: true,
     removeOnFail: { count: 500 },
   },
 });
@@ -440,6 +444,44 @@ export const freezeStoresQueue = createQueue<FreezeStoresJobData, void, string>(
       attempts: 1,
       removeOnComplete: { count: 10 },
       removeOnFail: { count: 20 },
+    },
+  }
+);
+
+// ── listing-import: satıcının MEVCUT eBay ilanlarını çek (Trading API keşif fazı) ──
+export interface ListingImportJobData {
+  importId: string;
+}
+
+export const listingImportQueue = createQueue<ListingImportJobData, void, string>(
+  "listing-import",
+  {
+    connection,
+    defaultJobOptions: {
+      // Keşif uzun sürebilir (10k-100k ilan, sayfalı). Sayfa imleci ile resume edilir,
+      // o yüzden az deneme + uzun backoff.
+      attempts: 2,
+      backoff: { type: "fixed", delay: 15000 },
+      removeOnComplete: { count: 50 },
+      removeOnFail: { count: 100 },
+    },
+  }
+);
+
+// ── verify-import-match: tek ImportedListing'i Amazon'dan doğrula (SIFIR HATA) ──
+export interface VerifyImportMatchJobData {
+  importedListingId: string;
+}
+
+export const verifyImportMatchQueue = createQueue<VerifyImportMatchJobData, void, string>(
+  "verify-import-match",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { type: "exponential", delay: 5000 },
+      removeOnComplete: { count: 200 },
+      removeOnFail: { count: 500 },
     },
   }
 );

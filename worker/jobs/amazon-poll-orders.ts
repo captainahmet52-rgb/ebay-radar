@@ -66,7 +66,7 @@ async function processAmazonPollOrders(job: Job<AmazonPollOrdersJobData>): Promi
     try {
       await pollAccount(a.id, log);
     } catch (err) {
-      log(`Hesap ${a.id} hata: ${err instanceof Error ? err.message : err}`);
+      log(`Hesap ${a.id} hata: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 }

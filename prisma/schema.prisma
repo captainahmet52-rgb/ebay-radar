@@ -91,6 +91,10 @@ model User {
   accounts Account[]
   sessions Session[]
   autoUploadLogs AutoUploadLog[]
+
+  // Mevcut eBay ilanlarını içe aktarma (mağaza bağlanınca eski ilanları çek + stok takibi)
+  listingImports   ListingImport[]
+  importedListings ImportedListing[]
 }
 
 // ─── Bağlı eBay mağazaları ────────────────────────────────────────────────────
@@ -125,6 +129,10 @@ model EbayAccount {
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   listings Listing[]
+
+  // Bu mağazadan içe aktarılan mevcut ilanlar + import çalışmaları
+  listingImports   ListingImport[]
+  importedListings ImportedListing[]
 }
 
 // ─── Ürün deposu (ASIN bazlı) ─────────────────────────────────────────────────
@@ -161,6 +169,8 @@ model Product {
 
   listings       Listing[]
   stockSnapshots StockSnapshot[]
+  // Bu ASIN'e (SKU üzerinden) eşleşmiş, içe aktarılmış eBay ilanları
+  importedListings ImportedListing[]
 
   @@index([status, pollTier, lastScrapedAt])
   @@index([status, pauseReason, lastScrapedAt])
@@ -193,9 +203,12 @@ model Listing {
   userId        String
   productId     String
   ebayAccountId String
-  ebayListingId String?  // eBay marketplace listing ID (publish sonrası döner)
+  ebayListingId String?  // eBay marketplace listing ID / legacy ItemID (publish sonrası döner)
   ebaySku       String?  // Inventory item SKU — bulk_update_price_quantity için
   ebayOfferId   String?  // Offer ID — fiyat güncellemesi için
+  // İçe aktarılmış ESKİ (legacy) eBay ilanı mı? true → fiyat/stok Trading API
+  // ReviseInventoryStatus (ItemID üzerinden) ile yazılır; Inventory API DEĞİL.
+  isLegacy      Boolean  @default(false)
   // EBAY_US | EBAY_GB
   ebaySite      String   @default("EBAY_US")
   currentQty    Int      @default(2)
@@ -554,4 +567,86 @@ model AdminNotification {
 
   @@index([isRead])
   @@index([type, userId, isRead])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MEVCUT İLAN İÇE AKTARMA (Listing Import)
+// Satıcı eBay mağazasını bağlayınca, başka araçla/elle açtığı TÜM mevcut ilanları
+// (10k–100k olabilir) sisteme çekeriz; SKU'daki ASIN üzerinden Amazon'a eşleştirir,
+// SADECE "confirmed" (SIFIR HATA) olanları stok takibine alırız. Hiçbir şey otomatik
+// fiyatlanmaz; satıcı "takibi aç" demeden önce her şey GÖLGE (shadow) modundadır.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Bir import çalışması (mağaza başına; ilerleme + sayaçlar + devam imleci) ──
+model ListingImport {
+  id            String    @id @default(cuid())
+  userId        String
+  ebayAccountId String
+  // pending | fetching | matching | completed | failed | cancelled
+  status        String    @default("pending")
+  // Hangi eBay kaynağından çekildi: getmyebayselling | getsellerlist | feed | inventory
+  source        String    @default("getmyebayselling")
+  // Sayaçlar
+  totalListings     Int @default(0)
+  processedListings Int @default(0)
+  confirmedCount    Int @default(0)
+  reviewCount       Int @default(0)
+  unmatchedCount    Int @default(0)
+  // Devam edebilir sayfalama imleci (çekme yarıda kesilirse buradan sürer)
+  pageCursor    Int?
+  totalPages    Int?
+  error         String?
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ebayAccount EbayAccount @relation(fields: [ebayAccountId], references: [id], onDelete: Cascade)
+
+  @@index([ebayAccountId, status])
+  @@index([userId, status])
+}
+
+// ─── İçe aktarılan tek bir eBay ilanı + eşleşme kararı + takip kontrolü ───────
+model ImportedListing {
+  id            String @id @default(cuid())
+  userId        String
+  ebayAccountId String
+  // eBay tarafı (GetMyeBaySelling / GetSellerList'ten)
+  ebayItemId    String  // eBay ItemID (mağaza içinde benzersiz)
+  ebaySku       String? // satıcının SKU'su — ASIN buradan ayıklanır
+  title         String?
+  price         Float?
+  currency      String  @default("USD")
+  quantity      Int?
+  imageUrl      String?
+  ebaySite      String  @default("EBAY_US")
+
+  // ── Eşleştirme (SIFIR HATA motoru) ──
+  detectedAsin   String? // SKU'dan ayıklanan ASIN (yoksa null)
+  amazonMarket   String  @default("US")
+  // confirmed | review | unmatched | pending
+  matchStatus    String  @default("pending")
+  matchConfidence Float  @default(0)
+  matchReason    String?
+
+  // ── Takip kontrolü (GÖLGE modu) ──
+  // false → hiçbir otomatik fiyat/stok işlemi yapılmaz. Satıcı açıkça açana kadar bekler.
+  trackingEnabled Boolean @default(false)
+  // Onaylanıp takip açılınca oluşturulan/eşlenen kayıtlar
+  linkedProductId String?
+  linkedListingId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ebayAccount   EbayAccount  @relation(fields: [ebayAccountId], references: [id], onDelete: Cascade)
+  linkedProduct Product?     @relation(fields: [linkedProductId], references: [id], onDelete: SetNull)
+
+  // Aynı ilan iki kez içe aktarılmasın (idempotent re-import)
+  @@unique([ebayAccountId, ebayItemId])
+  @@index([userId, matchStatus])
+  @@index([ebayAccountId, matchStatus])
+  @@index([matchStatus, trackingEnabled])
 }

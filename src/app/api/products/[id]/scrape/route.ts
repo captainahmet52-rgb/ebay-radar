@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { fetchAmazonProduct } from "@/lib/scraper";
-import { calculateEbayPrice, isPriceSpike, determineQty } from "@/lib/repricer";
+import { calculateEbayPriceForMarket, isPriceSpike, determineQty } from "@/lib/repricer";
 
 export const POST = requireAuth(async (req, { userId, params }) => {
   try {
@@ -42,6 +42,19 @@ export const POST = requireAuth(async (req, { userId, params }) => {
       spikeDetected = isPriceSpike(product.amazonPrice, newPrice);
     }
 
+    // Pazar-duyarlı eBay fiyatı (mağazanın pazarı + para birimi). Tek bir kez hesapla.
+    const marketEbayPrice = newPrice
+      ? (
+          await calculateEbayPriceForMarket(
+            newPrice,
+            product.amazonMarket,
+            listing.ebaySite,
+            product.ebayFeeRate,
+            product.targetMargin
+          )
+        ).ebayPrice
+      : null;
+
     const updatedProduct = await prisma.product.update({
       where: { id },
       data: {
@@ -52,9 +65,7 @@ export const POST = requireAuth(async (req, { userId, params }) => {
         amazonStockQty: scraperResult.stockQty,
         lastScrapedAt: new Date(),
         calculatedEbayPrice:
-          newPrice && !spikeDetected
-            ? calculateEbayPrice(newPrice, product.ebayFeeRate, product.targetMargin).ebayPrice
-            : undefined,
+          newPrice && !spikeDetected ? marketEbayPrice ?? undefined : undefined,
         pollTier:
           scraperResult.stockStatus === "low" || spikeDetected
             ? "hot"
@@ -68,15 +79,10 @@ export const POST = requireAuth(async (req, { userId, params }) => {
         where: { productId: id, status: "active" },
         data: { status: "paused", currentQty: 0 },
       });
-    } else if (newPrice) {
-      const newEbayPrice = calculateEbayPrice(
-        newPrice,
-        product.ebayFeeRate,
-        product.targetMargin
-      ).ebayPrice;
+    } else if (newPrice && marketEbayPrice !== null) {
       await prisma.listing.updateMany({
         where: { productId: id, status: "active" },
-        data: { currentPrice: newEbayPrice, currentQty: qty },
+        data: { currentPrice: marketEbayPrice, currentQty: qty },
       });
     }
 

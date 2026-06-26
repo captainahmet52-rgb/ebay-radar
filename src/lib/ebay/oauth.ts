@@ -41,6 +41,9 @@ function getBasicAuth(): string {
 }
 
 const SCOPES = [
+  // Base scope — Trading API (GetMyeBaySelling ile mevcut ilanları çekmek) için ZORUNLU.
+  // Bu scope eklendiğinde, bağlı hesapların YENİDEN onay vermesi gerekir.
+  "https://api.ebay.com/oauth/api_scope",
   "https://api.ebay.com/oauth/api_scope/sell.inventory",
   "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
   "https://api.ebay.com/oauth/api_scope/sell.account",

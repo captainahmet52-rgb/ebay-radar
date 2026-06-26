@@ -32,9 +32,12 @@ export function parseLocaleNumber(text: string): number | null {
     r = r.split(thou).join("");
     if (dec === ",") r = r.replace(",", ".");
   } else if (comma >= 0) {
-    r = r.length - comma - 1 === 2 ? r.replace(",", ".") : r.replace(/,/g, "");
+    // Son virgülden sonra 3 hane → binlik ayraç (1,500→1500). 1-2 hane → ondalık
+    // (1,5→1.5 ve 1,50→1.50). Tek-ondalığı yanlış 10x yapmamak için kritik.
+    r = r.length - comma - 1 === 3 ? r.replace(/,/g, "") : r.replace(",", ".");
   } else if (dot >= 0) {
-    if (r.length - dot - 1 !== 2) r = r.replace(/\./g, "");
+    // Son noktadan sonra 3 hane → binlik ayraç (1.500→1500). 1-2 hane → ondalık (1.5/1.50, dokunma).
+    if (r.length - dot - 1 === 3) r = r.replace(/\./g, "");
   }
   const v = parseFloat(r);
   return Number.isFinite(v) && v > 0 ? v : null;

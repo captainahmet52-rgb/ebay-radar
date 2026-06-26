@@ -53,6 +53,23 @@ async function guardStaleProducts(now: Date): Promise<number> {
     select: { id: true, currentPrice: true, ebayListingId: true },
   });
 
+  // SIRA KRİTİK: ÖNCE eBay'i güvene al (qty 0 işi Redis'te kalıcı), SONRA DB'yi
+  // paused yap. Enqueue ile DB-update arasında çökersek ürün/listing "active"
+  // kalır → sonraki tarama tekrar bu koruyu çalıştırır (jobId stable → idempotent).
+  // Ters sırada (önce DB paused) çökersek eBay'de ürün satılabilir kalır VE re-run
+  // status:active filtresine takılmaz = KALICI OVERSELL.
+  await Promise.all(
+    listings
+      .filter((l) => l.ebayListingId)
+      .map((l) =>
+        updateListingQueue.add(
+          "update-listing",
+          { listingId: l.id, price: l.currentPrice ?? 0, qty: 0 },
+          { jobId: `pause-listing:${l.id}` }
+        )
+      )
+  );
+
   await prisma.product.updateMany({
     where: { id: { in: ids } },
     data: { status: "paused", pauseReason: "stale" },
@@ -61,19 +78,6 @@ async function guardStaleProducts(now: Date): Promise<number> {
     where: { productId: { in: ids }, status: "active" },
     data: { status: "paused", currentQty: 0 },
   });
-
-  // eBay'de gerçekten duraklat (oversell koruması)
-  await Promise.all(
-    listings
-      .filter((l) => l.ebayListingId)
-      .map((l) =>
-        updateListingQueue.add(
-          "update-listing",
-          { listingId: l.id, price: l.currentPrice ?? 0, qty: 0 },
-          { jobId: `update-listing:${l.id}:${Date.now()}` }
-        )
-      )
-  );
 
   // Admin'e tek (dedup'lı) uyarı — tarama bozuk olabilir
   await notifyScraperFailing(stale[0].asin, `${stale.length} ürün 6+ saattir taranamadı`).catch(() => {});

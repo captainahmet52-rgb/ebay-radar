@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { verifyOrderQueue } from "@/lib/queues";
+
+/** Sabit-zamanlı string karşılaştırma — uzunluk farkını da güvenli ele alır. */
+function safeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
 
 interface EbayOrderWebhookBody {
   orderId?: string;
@@ -26,7 +35,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Webhook yapılandırılmamış" }, { status: 500 });
     }
 
-    if (verificationToken !== expectedToken) {
+    if (!verificationToken || !safeEqual(verificationToken, expectedToken)) {
       return NextResponse.json({ error: "Yetkisiz webhook" }, { status: 401 });
     }
 
@@ -47,7 +56,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true });
     }
 
-    // Listing'i DB'de bul
+    // Listing'i DB'de bul.
+    //
+    // TENANT DOĞRULUĞU (kritik): Product global'dir — aynı ASIN'i birden çok
+    // kullanıcı takip edebilir. Bu yüzden eşleştirmeyi mümkün olan en spesifik
+    // tanımlayıcıyla yaparız:
+    //   1) ebayListingId (her tenant'a özgü, marketplace ilan ID'si) — öncelik.
+    //   2) SKU yoluna düşülürse: ASIN→Product→Listing eşleşmesi BİRDEN FAZLA
+    //      tenant'a denk gelebilir. Tek listing garanti edilemiyorsa siparişi
+    //      işleme ALMA + uyarı logla (yanlış kullanıcıya atfetmektense atla).
     let listingId: string | null = null;
 
     if (ebayListingIdFromWebhook) {
@@ -64,11 +81,22 @@ export async function POST(req: NextRequest) {
         select: { id: true },
       });
       if (product) {
-        const listing = await prisma.listing.findFirst({
+        // Bu ASIN'i takip eden tüm listing'leri çek. SKU tek başına tenant
+        // ayıramaz; yalnızca BİR eşleşme varsa güvenle atfedebiliriz.
+        const matches = await prisma.listing.findMany({
           where: { productId: product.id },
-          select: { id: true, userId: true },
+          select: { id: true },
+          take: 2,
         });
-        listingId = listing?.id ?? null;
+        if (matches.length === 1) {
+          listingId = matches[0].id;
+        } else if (matches.length > 1) {
+          // Belirsiz: aynı ASIN'i birden çok kullanıcı takip ediyor. Yanlış
+          // atıf yapmaktansa işleme alma — listingId yapılan eşleştirmeden gelmeli.
+          console.warn(
+            `[ebay webhook] SKU belirsiz — aynı ASIN'i birden çok listing takip ediyor, sipariş atlandı. asin=${asin} ebayOrderId=${ebayOrderId}`
+          );
+        }
       }
     }
 

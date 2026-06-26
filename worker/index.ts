@@ -27,6 +27,8 @@ import { createPublishListingWorker } from "./jobs/publish-listing";
 import { createEbayAutoUploadWorker } from "./jobs/ebay-auto-upload";
 import { createRetierProductsWorker } from "./jobs/retier-products";
 import { createScraperUsageCheckWorker } from "./jobs/scraper-usage-check";
+import { createListingImportWorker } from "./jobs/listing-import";
+import { createVerifyImportMatchWorker } from "./jobs/verify-import-match";
 import { setupScheduler } from "./scheduler";
 
 // ─── Worker'ları başlat ────────────────────────────────────────────────────────
@@ -55,6 +57,8 @@ const workers: Worker[] = [
   createEbayAutoUploadWorker(connection),
   createRetierProductsWorker(connection),
   createScraperUsageCheckWorker(connection),
+  createListingImportWorker(connection),
+  createVerifyImportMatchWorker(connection),
 ];
 
 console.log(`[worker] ${workers.length} worker aktif:`);

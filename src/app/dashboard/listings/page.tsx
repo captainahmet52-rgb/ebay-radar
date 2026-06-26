@@ -4,9 +4,8 @@ import { motion } from "framer-motion";
 import useSWR from "swr";
 import { Pause, Play, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { fetcher } from "@/lib/fetcher";
 import type { ListingStatus } from "@/types";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 interface Listing {
   id: string;
@@ -65,20 +64,26 @@ export default function ListingsPage() {
   const { data, isLoading, mutate } = useSWR("/api/listings", fetcher);
   const listings: Listing[] = data?.data ?? [];
 
-  const handlePause = async (id: string) => {
-    await fetch(`/api/listings/${id}/pause`, { method: "PUT" });
-    mutate();
+  // Başarısız istekte sessiz kalma — kullanıcıya hata göster, sonra tazele.
+  const runAction = async (url: string, method: string, failMsg: string) => {
+    try {
+      const res = await fetch(url, { method });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        alert(j.error ?? failMsg);
+        return;
+      }
+      mutate();
+    } catch {
+      alert(failMsg);
+    }
   };
 
-  const handleResume = async (id: string) => {
-    await fetch(`/api/listings/${id}/resume`, { method: "PUT" });
-    mutate();
-  };
-
-  const handleDelete = async (id: string) => {
+  const handlePause = (id: string) => runAction(`/api/listings/${id}/pause`, "PUT", "Duraklatma başarısız.");
+  const handleResume = (id: string) => runAction(`/api/listings/${id}/resume`, "PUT", "Yeniden başlatma başarısız.");
+  const handleDelete = (id: string) => {
     if (!confirm("Bu listeyi silmek istediğinize emin misiniz?")) return;
-    await fetch(`/api/listings/${id}`, { method: "DELETE" });
-    mutate();
+    runAction(`/api/listings/${id}`, "DELETE", "Silme başarısız.");
   };
 
   return (

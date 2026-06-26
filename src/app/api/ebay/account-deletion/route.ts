@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHash } from "crypto";
+import { createHash, timingSafeEqual } from "crypto";
+
+/** Sabit-zamanlı string karşılaştırma — uzunluk farkını da güvenli ele alır. */
+function safeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
 
 /**
  * eBay Marketplace Account Deletion / Closure Notification endpoint.
@@ -51,14 +59,14 @@ export async function POST(req: NextRequest) {
   try {
     const token = process.env.EBAY_DELETION_VERIFICATION_TOKEN;
     const signature = req.headers.get("x-ebay-signature");
-    const verified = Boolean(token) && signature === token;
+    const verified = Boolean(token) && Boolean(signature) && safeEqual(signature!, token!);
 
     const body = (await req.json().catch(() => null)) as {
       notification?: { data?: { username?: string; userId?: string } };
     } | null;
     const username = body?.notification?.data?.username;
     const ebayUserId = body?.notification?.data?.userId;
-    console.log(
+    console.info(
       "[ebay-deletion] Silme bildirimi:",
       username ?? ebayUserId ?? "bilinmiyor",
       verified ? "(doğrulandı)" : "(DOĞRULANMADI — silme atlandı)"

@@ -21,10 +21,7 @@ import { prisma } from "@/lib/prisma";
 import { EbayClient } from "@/lib/ebay/client";
 import { getValidToken } from "@/lib/ebay/oauth";
 import { checkPoliciesValid, getPolicyIds } from "@/lib/ebay/account";
-import {
-  getRequiredAspects,
-  isConditionRequired,
-} from "@/lib/ebay/taxonomy";
+import { getRequiredAspects } from "@/lib/ebay/taxonomy";
 import { resolveEbayMarketplace } from "@/lib/ebay-markets";
 
 // ─── publishStage sabitleri ────────────────────────────────────────────────────
@@ -141,8 +138,7 @@ export async function publishListing(
   // 3. Kategori için zorunlu aspect'leri çek
   const requiredAspectNames = await getRequiredAspects(categoryId);
 
-  // 4. Condition gerekip gerekmediğini kontrol et (her durumda NEW gönderiyoruz)
-  await isConditionRequired(categoryId);
+  // 4. Condition: her durumda "NEW" gönderiyoruz (ayrı kontrol gereksizdi — kaldırıldı).
 
   const sku = listing.ebaySku ?? `EBAY-${product.asin}`;
   const qty = listing.currentQty;

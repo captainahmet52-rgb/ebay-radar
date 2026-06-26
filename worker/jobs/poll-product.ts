@@ -10,16 +10,18 @@ import { updateListingQueue, publishListingQueue, type PollProductJobData } from
 
 // ─── Aktif listing'leri duraklat + eBay'e qty 0 GÖNDER (oversell koruması) ──────
 // Sadece DB'yi değil eBay'i de güncellemek şart; yoksa eBay'de satılabilir kalır.
+// SIRA KRİTİK: ÖNCE eBay qty-0 işini (Redis'te kalıcı) kuyruğa at, SONRA DB'yi
+// paused yap. Enqueue ile DB-update arasında çökersek DB "active" kalır →
+// sonraki tarama idempotent şekilde tekrar pause eder (zararsız tekrar).
+// Ters sırada (önce DB) çökersek DB "paused" der ama eBay'de ürün satılabilir
+// kalır VE re-run status:active filtresine takılmaz = KALICI OVERSELL.
+// jobId stable (Date.now() YOK) → tekrar enqueue idempotent, çift qty-0 olmaz.
 async function pauseAllListings(productId: string): Promise<void> {
   const listings = await prisma.listing.findMany({
     where: { productId, status: "active" },
     select: { id: true, currentPrice: true, ebayListingId: true },
   });
-  await prisma.listing.updateMany({
-    where: { productId, status: "active" },
-    data: { status: "paused", currentQty: 0 },
-  });
-  // eBay'de yayında olanları gerçekten duraklat (qty 0 → pauseListing)
+  // 1) ÖNCE eBay'de yayında olanları qty 0'a çek (Redis'te kalıcı iş)
   await Promise.all(
     listings
       .filter((l) => l.ebayListingId)
@@ -27,10 +29,15 @@ async function pauseAllListings(productId: string): Promise<void> {
         updateListingQueue.add(
           "update-listing",
           { listingId: l.id, price: l.currentPrice ?? 0, qty: 0 },
-          { jobId: `update-listing:${l.id}:${Date.now()}` }
+          { jobId: `pause-listing:${l.id}` }
         )
       )
   );
+  // 2) SONRA DB'yi paused yap
+  await prisma.listing.updateMany({
+    where: { productId, status: "active" },
+    data: { status: "paused", currentQty: 0 },
+  });
 }
 
 // ─── Job işleyici ─────────────────────────────────────────────────────────────

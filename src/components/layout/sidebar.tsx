@@ -21,6 +21,7 @@ import {
   Handshake,
   Chrome,
   HelpCircle,
+  DownloadCloud,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,7 @@ const navItems = [
   { href: "/dashboard",             label: "Panel",         icon: LayoutDashboard },
   { href: "/dashboard/help",        label: "Nasıl Çalışır?", icon: HelpCircle },
   { href: "/dashboard/stores",      label: "Mağazalarım",   icon: Store },
+  { href: "/dashboard/import",      label: "İlan İçe Aktar", icon: DownloadCloud },
   { href: "/dashboard/listings",    label: "eBay Listeler", icon: List },
   { href: "/dashboard/products",    label: "Ürünler",       icon: Package },
   { href: "/dashboard/orders",      label: "Siparişler",    icon: ShoppingCart },

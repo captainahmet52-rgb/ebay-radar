@@ -4,6 +4,7 @@ import type { ConnectionOptions } from "bullmq";
 import { prisma } from "@/lib/prisma";
 import { getValidToken } from "@/lib/ebay/oauth";
 import { pauseListing, updatePriceAndQty } from "@/lib/ebay/inventory";
+import { reviseInventoryStatus } from "@/lib/ebay/trading";
 import { resolveEbayMarketplace } from "@/lib/ebay-markets";
 import type { UpdateListingJobData } from "@/lib/queues";
 
@@ -46,8 +47,9 @@ async function processUpdateListing(
 
   // 2. Token sağlığını önceden doğrula (süresi dolduysa otomatik yenile).
   //    getValidToken hata verirse listing'i duraklat ve retry'siz çık.
+  let accessToken: string;
   try {
-    await getValidToken(ebayAccount.id);
+    accessToken = await getValidToken(ebayAccount.id);
   } catch (tokenErr) {
     const errMsg =
       tokenErr instanceof Error ? tokenErr.message : String(tokenErr);
@@ -64,6 +66,50 @@ async function processUpdateListing(
     return;
   }
 
+  // ── LEGACY (içe aktarılmış eski) ilan: Trading API ReviseInventoryStatus ──
+  //    ItemID üzerinden yazılır; Inventory API (SKU/offerId) bunlarda çalışmaz.
+  if (listing.isLegacy) {
+    if (!listing.ebayListingId) {
+      job.log(`Legacy listing'de ItemID (ebayListingId) yok — atlandı: ${listingId}`);
+      return;
+    }
+    try {
+      // qty 0 → fiyat gönderme (sadece stok 0 = duraklat). Aksi → fiyat + stok.
+      const r = await reviseInventoryStatus(
+        accessToken,
+        ebayAccount.marketplace,
+        listing.ebayListingId,
+        qty === 0 ? null : price,
+        qty
+      );
+      if (!r.ok) {
+        throw new Error(`ReviseInventoryStatus ${r.ack}: ${r.errors.join("; ") || "bilinmeyen hata"}`);
+      }
+    } catch (updateErr) {
+      const errMsg = updateErr instanceof Error ? updateErr.message : String(updateErr);
+      await prisma.listing.update({
+        where: { id: listingId },
+        data: { lastEbayError: errMsg },
+      });
+      throw updateErr; // BullMQ retry
+    }
+
+    const nowLegacy = new Date();
+    await prisma.listing.update({
+      where: { id: listingId },
+      data: {
+        currentPrice: price,
+        currentQty: qty,
+        status: qty === 0 ? "paused" : "active",
+        lastEbayError: null,
+        updatedAt: nowLegacy,
+      },
+    });
+    job.log(`Tamamlandı (LEGACY): listing=${listingId} | ItemID=${listing.ebayListingId} | $${price.toFixed(2)} | Qty=${qty}`);
+    return;
+  }
+
+  // ── MANAGED (bizim Inventory API ile yayınladığımız) ilan ──
   // bulk_update_price_quantity SKU (stok) + offerId (fiyat) gerektirir.
   const sku = listing.ebaySku ?? `EBAY-${product.asin}`;
 

@@ -9,6 +9,7 @@ export const SUPPORTED_CURRENCIES = [
   "EUR",
   "CAD",
   "TRY",
+  "AUD",
 ] as const;
 export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
 
@@ -24,6 +25,7 @@ const FALLBACK_RATES: Record<SupportedCurrency, number> = {
   EUR: 0.92,
   CAD: 1.37,
   TRY: 39.0,
+  AUD: 1.55,
 };
 
 interface RateCache {
@@ -81,6 +83,7 @@ export const EBAY_SITE_CURRENCY: Record<string, SupportedCurrency> = {
   EBAY_IT: "EUR",
   EBAY_ES: "EUR",
   EBAY_CA: "CAD",
+  EBAY_AU: "AUD",
 };
 
 /**

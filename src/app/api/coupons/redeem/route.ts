@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/rate-limit";
 import { z } from "zod";
 
 const schema = z.object({ code: z.string().min(1).max(40) });
@@ -12,6 +13,15 @@ const schema = z.object({ code: z.string().min(1).max(40) });
  * Aynı kupon bir kullanıcı tarafından bir kez kullanılabilir.
  */
 export const POST = requireAuth(async (req, { userId }) => {
+  // Kupon kodu deneme-yanılma (enumerasyon) engeli: dakikada 10 deneme.
+  const rl = rateLimit(`coupon:${userId}`, 10, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Çok fazla deneme — biraz bekleyip tekrar dene." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } }
+    );
+  }
+
   const body = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);
   if (!parsed.success) {

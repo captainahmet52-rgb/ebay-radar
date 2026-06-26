@@ -15,9 +15,11 @@ import type { DispatchPollOrdersJobData } from "@/lib/queues";
 async function processDispatchPollOrders(
   job: Job<DispatchPollOrdersJobData>
 ): Promise<void> {
-  // refreshTokenEncrypted dolu olan tüm eBay hesaplarını al
+  // Sadece AKTİF + refresh token'ı olan hesaplar. Donmuş (isActive=false) hesaplar
+  // için sipariş çekme yapılmaz — boş API çağrısı + expired token gürültüsü önlenir.
   const accounts = await prisma.ebayAccount.findMany({
     where: {
+      isActive: true,
       refreshTokenEncrypted: { not: null },
     },
     select: { id: true, ebayUserId: true },

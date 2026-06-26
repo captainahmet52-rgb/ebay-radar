@@ -24,13 +24,6 @@ export function calculateEbayPrice(
   const amazonPrice = amazonPriceInEbayCurrency;
   const fvf = commission > 0 ? commission : marketplace.defaultFvfRate;
 
-  // Sipariş başına sabit ücret (yerel para) + ücret KDV'si
-  const baseFixed =
-    amazonPrice >= marketplace.perOrderThreshold
-      ? marketplace.perOrderFeeHigh
-      : marketplace.perOrderFeeLow;
-  const fixedFee = baseFixed * (1 + marketplace.feeVatRate);
-
   // Etkin oran: (FVF + düzenleme ücreti) × (1 + ücret KDV)
   const effectiveRate = (fvf + marketplace.regulatoryFeeRate) * (1 + marketplace.feeVatRate);
 
@@ -39,7 +32,17 @@ export function calculateEbayPrice(
     throw new Error("Komisyon + margin toplamı 1'e eşit veya büyük olamaz");
   }
 
-  const ebayPrice = (amazonPrice + fixedFee) / divisor;
+  // Sipariş başına sabit ücret kademesi eBay SATIŞ fiyatına göre belirlenir
+  // (Amazon maliyetine değil — eBay ücreti satış fiyatına bakar). İki geçiş:
+  // düşük kademeyle hesapla; sonuç eşiği geçtiyse yüksek kademeyle düzelt.
+  // (Yüksek kademe fiyatı yalnız yukarı iter → eşik üstünde stabil, salınım yok.)
+  const fixedFeeFor = (base: number) => base * (1 + marketplace.feeVatRate);
+  let fixedFee = fixedFeeFor(marketplace.perOrderFeeLow);
+  let ebayPrice = (amazonPrice + fixedFee) / divisor;
+  if (ebayPrice >= marketplace.perOrderThreshold) {
+    fixedFee = fixedFeeFor(marketplace.perOrderFeeHigh);
+    ebayPrice = (amazonPrice + fixedFee) / divisor;
+  }
   const ebayFee = ebayPrice * effectiveRate + fixedFee;
   const netProfit = ebayPrice - amazonPrice - ebayFee;
   const marginPct = netProfit / ebayPrice;
@@ -126,7 +129,12 @@ export function isSignificantChange(
  * Ürün için tam repricer çıktısı.
  * Stok durumu + fiyat spike kontrolü dahil.
  */
-export function reprice(product: Product): RepricerResult & {
+// NOT: Cross-market döviz çevrimi GEREKİYORSA calculateEbayPriceForMarket kullanılmalı.
+// reprice yalnız fiyatı zaten eBay para biriminde olan (genelde US→US) durum içindir.
+export function reprice(
+  product: Product,
+  ebaySite: string = "EBAY_US"
+): RepricerResult & {
   qty: number;
   shouldPause: boolean;
 } {
@@ -137,7 +145,8 @@ export function reprice(product: Product): RepricerResult & {
   const result = calculateEbayPrice(
     product.amazonPrice,
     product.ebayFeeRate,
-    product.targetMargin
+    product.targetMargin,
+    resolveEbayMarketplace(ebaySite)
   );
 
   const qty = determineQty(

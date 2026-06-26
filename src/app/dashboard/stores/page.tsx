@@ -11,6 +11,7 @@ import {
   Store, Plus, Power, Trash2, Upload, Crown, AlertCircle, Clock, Snowflake,
 } from "lucide-react";
 import { storeAccessState, trialDaysLeft, STORE_TRIAL_PRODUCT_LIMIT } from "@/lib/store-access";
+import { fetcher } from "@/lib/fetcher";
 
 interface EbayAccountMeta {
   id: string;
@@ -34,8 +35,6 @@ interface AccountsResponse {
   data: EbayAccountMeta[];
   meta: { storeLimit: number; activeCount: number; plan: string | null };
 }
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 function marketLabel(marketplace: string): string {
   const map: Record<string, string> = {
@@ -98,8 +97,15 @@ export default function StoresPage() {
     if (!confirm("Bu mağazayı pasifleştirmek istediğine emin misin? Otomasyon durur.")) return;
     setBusyId(id);
     try {
-      await fetch(`/api/ebay/accounts/${id}/activate`, { method: "DELETE" });
+      const res = await fetch(`/api/ebay/accounts/${id}/activate`, { method: "DELETE" });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        alert(j.error ?? "Pasifleştirme başarısız.");
+        return;
+      }
       mutate();
+    } catch {
+      alert("Pasifleştirme başarısız.");
     } finally {
       setBusyId(null);
     }
@@ -109,8 +115,15 @@ export default function StoresPage() {
     if (!confirm("Bu mağazayı tamamen kaldırmak istediğine emin misin? Bağlı ürünler de silinir.")) return;
     setBusyId(id);
     try {
-      await fetch(`/api/ebay/accounts/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/ebay/accounts/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        alert(j.error ?? "Kaldırma başarısız.");
+        return;
+      }
       mutate();
+    } catch {
+      alert("Kaldırma başarısız.");
     } finally {
       setBusyId(null);
     }

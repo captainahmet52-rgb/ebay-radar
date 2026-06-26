@@ -66,12 +66,22 @@ export async function claimTrackingForOrder(orderId: string): Promise<ClaimResul
 
   const FEE = TRACKING_CONVERSION_FEE_USD;
 
-  // Ücreti rezerve et — yalnızca yeterli bakiye varsa (atomik koşullu update)
-  const reserve = await prisma.user.updateMany({
-    where: { id: order.userId, creditBalanceUsd: { gte: FEE } },
-    data: { creditBalanceUsd: { decrement: FEE } },
+  // Ücreti rezerve et + borç kaydını AYNI transaction'da yaz. Böylece para hareketi
+  // HER ZAMAN denetlenebilir (ledger'da iz kalır) — decrement sonrası kilitlenme
+  // penceresinde "parası gitti ama kaydı yok" durumu olmaz. updateMany koşulu (yeterli
+  // bakiye) atomik overdraft korumasını sağlar.
+  const reserved = await prisma.$transaction(async (tx) => {
+    const r = await tx.user.updateMany({
+      where: { id: order.userId, creditBalanceUsd: { gte: FEE } },
+      data: { creditBalanceUsd: { decrement: FEE } },
+    });
+    if (r.count === 0) return false;
+    await tx.creditTransaction.create({
+      data: { userId: order.userId, amountUsd: -FEE, type: "tracking_conversion", refId: order.id, note: "eBay takip kodu üretimi" },
+    });
+    return true;
   });
-  if (reserve.count === 0) {
+  if (!reserved) {
     await notifyInsufficientBalance(order.userId, "takip kodu oluşturma").catch(() => {});
     throw new InsufficientWalletError();
   }
@@ -84,22 +94,17 @@ export async function claimTrackingForOrder(orderId: string): Promise<ClaimResul
       country: order.shipToCountry ?? "US",
     });
 
-    await prisma.$transaction([
-      prisma.creditTransaction.create({
-        data: { userId: order.userId, amountUsd: -FEE, type: "tracking_conversion", refId: order.id, note: "eBay takip kodu üretimi" },
-      }),
-      prisma.order.update({
-        where: { id: order.id },
-        data: {
-          trackingNumber: conv.trackingNumber,
-          carrierCode: conv.carrierCode,
-          // Managed akıştaysa: numara hazır, eBay'e gönderilmeyi bekliyor
-          ...(order.managedStatus
-            ? { managedStatus: "awaiting_ebay_push", trackingChargePaidAt: new Date() }
-            : {}),
-        },
-      }),
-    ]);
+    await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        trackingNumber: conv.trackingNumber,
+        carrierCode: conv.carrierCode,
+        // Managed akıştaysa: numara hazır, eBay'e gönderilmeyi bekliyor
+        ...(order.managedStatus
+          ? { managedStatus: "awaiting_ebay_push", trackingChargePaidAt: new Date() }
+          : {}),
+      },
+    });
 
     return { trackingNumber: conv.trackingNumber, carrierCode: conv.carrierCode };
   } catch (err) {

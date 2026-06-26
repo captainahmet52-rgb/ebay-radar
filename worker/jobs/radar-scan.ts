@@ -45,13 +45,17 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
     try {
       // Amazon'da ara — sadece ilk sayfa
       const amazonResults = await searchAmazonProducts(item.title, 1);
+      const candidates = amazonResults.slice(0, 5); // her başlık için max 5 ASIN
 
-      for (const result of amazonResults.slice(0, 5)) { // her başlık için max 5 ASIN
-        // Zaten depoda varsa atla
-        const existing = await prisma.depotProduct.findUnique({
-          where: { asin: result.asin },
-        });
-        if (existing) { skippedCount++; continue; }
+      // N+1 yerine TEK sorgu: bu turdaki ASIN'lerden depoda zaten olanları çek
+      const existingRows = await prisma.depotProduct.findMany({
+        where: { asin: { in: candidates.map((r) => r.asin) } },
+        select: { asin: true },
+      });
+      const seen = new Set(existingRows.map((r) => r.asin));
+
+      for (const result of candidates) {
+        if (seen.has(result.asin)) { skippedCount++; continue; }
 
         // Minimum fiyat kontrolü: $15 altı alma (CLAUDE.md)
         if (result.price !== null && result.price < 15) continue;
@@ -67,6 +71,7 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
             status: "active",
           },
         });
+        seen.add(result.asin); // aynı turda tekrar denenmesin
         addedCount++;
       }
     } catch (err) {

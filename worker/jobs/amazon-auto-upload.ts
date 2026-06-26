@@ -2,6 +2,7 @@
 // userId verilmezse oto-yükleme açık TÜM kullanıcılar işlenir.
 import { Worker, Job } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   AMAZON_MARKETS,
@@ -58,19 +59,28 @@ async function uploadForUser(userId: string, log: (m: string) => void): Promise<
       );
       const qty = user.amazonUploadQuantity;
 
-      // DB listeleme kaydı (unique: amazonAccountId+productId → çift kayıt yok)
-      const listing = await prisma.amazonListing.create({
-        data: {
-          userId,
-          amazonAccountId: account.id,
-          productId: product.id,
-          market,
-          salePrice: pricing.salePrice,
-          currentQty: qty,
-          status: "active",
-          publishStage: "draft",
-        },
-      });
+      // DB listeleme kaydı (unique: amazonAccountId+productId → çift kayıt yok).
+      // Yarış durumunda (iki worker aynı ürünü) P2002 → bu ürünü atla, job ÇÖKMESİN.
+      let listing;
+      try {
+        listing = await prisma.amazonListing.create({
+          data: {
+            userId,
+            amazonAccountId: account.id,
+            productId: product.id,
+            market,
+            salePrice: pricing.salePrice,
+            currentQty: qty,
+            status: "active",
+            publishStage: "draft",
+          },
+        });
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+          continue; // zaten listelenmiş — atla
+        }
+        throw err;
+      }
 
       // Otomatik yayın açıksa ve SP-API hazırsa Amazon'a gönder
       if (user.amazonUploadAutoPublish && isSpapiConfigured()) {
@@ -96,7 +106,7 @@ async function uploadForUser(userId: string, log: (m: string) => void): Promise<
 }
 
 async function processAmazonAutoUpload(job: Job<AmazonAutoUploadJobData>): Promise<void> {
-  const log = (m: string) => { void job.log(m); };
+  const log = (m: string) => { void job.log(m).catch(() => {}); };
 
   if (job.data.userId) {
     await uploadForUser(job.data.userId, log);

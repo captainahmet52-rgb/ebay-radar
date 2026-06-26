@@ -28,10 +28,10 @@ export async function GET(req: NextRequest) {
 
   const region = verified.region === "eu" ? "eu" : "na";
 
-  // Hesabı bağlayacağımız userId imzalı state'ten gelir. Oturum mevcutsa
-  // (kullanıcı aynı tarayıcıda giriş yapmışsa) eşleşmeyi zorunlu tut.
+  // GÜVENLİK: Hesap bağlamayı yalnız GİRİŞ YAPMIŞ ve state'teki userId ile EŞLEŞEN
+  // kullanıcıya izin ver. Oturum yoksa veya farklıysa reddet (state replay koruması).
   const session = await auth();
-  if (session?.user?.id && session.user.id !== verified.userId) {
+  if (!session?.user?.id || session.user.id !== verified.userId) {
     return NextResponse.redirect(new URL("/amazon/settings?error=state_mismatch", req.url));
   }
   const userId = verified.userId;

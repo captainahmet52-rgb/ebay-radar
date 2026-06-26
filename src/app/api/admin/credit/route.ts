@@ -22,34 +22,44 @@ export const POST = requireAdmin(async (req) => {
   }
 
   const { email, amountUsd, note } = parsed.data;
-  const user = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true, creditBalanceUsd: true },
-  });
-  if (!user) return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 });
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, creditBalanceUsd: true },
+    });
+    if (!user) return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 });
 
-  // Bakiye asla 0'ın altına düşemez — atomik cüzdan mantığını korur.
-  // Negatif düşürme bakiyeyi aşıyorsa işlemi reddet (clamp değil, reddet).
-  if (user.creditBalanceUsd + amountUsd < 0) {
-    return NextResponse.json(
-      {
-        error: "Yetersiz bakiye: bu düşürme bakiyeyi negatife çekerdi",
-        balanceUsd: user.creditBalanceUsd,
-      },
-      { status: 400 }
-    );
+    // ATOMİK: oku-sonra-yaz yarışını (TOCTOU) önle. Negatif düşürmede WHERE koşulu
+    // (yeterli bakiye) ile atomik updateMany; iki eşzamanlı düşürme ikisi de geçemez.
+    const result = await prisma.$transaction(async (tx) => {
+      if (amountUsd < 0) {
+        const upd = await tx.user.updateMany({
+          where: { id: user.id, creditBalanceUsd: { gte: -amountUsd } },
+          data: { creditBalanceUsd: { increment: amountUsd } },
+        });
+        if (upd.count === 0) return null; // yetersiz bakiye — işlem yapılmadı
+      } else {
+        await tx.user.update({
+          where: { id: user.id },
+          data: { creditBalanceUsd: { increment: amountUsd } },
+        });
+      }
+      await tx.creditTransaction.create({
+        data: { userId: user.id, amountUsd, type: "topup", note: note ?? "Admin yükleme" },
+      });
+      return tx.user.findUnique({ where: { id: user.id }, select: { creditBalanceUsd: true } });
+    });
+
+    if (!result) {
+      return NextResponse.json(
+        { error: "Yetersiz bakiye: bu düşürme bakiyeyi negatife çekerdi" },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json({ ok: true, balanceUsd: result.creditBalanceUsd });
+  } catch (err) {
+    console.error("[admin/credit POST]", err);
+    return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
   }
-
-  const [updated] = await prisma.$transaction([
-    prisma.user.update({
-      where: { id: user.id },
-      data: { creditBalanceUsd: { increment: amountUsd } },
-      select: { creditBalanceUsd: true },
-    }),
-    prisma.creditTransaction.create({
-      data: { userId: user.id, amountUsd, type: "topup", note: note ?? "Admin yükleme" },
-    }),
-  ]);
-
-  return NextResponse.json({ ok: true, balanceUsd: updated.creditBalanceUsd });
 });

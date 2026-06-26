@@ -5,9 +5,8 @@ import { motion } from "framer-motion";
 import useSWR from "swr";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
+import { fetcher } from "@/lib/fetcher";
 import type { FulfillmentStatus } from "@/types";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 function marketLabel(m?: string): string {
   if (!m) return "—";
@@ -206,7 +205,7 @@ export default function OrdersPage() {
                       <p className="text-[10px] text-slate-500 mt-0.5">{marketLabel(order.listing?.ebayAccount?.marketplace)}</p>
                     </td>
                     <td className="px-4 py-3 text-white font-semibold font-mono text-xs">
-                      ${order.soldPrice.toFixed(2)}
+                      ${(order.soldPrice ?? 0).toFixed(2)}
                     </td>
                     <td className="px-4 py-3 text-slate-300 font-mono text-xs">
                       {order.amazonPrice ? `$${order.amazonPrice.toFixed(2)}` : "—"}

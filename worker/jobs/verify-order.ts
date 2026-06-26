@@ -126,6 +126,22 @@ async function processVerifyOrder(
   const now = new Date();
 
   if (cancelCode) {
+    // OVERSELL FRENİ — SIRA KRİTİK. cancelCode belirlendiği anda, order "cancelled"
+    // yapılMADAN ÖNCE eBay listing'i qty 0'a çekecek işi (Redis'te kalıcı) kuyruğa at.
+    // Neden önce: processVerifyOrder başında `fulfillmentStatus !== "pending"` guard'ı
+    // var. Eğer önce order'ı "cancelled" yapıp sonra qty-0 enqueue çökerse, job retry
+    // erken-return'e takılır → eBay'de ürün satılabilir kalır = OVERSELL. qty-0'ı önce
+    // garanti edersek order hâlâ "pending"dir, retry buraya tekrar girer.
+    // jobId stable (Date.now() YOK) → tekrar enqueue idempotent. Hata YUTULMAZ:
+    // throw → job fail → retry; oversell sessizce kaybolmaz.
+    if (listing.ebayListingId) {
+      await updateListingQueue.add(
+        "update-listing",
+        { listingId: listing.id, price: listing.currentPrice ?? 0, qty: 0 },
+        { jobId: `pause-listing:${listing.id}` }
+      );
+    }
+
     // Önce eBay'de siparişi gerçekten iptal et. Başarısız olursa hata fırlar,
     // job retry yapar — DB'yi "cancelled" işaretleyip eBay'de canlı bırakmayız.
     // Token/secret loglanmaz; ebayOrderId yoksa eBay'de iptal edilecek bir şey yok.
@@ -143,7 +159,13 @@ async function processVerifyOrder(
       );
     }
 
-    // Sipariş iptal
+    // Listing'i duraklat (DB) — eBay qty-0 işi yukarıda zaten enqueue edildi.
+    await prisma.listing.update({
+      where: { id: listing.id },
+      data: { status: "paused", currentQty: 0 },
+    });
+
+    // Sipariş iptal (en son: artık eBay güvende + listing paused)
     await prisma.order.update({
       where: { id: orderId },
       data: {
@@ -152,21 +174,6 @@ async function processVerifyOrder(
         verifiedAt: now,
       },
     });
-
-    // Listing'i duraklat (DB) + eBay'de gerçekten qty 0 yap (oversell koruması)
-    await prisma.listing.update({
-      where: { id: listing.id },
-      data: { status: "paused", currentQty: 0 },
-    });
-    if (listing.ebayListingId) {
-      await updateListingQueue
-        .add(
-          "update-listing",
-          { listingId: listing.id, price: listing.currentPrice ?? 0, qty: 0 },
-          { jobId: `update-listing:${listing.id}:${Date.now()}` }
-        )
-        .catch(() => {});
-    }
 
     // Product durumunu güncelle (recovery'nin geri açabilmesi için pauseReason)
     await prisma.product.update({

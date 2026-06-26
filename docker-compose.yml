@@ -48,7 +48,13 @@ services:
     container_name: ebay_migrate
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://ebay_user:ebay_pass@postgres:5432/ebay_db
+      # FAIL-FAST migrate: en kritik deploy hatası "migration SONSUZA kadar takılır →
+      # app hiç başlamaz → site 000'da kalır" senaryosuydu. lock_timeout, bir DDL'in
+      # kilit beklemesini 30sn ile sınırlar (eski app/worker bir tabloyu meşgul ederse
+      # migration süresiz beklemez, net hata verir). statement_timeout tek komutu 5dk ile
+      # kapar. Böylece migrate ya başarılı olur ya da HIZLI/GÖRÜNÜR şekilde fail eder —
+      # asla sonsuza kadar asılı kalmaz. (Prisma 5.x `?options=` bağlantı parametresini destekler.)
+      DATABASE_URL: "postgresql://ebay_user:ebay_pass@postgres:5432/ebay_db?options=-c%20lock_timeout%3D30s%20-c%20statement_timeout%3D300s"
     depends_on:
       postgres:
         condition: service_healthy

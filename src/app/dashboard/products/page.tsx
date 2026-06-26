@@ -9,9 +9,8 @@ import { AddProductModal } from "@/components/products/add-product-modal";
 import { BulkUploadModal } from "@/components/products/bulk-upload-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { fetcher } from "@/lib/fetcher";
 import type { ListingStatus } from "@/types";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 const FILTER_TABS = [
   { label: "Hepsi",         value: "all"     },
@@ -49,15 +48,24 @@ export default function ProductsPage() {
     return matchesFilter && matchesSearch;
   });
 
-  const handleRefresh = async (id: string) => {
-    await fetch(`/api/products/${id}/scrape`, { method: "POST" });
-    mutate();
+  const runAction = async (url: string, method: string, failMsg: string) => {
+    try {
+      const res = await fetch(url, { method });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        alert(j.error ?? failMsg);
+        return;
+      }
+      mutate();
+    } catch {
+      alert(failMsg);
+    }
   };
 
+  const handleRefresh = (id: string) => runAction(`/api/products/${id}/scrape`, "POST", "Yenileme başarısız.");
   const handleDelete = async (id: string) => {
     if (!confirm("Bu ürünü silmek istediğinize emin misiniz?")) return;
-    await fetch(`/api/products/${id}`, { method: "DELETE" });
-    mutate();
+    await runAction(`/api/products/${id}`, "DELETE", "Silme başarısız.");
   };
 
   return (

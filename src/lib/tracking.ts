@@ -53,8 +53,8 @@ export async function convertTracking(
     };
   }
 
-  // Yedek sağlayıcılar (henüz tamamlanmadı)
-  throw new Error(
-    `Takip sağlayıcısı bağlı değil (TRACKCAPTAIN_API_KEY yok). aliTrackingNo: ${aliTrackingNo}`
-  );
+  // Yedek sağlayıcılar (henüz tamamlanmadı). Hata mesajına müşteri verisi (takip no)
+  // KOYMA — client'a sızabilir. Detayı sadece server log'una yaz.
+  console.error(`[tracking] Sağlayıcı bağlı değil (TRACKCAPTAIN_API_KEY yok). aliTrackingNo=${aliTrackingNo}`);
+  throw new Error("Takip sağlayıcısı yapılandırılmadı");
 }

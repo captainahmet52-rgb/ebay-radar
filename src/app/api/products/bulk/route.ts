@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { pollProductQueue } from "@/lib/queues";
 import { storeAccessState, STORE_TRIAL_PRODUCT_LIMIT } from "@/lib/store-access";
+import { rateLimit } from "@/lib/rate-limit";
 import { z } from "zod";
 
 const schema = z.object({
@@ -36,6 +37,17 @@ function parseAsins(input: string): string[] {
  * fiyat/stok çekimini worker'a staggered olarak yollar.
  */
 export const POST = requireAuth(async (req, { userId }) => {
+ try {
+  // Toplu yükleme her ASIN için scraper işi tetikler → kota istismarını sınırla:
+  // 5 dakikada en fazla 10 toplu yükleme isteği.
+  const rl = rateLimit(`bulk:${userId}`, 10, 5 * 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Çok fazla toplu yükleme — biraz bekleyip tekrar dene." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } }
+    );
+  }
+
   const body = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
@@ -147,4 +159,8 @@ export const POST = requireAuth(async (req, { userId }) => {
     remaining: remaining - added,
     productLimit,
   });
+ } catch (err) {
+  console.error("[products/bulk POST]", err);
+  return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
+ }
 });
