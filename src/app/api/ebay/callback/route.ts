@@ -7,6 +7,7 @@ import { verifyState } from "@/lib/oauth-state";
 import { normalizeEbayMarketplaceId } from "@/lib/ebay-markets";
 import { addDays, STORE_TRIAL_DAYS } from "@/lib/store-access";
 import { REFERRAL_MAX_BONUS_PER_STORE } from "@/lib/referral";
+import { listingImportQueue } from "@/lib/queues";
 
 // getApiBaseUrl is used to build the Identity API URL.
 // isSandbox / getApiBaseUrl are module-private in oauth.ts so we read the
@@ -148,7 +149,7 @@ export async function GET(req: NextRequest) {
     // Davet ödülü günleri varsa denemeye eklenir (mağaza başına azami sınırla).
     // Deneme bitince freeze-stores worker'ı otomatik dondurur.
     const bonusDays = Math.min(user.referralRewardDays ?? 0, REFERRAL_MAX_BONUS_PER_STORE);
-    await prisma.ebayAccount.create({
+    const account = await prisma.ebayAccount.create({
       data: {
         userId: ownerUserId,
         ebayUserId: identity.userId,
@@ -179,6 +180,28 @@ export async function GET(req: NextRequest) {
           data: { trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
         });
       }
+    }
+
+    // Mağaza bağlanır bağlanmaz mevcut eBay ilanlarını OTOMATİK çek (KEŞİF fazı).
+    // ÜCRETSİZ: yalnızca eBay'den çeker + SKU'daki ASIN'i sınıflar; scraper/Amazon YOK,
+    // takip/fiyatlama BAŞLAMAZ (gölge modu — kullanıcı "takibi aç" diyene kadar dokunulmaz).
+    // Hata olursa bağlama akışını BOZMA (yalnız logla, kullanıcı yine de bağlanmış olur).
+    try {
+      const imp = await prisma.listingImport.create({
+        data: {
+          userId: ownerUserId,
+          ebayAccountId: account.id,
+          status: "pending",
+          source: "getmyebayselling",
+        },
+      });
+      await listingImportQueue.add(
+        "listing-import",
+        { importId: imp.id },
+        { jobId: `listing-import:${imp.id}` }
+      );
+    } catch (err) {
+      console.error("[ebay/callback] otomatik ilan içe aktarma başlatılamadı:", err);
     }
 
     return NextResponse.redirect(
