@@ -330,7 +330,14 @@ export async function enableTracking(importedListingId: string): Promise<string 
         imageUrl: il.imageUrl,
         amazonMarket: il.amazonMarket,
         status: "active",
+        // MALİYET KONTROLÜ (Plan A): içe aktarılan ürün YAVAŞ tarama ("dead", 12 saat) ile
+        // başlar → 300 ürün gün-1'den limite dolsa bile scraper maliyeti düşük kalır.
+        // SATINCA retier-products otomatik "hot"a çıkarır (lastSoldAt, yaş kısıtı yok);
+        // AZ-STOKTA poll-product "hot" tutar. Manuel eklenen ürünler default "normal" kalır.
+        pollTier: "dead",
       },
+      // update'te pollTier'a DOKUNMA: ürün zaten varsa (başka listing satıyor olabilir)
+      // mevcut kademesini ezme.
       update: { status: "active" },
     });
 
