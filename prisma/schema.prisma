@@ -275,8 +275,11 @@ model Order {
   listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId],    references: [id], onDelete: Cascade)
 
-  // NOT: Çift sipariş koruması şimdilik UYGULAMA seviyesinde (findFirst guard +
-  // P2002 catch). DB unique kısıtı ayrı ve dikkatli bir deploy'da eklenecek.
+  // Çift sipariş koruması: DB unique kısıtı (userId, ebayOrderId) + uygulama findFirst
+  // guard + P2002 catch birlikte. Webhook + polling aynı siparişi yarış halinde işlese
+  // bile ikinci create P2002 ile düşer → çift satır oluşmaz. ebayOrderId NULL olan
+  // kayıtlar Postgres'te çakışmaz (NULL distinct) → manuel/eski siparişler etkilenmez.
+  @@unique([userId, ebayOrderId])
   @@index([managedStatus])
 }
 

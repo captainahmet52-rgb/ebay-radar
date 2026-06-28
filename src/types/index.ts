@@ -25,14 +25,5 @@ export interface RepricerResult {
   recommendedQty: number;
 }
 
-// NextAuth session tipini genişlet
-declare module "next-auth" {
-  interface Session {
-    user: {
-      id: string;
-      email: string;
-      plan: string;
-      role: string;
-    };
-  }
-}
+// NextAuth Session augmentation'ı `src/types/next-auth.d.ts`'e taşındı (worker tsconfig'i
+// bu dosyayı dahil ediyor ama next-auth'u yok → augmentation burada olunca worker kırılıyordu).
