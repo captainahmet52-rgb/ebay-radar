@@ -27,6 +27,22 @@ RUN addgroup --system --gid 1001 nodejs && \
 USER nextjs
 CMD ["node_modules/.bin/prisma", "migrate", "deploy"]
 
+# ── worker: BullMQ worker (deps stage'ini PAYLAŞIR — ayrı npm ci YOK) ───────
+# Eskiden ayrı Dockerfile.worker kendi `npm ci`'ını çalıştırıyordu → app build'i
+# (next build, ~3GB) ile PARALEL ikinci ağır npm ci = 8GB VPS'te build OOM (exit 255,
+# "Collecting build traces" anında kernel OOM-kill). Artık worker, app/migrate ile aynı
+# `deps` stage'ini kullanır → npm ci tek sefer çalışır, paralel bellek zirvesi düşer.
+FROM base AS worker
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npx prisma generate
+ENV NODE_ENV=production
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 worker
+USER worker
+CMD ["npx", "tsx", "worker/index.ts"]
+
 # ── runner: minimal üretim imajı ───────────────────────────────────────────
 FROM base AS runner
 WORKDIR /app

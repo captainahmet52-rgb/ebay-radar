@@ -74,6 +74,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: runner   # açık hedef: yeni stage eklenince app'in default hedefi kaymasın
     container_name: ebay_app
     restart: unless-stopped
     env_file: .env
@@ -115,7 +116,8 @@ services:
   worker:
     build:
       context: .
-      dockerfile: Dockerfile.worker
+      dockerfile: Dockerfile        # ana Dockerfile'ın `worker` stage'i (deps paylaşımlı, OOM fix)
+      target: worker
     container_name: ebay_worker
     restart: unless-stopped
     env_file: .env
