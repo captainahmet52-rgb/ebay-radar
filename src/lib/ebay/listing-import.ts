@@ -17,6 +17,8 @@ import { getValidToken } from "@/lib/ebay/oauth";
 import { fetchActiveListingsPage } from "@/lib/ebay/trading";
 import { extractAsinFromSku, decideMatch } from "@/lib/ebay/asin-matcher";
 import { fetchAmazonProduct } from "@/lib/scraper";
+import { pollProductQueue, verifyImportMatchQueue } from "@/lib/queues";
+import { getPlan } from "@/lib/plans";
 import type { ParsedEbayListing } from "@/lib/ebay/trading-parser";
 
 // eBay marketplace → Amazon kaynak pazarı (en iyi tahmin; satıcı sonra değiştirebilir)
@@ -184,6 +186,15 @@ export async function runDiscovery(importId: string): Promise<void> {
         pageCursor: null,
       },
     });
+
+    // Keşif bitti → ASIN'li ("pending") ilanları OTOMATİK doğrulamaya al. Doğrulamada
+    // "confirmed" çıkanlar verifyMatch içinde OTOMATİK stok takibine girer. Maliyet plan
+    // kotasıyla (productLimit) sınırlı. Hata olsa bile keşif "completed" kalır (yalnız logla).
+    try {
+      await enqueueVerificationForAccount(imp.ebayAccountId);
+    } catch (err) {
+      console.error(`[listing-import] otomatik doğrulama kuyruğa alınamadı (${importId}):`, err);
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     await prisma.listingImport.update({
@@ -231,8 +242,156 @@ export async function verifyMatch(importedListingId: string): Promise<void> {
     },
   });
 
+  // SIFIR HATA confirm → OTOMATİK stok/fiyat takibine al (Product + legacy Listing + ilk poll).
+  // "review" (şüpheli) ve "unmatched" (ASIN yok) ASLA otomatik takibe alınmaz: yanlış ürünü
+  // takip etmek gerçek eBay ilanını bozar (oversell/yanlış fiyat). Bunlar panelde bekler.
+  if (decision.status === "confirmed") {
+    try {
+      await enableTracking(importedListingId);
+    } catch (err) {
+      console.error(`[listing-import] otomatik takip açılamadı (${importedListingId}):`, err);
+    }
+  }
+
   // Import sayaçlarını tazele (en güncel dağılım panelde görünsün)
   await refreshImportCounters(il.ebayAccountId);
+}
+
+// ─── 3) OTOMATİK ZİNCİR YARDIMCILARI ─────────────────────────────────────────────
+
+/**
+ * Keşif bittikten sonra "pending" (ASIN'li) ilanları doğrulama kuyruğuna alır.
+ * Scraper maliyeti plan productLimit ile SINIRLI (zaten confirmed olanlar kotadan düşülür).
+ * Otomatik akış (mağaza bağlanınca) ve manuel /verify aynı çekirdek mantığı paylaşır.
+ * @returns kuyruğa eklenen ilan sayısı.
+ */
+export async function enqueueVerificationForAccount(
+  ebayAccountId: string,
+  opts?: { limit?: number }
+): Promise<number> {
+  const account = await prisma.ebayAccount.findUnique({
+    where: { id: ebayAccountId },
+    select: { userId: true },
+  });
+  if (!account) return 0;
+
+  const user = await prisma.user.findUnique({
+    where: { id: account.userId },
+    select: { plan: true },
+  });
+  const productLimit = getPlan(user?.plan ?? "starter")?.productLimit ?? 300;
+
+  const confirmedCount = await prisma.importedListing.count({
+    where: { ebayAccountId, matchStatus: "confirmed" },
+  });
+  const remainingQuota = Math.max(0, productLimit - confirmedCount);
+  const cap = Math.min(opts?.limit ?? remainingQuota, remainingQuota);
+  if (cap <= 0) return 0;
+
+  const pending = await prisma.importedListing.findMany({
+    where: { ebayAccountId, matchStatus: "pending" },
+    select: { id: true },
+    orderBy: { createdAt: "asc" },
+    take: cap,
+  });
+
+  await Promise.all(
+    pending.map((p) =>
+      verifyImportMatchQueue.add(
+        "verify-import-match",
+        { importedListingId: p.id },
+        { jobId: `verify-import-match:${p.id}` }
+      )
+    )
+  );
+  return pending.length;
+}
+
+/**
+ * Bir ImportedListing'i stok/fiyat takibine alır: ASIN deposunda Product upsert +
+ * legacy Listing oluştur/aktif et + ilk poll'u tetikle. SADECE confirmed + ASIN'li.
+ * Idempotent (zaten takipteyse mevcut productId döner). Hem otomatik akış (verifyMatch)
+ * hem manuel route bu fonksiyonu kullanır → mantık tek yerde.
+ * @returns oluşturulan/bulunan productId; koşul sağlanmazsa null.
+ */
+export async function enableTracking(importedListingId: string): Promise<string | null> {
+  const il = await prisma.importedListing.findUnique({ where: { id: importedListingId } });
+  if (!il) return null;
+  if (il.matchStatus !== "confirmed" || !il.detectedAsin) return null;
+  if (il.trackingEnabled && il.linkedProductId) return il.linkedProductId; // zaten takipte
+
+  const asin = il.detectedAsin;
+  const productId = await prisma.$transaction(async (tx) => {
+    const product = await tx.product.upsert({
+      where: { asin },
+      create: {
+        asin,
+        title: il.title,
+        imageUrl: il.imageUrl,
+        amazonMarket: il.amazonMarket,
+        status: "active",
+      },
+      update: { status: "active" },
+    });
+
+    const existing = await tx.listing.findFirst({
+      where: { ebayAccountId: il.ebayAccountId, ebayListingId: il.ebayItemId },
+      select: { id: true },
+    });
+
+    let listingId: string;
+    if (existing) {
+      await tx.listing.update({
+        where: { id: existing.id },
+        data: {
+          status: "active",
+          isLegacy: true,
+          ebaySku: il.ebaySku,
+          currentPrice: il.price,
+          currentQty: il.quantity ?? 1,
+        },
+      });
+      listingId = existing.id;
+    } else {
+      const created = await tx.listing.create({
+        data: {
+          userId: il.userId,
+          productId: product.id,
+          ebayAccountId: il.ebayAccountId,
+          ebayListingId: il.ebayItemId, // legacy ItemID
+          ebaySku: il.ebaySku,
+          isLegacy: true,
+          ebaySite: il.ebaySite,
+          currentPrice: il.price,
+          currentQty: il.quantity ?? 1,
+          publishStage: "published",
+          status: "active",
+        },
+        select: { id: true },
+      });
+      listingId = created.id;
+    }
+
+    await tx.importedListing.update({
+      where: { id: il.id },
+      data: {
+        trackingEnabled: true,
+        linkedProductId: product.id,
+        linkedListingId: listingId,
+      },
+    });
+
+    return product.id;
+  });
+
+  // İlk taramayı hemen tetikle (Amazon'dan taze fiyat/stok → eBay'e yansıt)
+  await pollProductQueue.add(
+    "poll-product",
+    { productId },
+    { jobId: `poll-product:${productId}` }
+  );
+
+  return productId;
 }
 
 /** Mağazanın en güncel eşleşme dağılımını (confirmed/review/unmatched) son import'a yazar. */
