@@ -59,6 +59,15 @@ services:
     networks:
       - ebay_net
     restart: "no"
+    # SELF-HEAL: order_dedup migration ilk denemede FAIL etti → _prisma_migrations'ta
+    # "failed" kaldı → sonraki deploy'lar P3009 ile bloke olur. Önce o kaydı rolled-back
+    # işaretle (zaten temizse hata yutulur), SONRA deploy et (migration artık no-op → geçer).
+    command:
+      - sh
+      - -c
+      - |
+        node_modules/.bin/prisma migrate resolve --rolled-back 20260628000000_order_dedup_unique || true
+        node_modules/.bin/prisma migrate deploy
 
   # ── Next.js App ────────────────────────────────────────────────────────────
   app:
@@ -75,13 +84,16 @@ services:
       DATABASE_URL: postgresql://ebay_user:ebay_pass@postgres:5432/ebay_db
       REDIS_URL: redis://redis:6379
       NODE_ENV: production
+    # 🔴 migrate'e BAĞLI DEĞİL (bilinçli, 2026-06-28). Eskiden `migrate:
+    # service_completed_successfully` vardı → migration FAIL/HANG edince app/worker HİÇ
+    # başlamıyor, site komple 503 oluyordu (tek hata noktası). Artık migrate ayrı çalışır;
+    # fail etse bile app/worker ayağa kalkar. Migration'lar additive + app eksik kısıtla
+    # zarif çalışır (ör. order dedup → DB unique yoksa findFirst guard devrede).
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
     networks:
       - ebay_net
     ports:
@@ -111,13 +123,16 @@ services:
       DATABASE_URL: postgresql://ebay_user:ebay_pass@postgres:5432/ebay_db
       REDIS_URL: redis://redis:6379
       NODE_ENV: production
+    # 🔴 migrate'e BAĞLI DEĞİL (bilinçli, 2026-06-28). Eskiden `migrate:
+    # service_completed_successfully` vardı → migration FAIL/HANG edince app/worker HİÇ
+    # başlamıyor, site komple 503 oluyordu (tek hata noktası). Artık migrate ayrı çalışır;
+    # fail etse bile app/worker ayağa kalkar. Migration'lar additive + app eksik kısıtla
+    # zarif çalışır (ör. order dedup → DB unique yoksa findFirst guard devrede).
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
     networks:
       - ebay_net
 

@@ -1,21 +1,12 @@
--- Çift sipariş koruması: (userId, ebayOrderId) benzersiz kısıtı.
--- Webhook + polling aynı siparişi yarış halinde işlerse ikinci create artık P2002 ile
--- düşer → çift Order satırı oluşamaz (eskiden sadece findFirst guard vardı = TOCTOU açığı).
+-- NO-OP (2026-06-28 geri alındı).
 --
--- GÜVENLİ SIRA: önce mevcut çiftleri temizle, SONRA unique index oluştur. Aksi halde
--- veride çift varsa index oluşturma patlar (migrate fail → deploy bloke). Sipariş tablosu
--- şu an boş/çok küçük (canlı satış yok) ama bu temizlik defensive — her durumda güvenli.
--- ebayOrderId NULL olan kayıtlar Postgres'te çakışmaz (NULL distinct) → dokunulmaz.
+-- Bu migration'ın ilk hali (userId, ebayOrderId) UNIQUE index ekliyordu ama prod'da
+-- migrate FAIL etti (exit 1) → app migrate'e bağlı olduğu için site komple düştü (503).
+-- Acil kurtarma: migration no-op'a çevrildi (artık patlayamaz) + app migrate'ten koparıldı
+-- + failed kayıt rolled-back ile temizlendi (compose migrate command).
+--
+-- Çift sipariş koruması şu an UYGULAMA seviyesinde çalışıyor (webhook + poll-orders
+-- findFirst guard). Gerçek DB unique kısıtı, asıl hata anlaşılıp (migrate logları) ve
+-- duplicate temizliği test edilince AYRI bir migration olarak güvenle eklenecek.
 
-DELETE FROM "Order" a
-USING "Order" b
-WHERE a."userId" = b."userId"
-  AND a."ebayOrderId" = b."ebayOrderId"
-  AND a."ebayOrderId" IS NOT NULL
-  AND (
-    a."createdAt" > b."createdAt"
-    OR (a."createdAt" = b."createdAt" AND a."id" > b."id")
-  );
-
--- CreateIndex
-CREATE UNIQUE INDEX "Order_userId_ebayOrderId_key" ON "Order"("userId", "ebayOrderId");
+SELECT 1;
