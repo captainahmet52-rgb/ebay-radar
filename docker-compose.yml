@@ -109,8 +109,14 @@ services:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 40s
+      # 🔴 KALICI 000 FIX (2026-06-28, Opus analizi): start_period 40sn YETMİYORDU.
+      # Order tablosunu kilitleyen migration (CREATE UNIQUE INDEX) varken app'in ilk
+      # healthz'i 40sn'i aşıyor → container "healthy" olamıyor → Coolify Traefik router'ını
+      # HİÇ bağlamıyor → kalıcı 000 (elle Stop→Start gerekiyordu). DDL'siz deploy'lar 2sn'de
+      # bitip kendiliğinden düzeliyordu (gözlemlenen korelasyon). 120sn + 10 retry, kilitleyen
+      # migrate'i + 8GB kutudaki RAM baskısını absorbe eder (start_period'da fail retry saymaz).
+      retries: 10
+      start_period: 120s
 
   # ── BullMQ Worker ──────────────────────────────────────────────────────────
   worker:
