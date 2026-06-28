@@ -12,6 +12,9 @@ out/
 node_modules/
 npm-debug.log*
 
+# Worker type-check çıktısı (tsx ile çalışır, derlenmiş dist commit'lenmez)
+worker/dist/
+
 # Prisma (migrations commit'lenir — VPS'te migrate deploy için gerekli)
 
 # IDE

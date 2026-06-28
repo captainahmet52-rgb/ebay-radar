@@ -135,6 +135,21 @@ model EbayAccount {
   importedListings ImportedListing[]
 }
 
+// ─── eBay deneme geçmişi (bedava deneme suistimal koruması) ──────────────────
+// Her eBay mağazası (immutable ebayUserId) GLOBAL olarak yalnızca BİR kez bedava
+// deneme alabilir. Mağaza başka bir hesaba (user) yeniden bağlansa bile burada
+// kaydı varsa artık bedava deneme YOK — ama parayla aktive edilebilir.
+// (Kullanıcı başına "ömür boyu 1 deneme" kuralı ise User.trialEndsAt ile zorlanır:
+//  bir kez set edilir, asla sıfırlanmaz → ikinci mağaza bedava deneme alamaz.)
+model EbayTrialHistory {
+  id         String   @id @default(cuid())
+  ebayUserId String   @unique // global tekil — bu mağaza zaten deneme kullandı mı?
+  userId     String?  // denemeyi ilk kullanan hesap (bilgi/iz amaçlı, FK değil)
+  usedAt     DateTime @default(now())
+
+  @@index([userId])
+}
+
 // ─── Ürün deposu (ASIN bazlı) ─────────────────────────────────────────────────
 model Product {
   id                  String    @id @default(cuid())
@@ -275,9 +290,12 @@ model Order {
   listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId],    references: [id], onDelete: Cascade)
 
-  // NOT: Çift sipariş koruması şimdilik UYGULAMA seviyesinde (findFirst guard + P2002 catch).
-  // DB unique (userId, ebayOrderId) denendi ama migration prod'da fail etti (order_dedup,
-  // 2026-06-28) → geri alındı. Gerçek hata anlaşılıp test edilince ayrı, dikkatli eklenecek.
+  // Çift sipariş koruması — DB seviyesinde UNIQUE (userId, ebayOrderId).
+  // Webhook + poll-orders aynı siparişi yakalasa bile fiziksel olarak iki kez yazılamaz
+  // (race-safe; uygulama findFirst guard'ı yetişmese bile DB reddeder). ebayOrderId NULL
+  // olanlar (manuel sipariş) hariç — Postgres NULL'ları distinct sayar. Migration önce
+  // mevcut duplike'leri temizler (en eski kayıt tutulur), sonra index'i kurar.
+  @@unique([userId, ebayOrderId])
   @@index([managedStatus])
 }
 

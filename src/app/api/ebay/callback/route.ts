@@ -145,10 +145,30 @@ export async function GET(req: NextRequest) {
     const refreshTokenEncrypted = encryptToken(tokens.refreshToken);
     const tokenExpiresAt = new Date(Date.now() + tokens.expiresIn * 1000);
 
-    // Yeni mağaza: 7 günlük ücretsiz deneme ile AKTİF başlar (50 ürün limiti).
-    // Davet ödülü günleri varsa denemeye eklenir (mağaza başına azami sınırla).
-    // Deneme bitince freeze-stores worker'ı otomatik dondurur.
-    const bonusDays = Math.min(user.referralRewardDays ?? 0, REFERRAL_MAX_BONUS_PER_STORE);
+    // ── Bedava deneme uygunluğu (suistimal koruması) ──────────────────────────
+    // İKİ kural birden:
+    //   (1) KULLANICI ömür boyu 1 deneme — user.trialEndsAt bir kez set edilir, asla
+    //       sıfırlanmaz; ikinci mağaza bedava deneme ALAMAZ.
+    //   (2) Her eBay MAĞAZASI (immutable ebayUserId) GLOBAL 1 kez — EbayTrialHistory'de
+    //       kaydı varsa, başka bir hesaba bağlansa bile bedava deneme YOK.
+    // İhlalde: mağaza DONDURULMUŞ başlar (isActive=false, trialEndsAt=null); kullanıcı
+    // paket alıp /activate ile açabilir. Böylece "hesap aç → bedava → tekrar" döngüsü kapanır.
+    const userHadTrial = !!user.trialEndsAt;
+    let ebayTrialUsed = false;
+    if (!userHadTrial) {
+      ebayTrialUsed = !!(await prisma.ebayTrialHistory.findUnique({
+        where: { ebayUserId: identity.userId },
+        select: { id: true },
+      }));
+    }
+    const trialGranted = !userHadTrial && !ebayTrialUsed;
+
+    // Deneme verilecekse davet ödülü günleri denemeye eklenir (mağaza başına azami sınır).
+    const bonusDays = trialGranted
+      ? Math.min(user.referralRewardDays ?? 0, REFERRAL_MAX_BONUS_PER_STORE)
+      : 0;
+    const trialEnd = trialGranted ? addDays(new Date(), STORE_TRIAL_DAYS + bonusDays) : null;
+
     const account = await prisma.ebayAccount.create({
       data: {
         userId: ownerUserId,
@@ -157,28 +177,29 @@ export async function GET(req: NextRequest) {
         oauthTokenEncrypted,
         refreshTokenEncrypted,
         tokenExpiresAt,
-        isActive: true,
-        activatedAt: new Date(),
-        trialEndsAt: addDays(new Date(), STORE_TRIAL_DAYS + bonusDays),
+        isActive: trialGranted,
+        activatedAt: trialGranted ? new Date() : null,
+        trialEndsAt: trialEnd,
       },
     });
 
-    // Kullanılan davet ödülü günlerini bakiyeden düş
-    if (bonusDays > 0) {
+    if (trialGranted) {
+      // Denemeyi "tüketildi" işaretle: kullanıcı ömür-boyu bayrağı (trialEndsAt) +
+      // bu eBay mağazasını global geçmişe yaz. Davet ödülü günlerini bakiyeden düş.
       await prisma.user.update({
         where: { id: ownerUserId },
-        data: { referralRewardDays: { decrement: bonusDays } },
+        data: {
+          trialEndsAt: trialEnd,
+          ...(bonusDays > 0 ? { referralRewardDays: { decrement: bonusDays } } : {}),
+        },
       });
-    }
-
-    // İlk mağaza bağlandıysa trial başlat
-    if (!user.trialEndsAt) {
-      const accountCount = await prisma.ebayAccount.count({ where: { userId: ownerUserId } });
-      if (accountCount === 1) {
-        await prisma.user.update({
-          where: { id: ownerUserId },
-          data: { trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
+      try {
+        await prisma.ebayTrialHistory.create({
+          data: { ebayUserId: identity.userId, userId: ownerUserId },
         });
+      } catch (err) {
+        // P2002 (eşzamanlı bağlanma araya girdi) → kayıt zaten var, sorun değil.
+        console.error("[ebay/callback] trial history kaydı atlandı (zaten var olabilir):", err);
       }
     }
 

@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { storeLimitForUser } from "@/lib/plans";
 import { addDays, STORE_SUBSCRIPTION_DAYS, storeAccessState } from "@/lib/store-access";
+import { enqueueVerificationForAccount } from "@/lib/ebay/listing-import";
 
 /**
  * Mağaza aktifleştirme. Plan limiti (storeLimit) dahilinde bir eBay mağazasını
@@ -62,6 +63,15 @@ export const POST = requireAuth(async (_req, { userId, params }) => {
       where: { id },
       data: { isActive: true, activatedAt: now, paidUntil: addDays(now, STORE_SUBSCRIPTION_DAYS) },
     });
+
+    // Mağaza artık ücretli aktif → bağlanışta frozen olduğu için ATLANMIŞ olabilecek ilan
+    // doğrulamasını şimdi tetikle (içe aktarılmış "pending" ilanlar takibe alınır).
+    // Hata olursa aktivasyonu BOZMA (yalnız logla — kullanıcı parayı verdi, mağaza açıldı).
+    try {
+      await enqueueVerificationForAccount(id);
+    } catch (err) {
+      console.error("[ebay/accounts/[id]/activate] verify tetikleme atlandı:", err);
+    }
 
     return NextResponse.json({ success: true, activeCount: paidActiveCount + 1, limit });
   } catch (err) {

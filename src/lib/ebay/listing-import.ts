@@ -19,6 +19,7 @@ import { extractAsinFromSku, decideMatch } from "@/lib/ebay/asin-matcher";
 import { fetchAmazonProduct } from "@/lib/scraper";
 import { pollProductQueue, verifyImportMatchQueue } from "@/lib/queues";
 import { getPlan } from "@/lib/plans";
+import { hasStoreAccess } from "@/lib/store-access";
 import type { ParsedEbayListing } from "@/lib/ebay/trading-parser";
 
 // eBay marketplace → Amazon kaynak pazarı (en iyi tahmin; satıcı sonra değiştirebilir)
@@ -271,9 +272,14 @@ export async function enqueueVerificationForAccount(
 ): Promise<number> {
   const account = await prisma.ebayAccount.findUnique({
     where: { id: ebayAccountId },
-    select: { userId: true },
+    select: { userId: true, trialEndsAt: true, paidUntil: true },
   });
   if (!account) return 0;
+  // Frozen mağazada (deneme yok + paket yok) doğrulama SCRAPER masrafı yapar → atla.
+  // Mağaza paket alınca aktive olur; verify o zaman /verify ile yeniden tetiklenir.
+  if (!hasStoreAccess({ trialEndsAt: account.trialEndsAt, paidUntil: account.paidUntil })) {
+    return 0;
+  }
 
   const user = await prisma.user.findUnique({
     where: { id: account.userId },
