@@ -88,6 +88,18 @@ services:
       - ebay_net
     ports:
       - "3000:3000"
+    # 🔴 HER DEPLOY'DA 504 SORUNUNUN ÇÖZÜMÜ:
+    # Healthcheck OLMAYINCA Coolify, container "started" der demez Traefik routing'ini
+    # kuruyor — ama app henüz HTTP serve etmiyor / eski ölü backend'e yönlendiriliyor →
+    # kalıcı 504 (elle Stop→Start gerekiyordu). Bu healthcheck ile Coolify, container
+    # "healthy" olana kadar BEKLER, sonra Traefik'e bağlar. /api/healthz DB'ye bağımlı
+    # değil → app serve eder etmez healthy olur (flap yok). node:20-alpine'de global fetch var.
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
 
   # ── BullMQ Worker ──────────────────────────────────────────────────────────
   worker:
