@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PLAN_LIST, isOnTrial, trialDaysLeft } from "@/lib/plans";
+import { ProPlusCard } from "@/components/pricing/pro-plus-card";
 import { Check, Zap } from "lucide-react";
 
 export const metadata = { title: "Paketler — Lean Automation" };
@@ -45,6 +46,19 @@ export default async function PricingPage() {
         {PLAN_LIST.map((plan) => {
           const isCurrentPlan = !hasPaid && !onTrial && currentPlan === plan.id;
           const isPopular = plan.id === "growth";
+          const features = [
+            `${plan.productLimit.toLocaleString("tr-TR")} ürün yükleme limiti`,
+            `Günlük ${plan.uploadDailyLimit.toLocaleString("tr-TR")} otomatik yükleme`,
+            "Radar — güncel ürün tarayıcı",
+            "Toplu ASIN yükleme + ASIN Grabber (Chrome)",
+            "15 dk'ya kadar stok & fiyat takibi",
+            "Otomatik repricer (hep %20 kâr)",
+            "Sipariş-anı canlı doğrulama",
+            "Oversell (fazla satış) koruması",
+            "Sınırsız takip kodu",
+            "Sipariş + ürün yöneticisi",
+            "US + UK pazarları",
+          ];
 
           return (
             <div
@@ -76,37 +90,12 @@ export default async function PricingPage() {
 
               {/* Features */}
               <ul className="space-y-2.5 flex-1">
-                <li className="flex items-start gap-2 text-sm text-slate-300">
-                  <Check className="h-4 w-4 text-violet-400 flex-shrink-0 mt-0.5" />
-                  <span>
-                    <span className="text-white font-semibold">
-                      {plan.productLimit.toLocaleString("tr-TR")}
-                    </span>{" "}
-                    ürün yükleme limiti
-                  </span>
-                </li>
-                <li className="flex items-start gap-2 text-sm text-slate-300">
-                  <Check className="h-4 w-4 text-violet-400 flex-shrink-0 mt-0.5" />
-                  <span>
-                    Günlük{" "}
-                    <span className="text-white font-semibold">
-                      {plan.uploadDailyLimit.toLocaleString("tr-TR")}
-                    </span>{" "}
-                    oto. yükleme
-                  </span>
-                </li>
-                <li className="flex items-start gap-2 text-sm text-slate-300">
-                  <Check className="h-4 w-4 text-violet-400 flex-shrink-0 mt-0.5" />
-                  <span>Sınırsız takip kodu</span>
-                </li>
-                <li className="flex items-start gap-2 text-sm text-slate-300">
-                  <Check className="h-4 w-4 text-violet-400 flex-shrink-0 mt-0.5" />
-                  <span>US + UK pazarları</span>
-                </li>
-                <li className="flex items-start gap-2 text-sm text-slate-300">
-                  <Check className="h-4 w-4 text-violet-400 flex-shrink-0 mt-0.5" />
-                  <span>Otomatik repricer</span>
-                </li>
+                {features.map((feat) => (
+                  <li key={feat} className="flex items-start gap-2 text-sm text-slate-300">
+                    <Check className="h-4 w-4 text-violet-400 flex-shrink-0 mt-0.5" />
+                    <span>{feat}</span>
+                  </li>
+                ))}
               </ul>
 
               {/* CTA */}
@@ -133,6 +122,9 @@ export default async function PricingPage() {
           );
         })}
       </div>
+
+      {/* Pro+ yüksek hacim — ayrı kart (dropdown ile 15K / 20K) */}
+      <ProPlusCard />
 
       {/* Trial info */}
       <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-6 text-center space-y-2">

@@ -10,6 +10,7 @@ import {
   Package, MessageSquare, TrendingUp, HeartHandshake,
   Shield, Lock, Server, Headphones, Star, ArrowRight, ChevronDown, Play, Check,
 } from "lucide-react";
+import { ProPlusCard } from "@/components/pricing/pro-plus-card";
 
 /**
  * Demo videosu URL'i (YouTube/Vimeo embed linki). Boşsa şık bir yer tutucu gösterilir.
@@ -533,6 +534,20 @@ export default function LandingPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {PLAN_LIST.map((plan) => {
             const popular = plan.id === "growth";
+            const features = [
+              `${plan.productLimit.toLocaleString("tr-TR")} ürün yükleme limiti`,
+              "1 eBay mağazası",
+              `Günde ${plan.uploadDailyLimit.toLocaleString("tr-TR")} otomatik yükleme`,
+              "Radar — güncel ürün tarayıcı",
+              "Toplu ASIN yükleme + ASIN Grabber (Chrome)",
+              "15 dk'ya kadar stok & fiyat takibi",
+              "Otomatik repricer (hep %20 kâr)",
+              "Sipariş-anı canlı doğrulama",
+              "Oversell (fazla satış) koruması",
+              "Sınırsız takip kodu",
+              "Sipariş + ürün yöneticisi",
+              "US + UK pazarları",
+            ];
             return (
               <motion.div
                 key={plan.id}
@@ -557,22 +572,12 @@ export default function LandingPage() {
                   <span className="text-slate-500 text-sm">/ay</span>
                 </div>
                 <ul className="space-y-2 text-sm text-slate-300 flex-1">
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-violet-400 flex-shrink-0" />
-                    {plan.productLimit.toLocaleString("tr-TR")} ürün yükleme limiti
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-violet-400 flex-shrink-0" />
-                    1 eBay mağazası
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-violet-400 flex-shrink-0" />
-                    Günde {plan.uploadDailyLimit.toLocaleString("tr-TR")} yükleme
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-violet-400 flex-shrink-0" />
-                    Sınırsız takip kodu
-                  </li>
+                  {features.map((feat) => (
+                    <li key={feat} className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-violet-400 flex-shrink-0 mt-0.5" />
+                      {feat}
+                    </li>
+                  ))}
                 </ul>
                 <Link
                   href="/register"
@@ -587,6 +592,11 @@ export default function LandingPage() {
               </motion.div>
             );
           })}
+        </div>
+
+        {/* Pro+ yüksek hacim — ayrı kart (dropdown ile 15K / 20K) */}
+        <div className="mt-4">
+          <ProPlusCard />
         </div>
       </section>
 

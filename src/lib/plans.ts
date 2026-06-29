@@ -50,11 +50,35 @@ export const PLANS = {
     storeLimit:       1,
     trackingUnlimited: true,
   },
+  // ─── Pro+ (yüksek hacim) — ana grid'de DEĞİL, ayrı dropdown kartında gösterilir ───
+  // Üst tier'larda marj scraper maliyetiyle sınırlı; DTS'e yakın fiyatlanır (hafif altında).
+  scale: {
+    id:               "scale",
+    name:             "Pro+ 15K",
+    priceMonthly:     399.90,
+    productLimit:     15_000,
+    uploadDailyLimit: 7_000,
+    storeLimit:       1,
+    trackingUnlimited: true,
+  },
+  ultimate: {
+    id:               "ultimate",
+    name:             "Pro+ 20K",
+    priceMonthly:     519.90,
+    productLimit:     20_000,
+    uploadDailyLimit: 10_000,
+    storeLimit:       1,
+    trackingUnlimited: true,
+  },
 } as const;
 
 export type PlanId = keyof typeof PLANS;
 
-export const PLAN_LIST = Object.values(PLANS);
+// Ana fiyat grid'inde gösterilen paketler (5 adet).
+export const PLAN_LIST = [PLANS.starter, PLANS.basic, PLANS.growth, PLANS.pro, PLANS.enterprise];
+
+// Pro+ yüksek hacim paketleri — ana grid'in altında ayrı kartta dropdown ile sunulur.
+export const PRO_PLUS_PLANS = [PLANS.scale, PLANS.ultimate];
 
 export function getPlan(planId: string) {
   return PLANS[planId as PlanId] ?? null;
