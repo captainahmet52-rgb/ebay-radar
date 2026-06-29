@@ -23,14 +23,47 @@ const fetcher = (url: string) => fetch(url).then(r => r.json()) as Promise<Depot
 
 export default function AdminDepotPage() {
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useSWR<DepotResponse>(
+  const [clearing, setClearing] = useState(false);
+  const { data, isLoading, mutate } = useSWR<DepotResponse>(
     `/api/admin/depot?page=${page}&limit=50`,
     fetcher
   );
 
+  async function clearDepot() {
+    if (!confirm("TÜM depo ürünleri silinecek (dağıtımlar dahil). Gerçek müşteri listeleri etkilenmez. Emin misin?")) {
+      return;
+    }
+    setClearing(true);
+    try {
+      const res = await fetch("/api/admin/depot/clear", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: true }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error ?? `Hata ${res.status}`);
+      alert(`Depo sıfırlandı: ${j.deleted} ürün silindi.`);
+      setPage(1);
+      await mutate();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Sıfırlama başarısız");
+    } finally {
+      setClearing(false);
+    }
+  }
+
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Urun Deposu</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Urun Deposu</h1>
+        <button
+          onClick={clearDepot}
+          disabled={clearing}
+          className="text-sm px-3 py-2 rounded-lg bg-red-500/15 text-red-300 border border-red-500/30 hover:bg-red-500/25 disabled:opacity-50"
+        >
+          {clearing ? "Siliniyor…" : "Depoyu Sıfırla"}
+        </button>
+      </div>
 
       {/* Meta bilgi */}
       {data && (
