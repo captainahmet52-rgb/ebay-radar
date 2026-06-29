@@ -167,6 +167,23 @@ export const distributeProductsQueue = createQueue<DistributeProductsJobData, vo
   }
 );
 
+// ── dispatch-radar: oto-pilot — taraması gelen mağazaları radar-scan'e atar ──
+export interface DispatchRadarJobData {
+  _trigger?: string;
+}
+
+export const dispatchRadarQueue = createQueue<DispatchRadarJobData, void, string>(
+  "dispatch-radar",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 1,
+      removeOnComplete: { count: 20 },
+      removeOnFail: { count: 50 },
+    },
+  }
+);
+
 // ─── AmazonBot Radar Kuyruğu (AliExpress → Amazon depo) ───────────────────────
 export interface AmazonRadarScanJobData {
   market: string; // us | uk | ae | sa

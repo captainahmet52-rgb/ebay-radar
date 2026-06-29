@@ -361,6 +361,8 @@ model TrackedStore {
   ebayUsername  String    @unique
   storeUrl      String
   isActive      Boolean   @default(true)
+  // Oto-pilot (P7): bu kadar saatte bir otomatik taranır. 0 = oto-tarama kapalı (manuel).
+  scanIntervalHours Int   @default(12)
   lastScannedAt DateTime?
   createdAt     DateTime  @default(now())
 

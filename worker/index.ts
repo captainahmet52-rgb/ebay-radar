@@ -22,6 +22,7 @@ import { createDistributeProductsWorker } from "./jobs/distribute-products";
 import { createRefreshTokensWorker } from "./jobs/refresh-tokens";
 import { createDispatchPollsWorker } from "./jobs/dispatch-polls";
 import { createDispatchPollOrdersWorker } from "./jobs/dispatch-poll-orders";
+import { createDispatchRadarWorker } from "./jobs/dispatch-radar";
 import { createFreezeStoresWorker } from "./jobs/freeze-stores";
 import { createPublishListingWorker } from "./jobs/publish-listing";
 import { createEbayAutoUploadWorker } from "./jobs/ebay-auto-upload";
@@ -52,6 +53,7 @@ const workers: Worker[] = [
   createRefreshTokensWorker(connection),
   createDispatchPollsWorker(connection),
   createDispatchPollOrdersWorker(connection),
+  createDispatchRadarWorker(connection),
   createFreezeStoresWorker(connection),
   createPublishListingWorker(connection),
   createEbayAutoUploadWorker(connection),

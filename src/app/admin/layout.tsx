@@ -25,6 +25,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <a href="/admin/stores" className="text-sm text-slate-300 hover:text-white transition-colors">
           Magazalar
         </a>
+        <a href="/admin/radar" className="text-sm text-slate-300 hover:text-white transition-colors">
+          Radar
+        </a>
         <a href="/admin/fulfillment" className="text-sm text-slate-300 hover:text-white transition-colors">
           Siparis Havuzu
         </a>
