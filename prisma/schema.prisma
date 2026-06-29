@@ -125,6 +125,11 @@ model EbayAccount {
   // Ücretli erişim bitiş tarihi (paket alınca +30 gün; admin comp'ta uzak gelecek).
   // now < paidUntil → ücretli aktif; yoksa deneme/dondurma durumuna bakılır.
   paidUntil             DateTime?
+  // PAKET = MAĞAZA: her mağaza KENDİ aboneliğine sahiptir. Bu mağazanın paketi ve
+  // o pakete ait ürün limiti burada tutulur (kullanıcı-başına değil, mağaza-başına).
+  // Aktivasyonda (Paddle checkout / admin comp) set edilir.
+  plan                  String    @default("starter")
+  productLimit          Int       @default(300)
   createdAt             DateTime  @default(now())
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -54,17 +54,6 @@ export const POST = requireAuth(async (req, { userId }) => {
       );
     }
 
-    // Ürün limiti: kullanılan = kullanıcının listing sayısı
-    const limitUser = await prisma.user.findUnique({ where: { id: userId }, select: { productLimit: true } });
-    const productLimit = limitUser?.productLimit ?? 100;
-    const usedCount = await prisma.listing.count({ where: { userId } });
-    if (usedCount >= productLimit) {
-      return NextResponse.json(
-        { error: `Ürün limitine ulaştın (${productLimit}). Planını yükselt.`, needUpgrade: true },
-        { status: 403 }
-      );
-    }
-
     // eBay hesabı sahipliği (IDOR koruması): hesap MUTLAKA mevcut oturum
     // kullanıcısına ait olmalı — başkasının mağazasına listeleme engellenir.
     const ebayAccount = await prisma.ebayAccount.findFirst({
@@ -108,6 +97,15 @@ export const POST = requireAuth(async (req, { userId }) => {
       return NextResponse.json(
         { error: "Mağaza aktif değil. Mağazalarım'dan aktifleştir.", needActivation: true },
         { status: 402 }
+      );
+    }
+
+    // PAKET = MAĞAZA: ürün limiti bu mağazanın paketine özeldir (mağaza-başına sayım).
+    const usedCount = await prisma.listing.count({ where: { userId, ebayAccountId } });
+    if (usedCount >= ebayAccount.productLimit) {
+      return NextResponse.json(
+        { error: `Ürün limitine ulaştın (${ebayAccount.productLimit}). Bu mağazanın paketini yükselt.`, needUpgrade: true },
+        { status: 403 }
       );
     }
 

@@ -3,7 +3,6 @@ import { z } from "zod";
 import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { verifyImportMatchQueue } from "@/lib/queues";
-import { getPlan } from "@/lib/plans";
 
 const verifySchema = z.object({
   ebayAccountId: z.string().min(1),
@@ -13,7 +12,7 @@ const verifySchema = z.object({
 
 // POST /api/ebay/import/verify — "pending" (ASIN'li) ilanları Amazon'da doğrulamak için
 // kuyruğa al. SCRAPER MALİYETİ burada → plan productLimit ile SINIRLI.
-export const POST = requireAuth(async (req, { userId, plan }) => {
+export const POST = requireAuth(async (req, { userId }) => {
   try {
     const body = await req.json().catch(() => null);
     const parsed = verifySchema.safeParse(body);
@@ -24,14 +23,15 @@ export const POST = requireAuth(async (req, { userId, plan }) => {
 
     const account = await prisma.ebayAccount.findFirst({
       where: { id: ebayAccountId, userId },
-      select: { id: true },
+      select: { id: true, productLimit: true },
     });
     if (!account) {
       return NextResponse.json({ error: "Mağaza bulunamadı" }, { status: 404 });
     }
 
-    // Plan takip kotası — maliyet tavanı. Zaten doğrulanmış (confirmed) kadarı düşülür.
-    const productLimit = getPlan(plan)?.productLimit ?? 300;
+    // PAKET = MAĞAZA: takip kotası bu mağazanın paketine özeldir (maliyet tavanı).
+    // Zaten doğrulanmış (confirmed) kadarı düşülür.
+    const productLimit = account.productLimit;
     const confirmedCount = await prisma.importedListing.count({
       where: { ebayAccountId, matchStatus: "confirmed" },
     });

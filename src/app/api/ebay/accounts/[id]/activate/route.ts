@@ -1,18 +1,24 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
-import { storeLimitForUser } from "@/lib/plans";
+import { getPlan } from "@/lib/plans";
 import { addDays, STORE_SUBSCRIPTION_DAYS, storeAccessState } from "@/lib/store-access";
 import { enqueueVerificationForAccount } from "@/lib/ebay/listing-import";
 
 /**
- * Mağaza aktifleştirme. Plan limiti (storeLimit) dahilinde bir eBay mağazasını
- * aktif eder. Limit doluysa 402 + needUpgrade döner (kullanıcı paket yükseltmeli).
+ * Mağaza aktifleştirme. PAKET = MAĞAZA: her eBay mağazası KENDİ aboneliğine sahiptir.
+ * Aktivasyon yalnızca ödeme ile yapılır; aktif edilen mağazaya o paketin ürün limiti
+ * yazılır. 1 abonelik = 1 mağaza — ek mağaza için ayrı abonelik gerekir.
  * Sadece aktif mağazalara ürün yüklenir / radar çalışır.
  */
-export const POST = requireAuth(async (_req, { userId, params }) => {
+export const POST = requireAuth(async (req, { userId, params }) => {
   try {
     const { id } = await params;
+
+    // Bu mağaza için seçilen paket (opsiyonel; Paddle checkout ileride gönderecek).
+    const body = await req.json().catch(() => null);
+    const requestedPlan =
+      body && typeof body.plan === "string" && getPlan(body.plan) ? body.plan : undefined;
 
     const account = await prisma.ebayAccount.findFirst({ where: { id, userId } });
     if (!account) {
@@ -29,31 +35,40 @@ export const POST = requireAuth(async (_req, { userId, params }) => {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { plan: true, trialEndsAt: true, stripeSubscriptionId: true },
+      select: { plan: true, stripeSubscriptionId: true },
     });
     if (!user) {
       return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 });
     }
 
-    // Ücretli aktivasyon: aktif abonelik + plan mağaza limiti gerekir.
-    // (Ödeme entegrasyonu gelince checkout buraya bağlanacak; şu an abonelik yoksa
-    //  paket sayfasına yönlendirilir.)
-    const limit = storeLimitForUser(user.plan, user.trialEndsAt, user.stripeSubscriptionId);
+    // PAKET = MAĞAZA: aktivasyon yalnızca ÖDEME ile yapılır (Paddle checkout buraya
+    // bağlanacak). Deneme, ek mağaza aktivasyonu hakkı VERMEZ. Abonelik yoksa paket
+    // sayfasına yönlendirilir.
+    if (!user.stripeSubscriptionId) {
+      return NextResponse.json(
+        { error: "Bu mağazayı aktifleştirmek için bir paket satın almanız gerekiyor.", needUpgrade: true },
+        { status: 402 }
+      );
+    }
+
+    // Bu mağazanın paketi + o pakete ait ürün limiti (mağaza-başına).
+    const storePlan = requestedPlan ?? user.plan ?? "starter";
+    const planDef = getPlan(storePlan);
+    const storeLimit = planDef?.storeLimit ?? 1; // her abonelik = 1 mağaza
     const now = new Date();
+
+    // 1 abonelik = 1 mağaza: bu aboneliğe bağlı zaten ücretli aktif başka mağaza varsa
+    // yeni mağaza için ayrı abonelik gerekir.
     const paidActiveCount = await prisma.ebayAccount.count({
       where: { userId, paidUntil: { gt: now }, NOT: { id } },
     });
-
-    if (limit === 0 || paidActiveCount >= limit) {
+    if (paidActiveCount >= storeLimit) {
       return NextResponse.json(
         {
-          error:
-            limit === 0
-              ? "Mağaza aktifleştirmek için bir paket satın almanız gerekiyor."
-              : `Paketinizin mağaza limiti dolu (${paidActiveCount}/${limit}). Daha fazla mağaza için paketinizi yükseltin.`,
+          error: "Her eBay mağazası için ayrı bir abonelik gerekir. Bu mağaza için yeni bir paket satın alın.",
           needUpgrade: true,
           activeCount: paidActiveCount,
-          limit,
+          limit: storeLimit,
         },
         { status: 402 }
       );
@@ -61,7 +76,13 @@ export const POST = requireAuth(async (_req, { userId, params }) => {
 
     await prisma.ebayAccount.update({
       where: { id },
-      data: { isActive: true, activatedAt: now, paidUntil: addDays(now, STORE_SUBSCRIPTION_DAYS) },
+      data: {
+        isActive: true,
+        activatedAt: now,
+        paidUntil: addDays(now, STORE_SUBSCRIPTION_DAYS),
+        plan: storePlan,
+        productLimit: planDef?.productLimit ?? 300,
+      },
     });
 
     // Mağaza artık ücretli aktif → bağlanışta frozen olduğu için ATLANMIŞ olabilecek ilan
@@ -73,7 +94,12 @@ export const POST = requireAuth(async (_req, { userId, params }) => {
       console.error("[ebay/accounts/[id]/activate] verify tetikleme atlandı:", err);
     }
 
-    return NextResponse.json({ success: true, activeCount: paidActiveCount + 1, limit });
+    return NextResponse.json({
+      success: true,
+      activeCount: paidActiveCount + 1,
+      limit: storeLimit,
+      plan: storePlan,
+    });
   } catch (err) {
     console.error("[ebay/accounts/[id]/activate POST]", err);
     return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });

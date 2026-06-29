@@ -1,4 +1,8 @@
 // Paket tanımları — fiyatlandırma ve limitler
+//
+// MODEL: paket = MAĞAZA. Her paket TEK bir eBay mağazası içindir; birden fazla
+// mağaza isteyen kullanıcı her mağaza için AYRI abonelik alır. Bu yüzden tüm
+// paketlerde storeLimit = 1. Ürün/yükleme limitleri o mağazaya özeldir.
 
 export const PLANS = {
   starter: {
@@ -16,7 +20,7 @@ export const PLANS = {
     priceMonthly:     59.90,
     productLimit:     1_000,
     uploadDailyLimit: 400,
-    storeLimit:       2,
+    storeLimit:       1,
     trackingUnlimited: true,
   },
   growth: {
@@ -25,7 +29,7 @@ export const PLANS = {
     priceMonthly:     99.90,
     productLimit:     3_000,
     uploadDailyLimit: 1_000,
-    storeLimit:       3,
+    storeLimit:       1,
     trackingUnlimited: true,
   },
   pro: {
@@ -34,7 +38,7 @@ export const PLANS = {
     priceMonthly:     149.90,
     productLimit:     5_000,
     uploadDailyLimit: 2_000,
-    storeLimit:       5,
+    storeLimit:       1,
     trackingUnlimited: true,
   },
   enterprise: {
@@ -43,7 +47,7 @@ export const PLANS = {
     priceMonthly:     249.90,
     productLimit:     10_000,
     uploadDailyLimit: 5_000,
-    storeLimit:       10,
+    storeLimit:       1,
     trackingUnlimited: true,
   },
 } as const;

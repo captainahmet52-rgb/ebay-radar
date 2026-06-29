@@ -563,7 +563,7 @@ export default function LandingPage() {
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-violet-400 flex-shrink-0" />
-                    {plan.storeLimit} mağaza
+                    1 eBay mağazası
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-violet-400 flex-shrink-0" />

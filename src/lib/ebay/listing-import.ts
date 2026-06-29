@@ -18,7 +18,6 @@ import { fetchActiveListingsPage } from "@/lib/ebay/trading";
 import { extractAsinFromSku, decideMatch } from "@/lib/ebay/asin-matcher";
 import { fetchAmazonProduct } from "@/lib/scraper";
 import { pollProductQueue, verifyImportMatchQueue } from "@/lib/queues";
-import { getPlan } from "@/lib/plans";
 import { hasStoreAccess } from "@/lib/store-access";
 import type { ParsedEbayListing } from "@/lib/ebay/trading-parser";
 
@@ -272,7 +271,7 @@ export async function enqueueVerificationForAccount(
 ): Promise<number> {
   const account = await prisma.ebayAccount.findUnique({
     where: { id: ebayAccountId },
-    select: { userId: true, trialEndsAt: true, paidUntil: true },
+    select: { trialEndsAt: true, paidUntil: true, productLimit: true },
   });
   if (!account) return 0;
   // Frozen mağazada (deneme yok + paket yok) doğrulama SCRAPER masrafı yapar → atla.
@@ -281,11 +280,8 @@ export async function enqueueVerificationForAccount(
     return 0;
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: account.userId },
-    select: { plan: true },
-  });
-  const productLimit = getPlan(user?.plan ?? "starter")?.productLimit ?? 300;
+  // PAKET = MAĞAZA: takip kotası bu mağazanın paketine özeldir (kullanıcı planı değil).
+  const productLimit = account.productLimit;
 
   const confirmedCount = await prisma.importedListing.count({
     where: { ebayAccountId, matchStatus: "confirmed" },

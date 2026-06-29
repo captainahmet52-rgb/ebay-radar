@@ -2,7 +2,7 @@
 // Oto-yükleme açık kullanıcılara, radar'ın doldurduğu depodan (DepotProduct) filtrelerine
 // uyan ürünleri seçer, Listing oluşturur ve poll-product kuyruğuna atar. poll-product
 // güncel Amazon verisini çeker ve publish-listing ile eBay'e API'den YAYINLAR.
-// Limitler: kullanıcı productLimit + günlük uploadDailyLimit + deneme mağazasında 50.
+// Limitler: mağaza productLimit (paket = mağaza) + günlük uploadDailyLimit + deneme mağazasında 50.
 import { Worker, Job } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
 import { prisma } from "@/lib/prisma";
@@ -31,9 +31,9 @@ async function processForUser(userId: string): Promise<void> {
     return;
   }
 
-  // Limitler
-  const totalListings = await prisma.listing.count({ where: { userId } });
-  let remaining = Math.max(0, user.productLimit - totalListings);
+  // Limitler — PAKET = MAĞAZA: ürün limiti bu mağazanın paketine özeldir (mağaza-başına).
+  const totalListings = await prisma.listing.count({ where: { userId, ebayAccountId: account.id } });
+  let remaining = Math.max(0, account.productLimit - totalListings);
 
   // Günlük limit
   const todayCount = await prisma.listing.count({

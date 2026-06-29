@@ -34,6 +34,10 @@ export default async function PricingPage() {
             Mağazanıza en uygun planı seçin. İstediğiniz zaman değiştirin.
           </p>
         )}
+        <p className="text-xs text-slate-500 max-w-xl mx-auto">
+          Her paket <span className="text-slate-300 font-medium">tek bir eBay mağazası</span> içindir.
+          Birden fazla mağaza için her mağazaya ayrı abonelik alınır.
+        </p>
       </div>
 
       {/* Plans */}

@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_COMP_UNTIL } from "@/lib/store-access";
+import { getPlan } from "@/lib/plans";
 import { z } from "zod";
+
+// Admin comp (ücretsiz süresiz) mağazaya verilen paket — en üst limit (patron yetkisi).
+const COMP_PLAN = "enterprise";
 
 /**
  * GET /api/admin/user-stores
@@ -52,12 +56,16 @@ export const PATCH = requireAdmin(async (req) => {
 
   // Admin aktivasyonu = ücretsiz süresiz erişim (comp). paidUntil uzak geleceğe
   // set edilir ki freeze-stores worker'ı dondurmasın. Pasifleştirince temizlenir.
+  // PAKET = MAĞAZA: comp mağazaya en üst paket + ürün limiti yazılır (patron yetkisi).
   await prisma.ebayAccount.update({
     where: { id: accountId },
     data: {
       isActive,
       activatedAt: isActive ? new Date() : null,
       paidUntil: isActive ? ADMIN_COMP_UNTIL : null,
+      ...(isActive
+        ? { plan: COMP_PLAN, productLimit: getPlan(COMP_PLAN)?.productLimit ?? 10000 }
+        : {}),
     },
   });
 

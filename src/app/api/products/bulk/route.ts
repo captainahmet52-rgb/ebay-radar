@@ -77,10 +77,10 @@ export const POST = requireAuth(async (req, { userId }) => {
     );
   }
 
-  // Limit: kullanılan = kullanıcının listing sayısı
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { productLimit: true } });
-  const productLimit = user?.productLimit ?? 100;
-  const usedCount = await prisma.listing.count({ where: { userId } });
+  // PAKET = MAĞAZA: ürün limiti bu mağazanın paketine özeldir; kullanım da yalnızca bu
+  // mağazanın listing'leri üzerinden sayılır (kullanıcı-başına değil, mağaza-başına).
+  const productLimit = account.productLimit;
+  const usedCount = await prisma.listing.count({ where: { userId, ebayAccountId: account.id } });
   const remaining = Math.max(0, productLimit - usedCount);
 
   if (remaining === 0) {
