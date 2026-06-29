@@ -58,6 +58,7 @@ export default async function PricingPage() {
             "Sınırsız takip kodu",
             "Sipariş + ürün yöneticisi",
             "US + UK pazarları",
+            "Canlı destek",
           ];
 
           return (

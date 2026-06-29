@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { StructuredData } from "@/components/structured-data";
+import { TawkWidget } from "@/components/tawk-widget";
 import { SITE } from "@/lib/site";
 
 const inter = Inter({
@@ -75,6 +76,7 @@ export default function RootLayout({
       <body className={`${inter.variable} font-sans bg-slate-950 text-white antialiased`}>
         <StructuredData />
         <Providers>{children}</Providers>
+        <TawkWidget />
       </body>
     </html>
   );

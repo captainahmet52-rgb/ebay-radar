@@ -16,6 +16,7 @@ const PRO_PLUS_FEATURES = [
   "Sınırsız takip kodu",
   "Sipariş + ürün yöneticisi",
   "US + UK pazarları",
+  "Canlı destek",
 ] as const;
 
 /**

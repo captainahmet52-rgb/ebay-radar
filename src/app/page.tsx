@@ -547,6 +547,7 @@ export default function LandingPage() {
               "Sınırsız takip kodu",
               "Sipariş + ürün yöneticisi",
               "US + UK pazarları",
+              "Canlı destek",
             ];
             return (
               <motion.div
