@@ -559,7 +559,7 @@ export default function LandingPage() {
                 <ul className="space-y-2 text-sm text-slate-300 flex-1">
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-violet-400 flex-shrink-0" />
-                    {plan.productLimit.toLocaleString("tr-TR")} ürün
+                    {plan.productLimit.toLocaleString("tr-TR")} ürün yükleme limiti
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-violet-400 flex-shrink-0" />

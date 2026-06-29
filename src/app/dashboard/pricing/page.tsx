@@ -82,7 +82,7 @@ export default async function PricingPage() {
                     <span className="text-white font-semibold">
                       {plan.productLimit.toLocaleString("tr-TR")}
                     </span>{" "}
-                    ürün takibi
+                    ürün yükleme limiti
                   </span>
                 </li>
                 <li className="flex items-start gap-2 text-sm text-slate-300">
