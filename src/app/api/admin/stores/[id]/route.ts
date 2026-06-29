@@ -17,10 +17,8 @@ export const POST = requireAdmin(async (req, { params }) => {
     return NextResponse.json({ error: "Mağaza bulunamadı" }, { status: 404 });
   }
 
-  await radarScanQueue.add(
-    "radar-scan",
-    { trackedStoreId: id },
-    { jobId: `radar-scan:${id}:${Date.now()}` }
-  );
-  return NextResponse.json({ success: true, message: "Radar tarama başlatıldı" });
+  const jobId = `radar-scan:${id}:${Date.now()}`;
+  await radarScanQueue.add("radar-scan", { trackedStoreId: id }, { jobId });
+  // jobId döner → UI bununla ilerlemeyi yoklar (/api/admin/radar/scan-status)
+  return NextResponse.json({ success: true, jobId, message: "Radar tarama başlatıldı" });
 });

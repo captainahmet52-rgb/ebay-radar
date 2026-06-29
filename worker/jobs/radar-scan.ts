@@ -41,6 +41,7 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
   }
 
   await job.log(`Mağaza taranıyor: ${store.ebayUsername}`);
+  await job.updateProgress({ phase: "fetching", processed: 0, total: 0 });
 
   // 1. eBay mağazasının ilanlarını RESMİ API ile çek (BEDAVA — ScrapingBee YOK).
   //    store.ebayUsername = mağazanın GÖRÜNEN adı (örn. "USA One Mart").
@@ -68,8 +69,25 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
   let dedupCount = 0;
   let uncompetitiveCount = 0;
   let cachedCount = 0;
+  let processedItems = 0;
+
+  const totalToProcess = Math.min(storeItems.length, MAX_ITEMS_PER_SCAN);
+  await job.updateProgress({
+    phase: "matching", processed: 0, total: totalToProcess,
+    accepted: 0, review: 0, skipped: 0, cached: 0,
+  });
 
   for (const item of storeItems.slice(0, MAX_ITEMS_PER_SCAN)) {
+    processedItems++;
+    await job.updateProgress({
+      phase: "matching",
+      processed: processedItems,
+      total: totalToProcess,
+      accepted: acceptedCount,
+      review: reviewCount,
+      skipped: skippedCount + uncompetitiveCount,
+      cached: cachedCount,
+    });
     if (!item.title || item.title.length < 5) continue;
 
     try {
@@ -219,6 +237,18 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
   await prisma.trackedStore.update({
     where: { id: trackedStoreId },
     data: { lastScannedAt: new Date() },
+  });
+
+  await job.updateProgress({
+    phase: "done",
+    processed: totalToProcess,
+    total: totalToProcess,
+    accepted: acceptedCount,
+    review: reviewCount,
+    skipped: skippedCount,
+    uncompetitive: uncompetitiveCount,
+    dedup: dedupCount,
+    cached: cachedCount,
   });
 
   await job.log(

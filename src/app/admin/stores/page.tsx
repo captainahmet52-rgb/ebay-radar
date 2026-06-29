@@ -12,6 +12,17 @@ interface TrackedStore {
   _count: { depotProducts: number };
 }
 
+interface ScanProgress {
+  state: string; // starting | waiting | active | completed | failed | unknown
+  phase?: string; // fetching | matching | done
+  processed: number;
+  total: number;
+  accepted?: number;
+  review?: number;
+  skipped?: number;
+  cached?: number;
+}
+
 const fetcher = (url: string) => fetch(url).then(r => r.json()) as Promise<TrackedStore[]>;
 
 export default function AdminStoresPage() {
@@ -20,7 +31,7 @@ export default function AdminStoresPage() {
   const [storeUrl, setStoreUrl] = useState("");
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
-  const [scanMsg, setScanMsg] = useState<Record<string, string>>({});
+  const [scan, setScan] = useState<Record<string, ScanProgress>>({});
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,14 +56,49 @@ export default function AdminStoresPage() {
     }
   };
 
+  const pollStatus = async (storeId: string, jobId: string) => {
+    try {
+      const res = await fetch(`/api/admin/radar/scan-status?jobId=${encodeURIComponent(jobId)}`);
+      const data = (await res.json()) as { state: string; progress: ScanProgress | null };
+      const p = data.progress;
+      setScan(prev => {
+        const cur = prev[storeId] ?? { state: "", processed: 0, total: 0 };
+        return {
+          ...prev,
+          [storeId]: {
+            state: data.state,
+            phase: p?.phase ?? cur.phase,
+            processed: p?.processed ?? cur.processed,
+            total: p?.total ?? cur.total,
+            accepted: p?.accepted ?? cur.accepted,
+            review: p?.review ?? cur.review,
+            skipped: p?.skipped ?? cur.skipped,
+            cached: p?.cached ?? cur.cached,
+          },
+        };
+      });
+      if (data.state === "completed" || data.state === "failed" || data.state === "unknown") {
+        void mutate(); // depo sayısı + son tarama güncellensin
+        return;
+      }
+    } catch {
+      /* geçici hata → yine dene */
+    }
+    setTimeout(() => pollStatus(storeId, jobId), 2000);
+  };
+
   const handleScan = async (id: string) => {
-    setScanMsg(prev => ({ ...prev, [id]: "Taranıyor..." }));
+    setScan(prev => ({ ...prev, [id]: { state: "starting", processed: 0, total: 0 } }));
     try {
       const res = await fetch(`/api/admin/stores/${id}`, { method: "POST" });
-      const data = (await res.json()) as { message?: string; error?: string };
-      setScanMsg(prev => ({ ...prev, [id]: data.message ?? data.error ?? "Tamam" }));
+      const data = (await res.json()) as { jobId?: string; error?: string };
+      if (data.jobId) {
+        pollStatus(id, data.jobId);
+      } else {
+        setScan(prev => ({ ...prev, [id]: { state: "failed", processed: 0, total: 0 } }));
+      }
     } catch {
-      setScanMsg(prev => ({ ...prev, [id]: "Hata" }));
+      setScan(prev => ({ ...prev, [id]: { state: "failed", processed: 0, total: 0 } }));
     }
   };
 
@@ -136,22 +182,23 @@ export default function AdminStoresPage() {
                     </span>
                   </td>
                   <td className="p-4">
-                    <div className="flex items-center justify-end gap-2">
-                      {scanMsg[store.id] && (
-                        <span className="text-xs text-emerald-400">{scanMsg[store.id]}</span>
-                      )}
-                      <button
-                        onClick={() => handleScan(store.id)}
-                        className="px-3 py-1 bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 rounded-lg text-xs transition-colors"
-                      >
-                        Tara
-                      </button>
-                      <button
-                        onClick={() => handleDelete(store.id)}
-                        className="px-3 py-1 bg-red-600/30 hover:bg-red-600/50 text-red-300 rounded-lg text-xs transition-colors"
-                      >
-                        Sil
-                      </button>
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleScan(store.id)}
+                          disabled={isScanning(scan[store.id])}
+                          className="px-3 py-1 bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 rounded-lg text-xs transition-colors disabled:opacity-50"
+                        >
+                          {isScanning(scan[store.id]) ? "Taranıyor…" : "Tara"}
+                        </button>
+                        <button
+                          onClick={() => handleDelete(store.id)}
+                          className="px-3 py-1 bg-red-600/30 hover:bg-red-600/50 text-red-300 rounded-lg text-xs transition-colors"
+                        >
+                          Sil
+                        </button>
+                      </div>
+                      <ScanIndicator s={scan[store.id]} />
                     </div>
                   </td>
                 </tr>
@@ -161,5 +208,48 @@ export default function AdminStoresPage() {
         )}
       </div>
     </div>
+  );
+}
+
+function isScanning(s?: ScanProgress): boolean {
+  if (!s) return false;
+  return !(s.state === "completed" || s.state === "failed" || s.state === "unknown" || s.phase === "done");
+}
+
+function ScanIndicator({ s }: { s?: ScanProgress }) {
+  if (!s) return null;
+  const done = s.state === "completed" || s.state === "unknown" || s.phase === "done";
+  if (s.state === "failed") return <p className="text-xs text-red-400">✗ Tarama hatası</p>;
+
+  if (done) {
+    return (
+      <p className="text-xs text-emerald-400">
+        ✓ Bitti — kabul {s.accepted ?? 0}, inceleme {s.review ?? 0}, atla {s.skipped ?? 0}
+      </p>
+    );
+  }
+
+  if (s.phase === "matching" && s.total > 0) {
+    const pct = Math.min(100, Math.round((s.processed / s.total) * 100));
+    return (
+      <div className="w-56">
+        <div className="h-2 rounded-full bg-slate-700 overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-violet-500 to-blue-500 transition-all"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <p className="text-[11px] text-slate-400 mt-1">
+          {s.processed}/{s.total} işlendi (%{pct}) · kabul {s.accepted ?? 0} · atla {s.skipped ?? 0}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <p className="text-xs text-slate-400 flex items-center gap-1.5">
+      <span className="inline-block w-3 h-3 border-2 border-slate-600 border-t-violet-400 rounded-full animate-spin" />
+      {s.phase === "fetching" ? "eBay ilanları çekiliyor…" : "Başlatılıyor…"}
+    </p>
   );
 }
