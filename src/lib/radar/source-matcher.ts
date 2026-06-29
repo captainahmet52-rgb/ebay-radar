@@ -34,6 +34,7 @@ export const THIN_TITLE_MIN = 3; // kaynak başlıkta en az bu kadar anlamlı ke
 export interface RadarSourceItem {
   title: string;
   price: number | null; // eBay (bayi) satış fiyatı
+  imageUrl?: string | null; // eBay ilan görseli (Faz 2 görsel kanıtı için)
 }
 
 export interface RadarCandidate {
@@ -60,6 +61,11 @@ export interface RadarCandidateEval {
   typeAgree: boolean;
 }
 
+export interface RankedSurvivor {
+  candidate: RadarCandidate;
+  evaluation: RadarCandidateEval;
+}
+
 export interface RadarMatchResult {
   decision: RadarDecision;
   asin: string | null;
@@ -68,6 +74,8 @@ export interface RadarMatchResult {
   confidence: number; // 0..1
   reason: string;
   evals: RadarCandidateEval[]; // denetim/kalibrasyon için tüm aday değerlendirmeleri
+  // Vetoyu geçen adaylar, skora göre sıralı (Faz 2 görsel kanıt katmanı kullanır)
+  ranked: RankedSurvivor[];
 }
 
 // ─── Yardımcılar ─────────────────────────────────────────────────────────────
@@ -179,7 +187,12 @@ export function selectRadarMatch(
   item: RadarSourceItem,
   candidates: RadarCandidate[],
 ): RadarMatchResult {
-  const none = (decision: RadarDecision, reason: string, evals: RadarCandidateEval[] = []): RadarMatchResult => ({
+  const none = (
+    decision: RadarDecision,
+    reason: string,
+    evals: RadarCandidateEval[] = [],
+    ranked: RankedSurvivor[] = [],
+  ): RadarMatchResult => ({
     decision,
     asin: null,
     candidate: null,
@@ -187,6 +200,7 @@ export function selectRadarMatch(
     confidence: 0,
     reason,
     evals,
+    ranked,
   });
 
   // 0) Kaynak başlık zayıf mı? (ayırt edici güç yok → güvenli kanıt kurulamaz)
@@ -205,6 +219,11 @@ export function selectRadarMatch(
     .filter((x) => !x.e.vetoed)
     .sort((a, b) => b.e.score - a.e.score);
 
+  const ranked: RankedSurvivor[] = survivorsIdx.map((x) => ({
+    candidate: candidates[x.i],
+    evaluation: x.e,
+  }));
+
   if (survivorsIdx.length === 0) {
     return none("skip", "tüm adaylar elendi (veto)", evals);
   }
@@ -217,7 +236,7 @@ export function selectRadarMatch(
   // 2) Minimum kanıt: yeterli ortak kelime YA DA ortak model şart
   const hasMinEvidence = best.sharedTokens >= MIN_CORE_TOKENS || best.sharedModel;
   if (!hasMinEvidence) {
-    return none("skip", "yeterli ortak kanıt yok (kelime/model)", evals);
+    return none("skip", "yeterli ortak kanıt yok (kelime/model)", evals, ranked);
   }
 
   // 3) Belirsizlik freni: ikinci aday çok yakınsa (farklı ASIN), kabul etme.
@@ -236,6 +255,7 @@ export function selectRadarMatch(
     confidence: best.sim,
     reason: `kanıt sözleşmesi ${contract} geçti`,
     evals,
+    ranked,
   });
 
   // ── Kanıt Sözleşmesi B: marka+model ──
@@ -266,8 +286,9 @@ export function selectRadarMatch(
       confidence: best.sim,
       reason: ambiguous ? "birden çok yakın aday — elle doğrula" : "orta kanıt — elle doğrula",
       evals,
+      ranked,
     };
   }
 
-  return none("skip", "kanıt sözleşmesi geçilemedi", evals);
+  return none("skip", "kanıt sözleşmesi geçilemedi", evals, ranked);
 }

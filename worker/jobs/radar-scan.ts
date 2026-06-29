@@ -5,7 +5,13 @@ import { prisma } from "@/lib/prisma";
 import { fetchEbayStoreListing } from "@/lib/ebay-store-scraper";
 import { searchAmazonProducts } from "@/lib/amazon-search-scraper";
 import { selectRadarMatch } from "@/lib/radar/source-matcher";
+import { refineWithImageEvidence } from "@/lib/radar/image-evidence";
+import { makeUrlComparator } from "@/lib/radar/image-compare";
+import { loadGrayscaleFromUrl } from "@/lib/radar/image-fetch";
 import type { RadarScanJobData } from "@/lib/queues";
+
+// Görsel karşılaştırıcı (gerçek indir+decode). accept/review kararlarında devreye girer.
+const imageComparator = makeUrlComparator(loadGrayscaleFromUrl);
 
 // Matcher'a kaç aday verilecek (maliyet yok — sadece CPU; çok aday = daha iyi seçim)
 const MAX_CANDIDATES = 12;
@@ -63,8 +69,9 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
 
       if (candidates.length === 0) { skippedCount++; continue; }
 
-      const match = selectRadarMatch(
-        { title: item.title, price: item.price },
+      const sourceItem = { title: item.title, price: item.price, imageUrl: item.imageUrl };
+      let match = selectRadarMatch(
+        sourceItem,
         candidates.map((c) => ({
           asin: c.asin,
           title: c.title,
@@ -72,6 +79,16 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
           imageUrl: c.imageUrl,
         })),
       );
+
+      // Görsel kanıt katmanı — yalnız accept (savunma) ve review (yükseltme) için.
+      // skip'te görsel indirmeyiz (çöp adaylar için bant genişliği israfı olmasın).
+      if (match.decision === "accept" || match.decision === "review") {
+        try {
+          match = await refineWithImageEvidence(sourceItem, match, imageComparator);
+        } catch {
+          /* görsel hatası → metin kararı korunur */
+        }
+      }
 
       if (match.decision === "skip" || !match.candidate) {
         skippedCount++;

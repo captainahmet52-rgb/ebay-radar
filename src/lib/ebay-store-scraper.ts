@@ -6,6 +6,7 @@ export interface EbayStoreItem {
   title: string;
   price: number | null;
   itemId: string | null;
+  imageUrl: string | null;
 }
 
 export async function fetchEbayStoreListing(
@@ -26,6 +27,9 @@ export async function fetchEbayStoreListing(
         title:  ".s-card__title",
         price:  ".s-card__price",
         itemId: { selector: "a.s-card__link", output: "@href" },
+        // Ürün görseli (Faz 2 görsel kanıtı) — kart içindeki ilk img. render_js=true
+        // ile src dolu gelir; boş gelirse görsel kanıt sessizce atlanır (güvenli).
+        image:  { selector: "img", output: "@src" },
       },
     },
   });
@@ -49,16 +53,20 @@ export async function fetchEbayStoreListing(
   }
 
   const data = (await response.json()) as {
-    items?: Array<{ title?: string; price?: string; itemId?: string }>;
+    items?: Array<{ title?: string; price?: string; itemId?: string; image?: string | string[] }>;
   };
 
   return (data.items ?? [])
     .filter(item => item.title && !item.title.includes("Shop on eBay"))
-    .map(item => ({
-      title: (item.title ?? "").replace(/^New Listing\s*/i, "").trim(),
-      price: item.price ? parseFloat(item.price.replace(/[^0-9.]/g, "")) || null : null,
-      itemId: item.itemId
-        ? (item.itemId.match(/\/itm\/(\d+)/) ?? [])[1] ?? null
-        : null,
-    }));
+    .map(item => {
+      const rawImage = Array.isArray(item.image) ? item.image[0] : item.image;
+      return {
+        title: (item.title ?? "").replace(/^New Listing\s*/i, "").trim(),
+        price: item.price ? parseFloat(item.price.replace(/[^0-9.]/g, "")) || null : null,
+        itemId: item.itemId
+          ? (item.itemId.match(/\/itm\/(\d+)/) ?? [])[1] ?? null
+          : null,
+        imageUrl: rawImage && /^https?:\/\//i.test(rawImage) ? rawImage : null,
+      };
+    });
 }
