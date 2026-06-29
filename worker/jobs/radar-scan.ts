@@ -4,7 +4,13 @@ import type { ConnectionOptions } from "bullmq";
 import { prisma } from "@/lib/prisma";
 import { fetchEbayStoreListing } from "@/lib/ebay-store-scraper";
 import { searchAmazonProducts } from "@/lib/amazon-search-scraper";
+import { selectRadarMatch } from "@/lib/radar/source-matcher";
 import type { RadarScanJobData } from "@/lib/queues";
+
+// Matcher'a kaç aday verilecek (maliyet yok — sadece CPU; çok aday = daha iyi seçim)
+const MAX_CANDIDATES = 12;
+// $15 altı asla alınma (CLAUDE.md) — fiyat bandının yanında ek sert taban
+const MIN_AMAZON_PRICE = 15;
 
 async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
   const { trackedStoreId } = job.data;
@@ -35,9 +41,13 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
 
   await job.log(`${storeItems.length} eBay ürünü bulundu`);
 
-  // 2. Her ürün başlığı için Amazon'da ara, ASIN'leri depoya yükle
-  let addedCount = 0;
+  // 2. Her ürün başlığı için Amazon'da ara → ÇEKİMSER SEÇİCİ → en fazla TEK ASIN.
+  //    "Kanıtla ya da atla": tek bir yanlış ASIN müşterinin gerçek mağazasına
+  //    listelenir → yanlış kargo → ban. Kanıt yoksa hiç ekleme.
+  let acceptedCount = 0;
+  let reviewCount = 0;
   let skippedCount = 0;
+  let dedupCount = 0;
 
   for (const item of storeItems.slice(0, 50)) { // ilk 50 ürün
     if (!item.title || item.title.length < 5) continue;
@@ -45,35 +55,58 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
     try {
       // Amazon'da ara — sadece ilk sayfa
       const amazonResults = await searchAmazonProducts(item.title, 1);
-      const candidates = amazonResults.slice(0, 5); // her başlık için max 5 ASIN
 
-      // N+1 yerine TEK sorgu: bu turdaki ASIN'lerden depoda zaten olanları çek
-      const existingRows = await prisma.depotProduct.findMany({
-        where: { asin: { in: candidates.map((r) => r.asin) } },
-        select: { asin: true },
-      });
-      const seen = new Set(existingRows.map((r) => r.asin));
+      // $15 sert taban — bant öncesi ele
+      const candidates = amazonResults
+        .filter((r) => r.price === null || r.price >= MIN_AMAZON_PRICE)
+        .slice(0, MAX_CANDIDATES);
 
-      for (const result of candidates) {
-        if (seen.has(result.asin)) { skippedCount++; continue; }
+      if (candidates.length === 0) { skippedCount++; continue; }
 
-        // Minimum fiyat kontrolü: $15 altı alma (CLAUDE.md)
-        if (result.price !== null && result.price < 15) continue;
+      const match = selectRadarMatch(
+        { title: item.title, price: item.price },
+        candidates.map((c) => ({
+          asin: c.asin,
+          title: c.title,
+          price: c.price,
+          imageUrl: c.imageUrl,
+        })),
+      );
 
-        await prisma.depotProduct.create({
-          data: {
-            asin: result.asin,
-            title: result.title || null,
-            imageUrl: result.imageUrl || null,
-            amazonPrice: result.price,
-            sourceStoreId: store.id,
-            sourceKeyword: item.title,
-            status: "active",
-          },
-        });
-        seen.add(result.asin); // aynı turda tekrar denenmesin
-        addedCount++;
+      if (match.decision === "skip" || !match.candidate) {
+        skippedCount++;
+        continue;
       }
+
+      // Depoda zaten var mı? (ASIN unique) — varsa atla
+      const exists = await prisma.depotProduct.findUnique({
+        where: { asin: match.candidate.asin },
+        select: { id: true },
+      });
+      if (exists) { dedupCount++; continue; }
+
+      // accept → status "active" (dağıtılır) | review → "review" (insan incelemesi, dağıtılmaz)
+      const depotStatus = match.decision === "accept" ? "active" : "review";
+
+      await prisma.depotProduct.create({
+        data: {
+          asin: match.candidate.asin,
+          title: match.candidate.title || null,
+          imageUrl: match.candidate.imageUrl || null,
+          amazonPrice: match.candidate.price,
+          sourceStoreId: store.id,
+          sourceKeyword: item.title,
+          status: depotStatus,
+        },
+      });
+
+      if (match.decision === "accept") acceptedCount++;
+      else reviewCount++;
+
+      await job.log(
+        `[${match.decision}] ${match.candidate.asin} ← "${item.title.slice(0, 50)}" ` +
+        `(${match.contract ? "sözleşme " + match.contract : match.reason}, güven ${match.confidence.toFixed(2)})`,
+      );
     } catch (err) {
       await job.log(`Amazon arama hata (${item.title}): ${err}`);
     }
@@ -85,7 +118,10 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
     data: { lastScannedAt: new Date() },
   });
 
-  await job.log(`Tamamlandı: ${addedCount} yeni ASIN eklendi, ${skippedCount} atlandı`);
+  await job.log(
+    `Tamamlandı: ${acceptedCount} kabul, ${reviewCount} inceleme, ` +
+    `${skippedCount} atlandı, ${dedupCount} zaten depoda`,
+  );
 }
 
 export function createRadarScanWorker(connection: ConnectionOptions): Worker {
