@@ -19,6 +19,10 @@ export interface RadarAuditEntry {
   reason: string;
   priceRatio: number | null;
   candidateCount: number;
+  // P5 para motoru sinyalleri (opsiyonel)
+  soldCount?: number | null;
+  competitiveness?: number | null;
+  rankScore?: number;
 }
 
 /** Bir radar kararını denetim kaydına ekler (kapaklı liste). Asla throw etmez. */

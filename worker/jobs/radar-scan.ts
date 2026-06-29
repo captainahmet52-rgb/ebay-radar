@@ -11,6 +11,7 @@ import { loadGrayscaleFromUrl } from "@/lib/radar/image-fetch";
 import { getRadarRedis } from "@/lib/radar/redis-client";
 import { getSellerPriceBand, recordSellerRatio } from "@/lib/radar/seller-profile";
 import { recordRadarDecision } from "@/lib/radar/audit";
+import { assessViability } from "@/lib/radar/viability";
 import type { RadarScanJobData } from "@/lib/queues";
 
 // Görsel karşılaştırıcı (gerçek indir+decode). accept/review kararlarında devreye girer.
@@ -63,6 +64,7 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
   let reviewCount = 0;
   let skippedCount = 0;
   let dedupCount = 0;
+  let uncompetitiveCount = 0;
 
   for (const item of storeItems.slice(0, 50)) { // ilk 50 ürün
     if (!item.title || item.title.length < 5) continue;
@@ -100,7 +102,17 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
         }
       }
 
-      // Karar denetimi — her karar (atla dahil) kalibrasyon için kaydedilir.
+      // PARA MOTORU (P5) — rekabetçilik + talep + kâr projeksiyonu.
+      const viability = assessViability({
+        amazonPrice: match.candidate?.price ?? null,
+        competitorPrice: item.price,
+        soldCount: item.soldCount,
+      });
+
+      // accept ama rakipten aşırı pahalı (satmaz) → etkili karar SKIP'e iner.
+      const blockedByViability = match.decision === "accept" && !viability.viable;
+      const effectiveDecision = blockedByViability ? "skip" : match.decision;
+
       const priceRatio =
         item.price && item.price > 0 && match.candidate?.price
           ? match.candidate.price / item.price
@@ -111,18 +123,26 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
           storeId: store.id,
           ebayTitle: item.title.slice(0, 120),
           ebayPrice: item.price,
-          decision: match.decision,
+          decision: effectiveDecision,
           asin: match.candidate?.asin ?? null,
           contract: match.contract,
           confidence: match.confidence,
-          reason: match.reason,
+          reason: blockedByViability ? viability.reason : match.reason,
           priceRatio,
           candidateCount: candidates.length,
+          soldCount: item.soldCount,
+          competitiveness: viability.competitiveness,
+          rankScore: viability.rankScore,
         });
       }
 
-      if (match.decision === "skip" || !match.candidate) {
-        skippedCount++;
+      if (effectiveDecision === "skip" || !match.candidate) {
+        if (blockedByViability) {
+          uncompetitiveCount++;
+          await job.log(`[skip:viability] ${match.candidate?.asin} ← "${item.title.slice(0, 50)}" (${viability.reason})`);
+        } else {
+          skippedCount++;
+        }
         continue;
       }
 
@@ -134,7 +154,7 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
       if (exists) { dedupCount++; continue; }
 
       // accept → status "active" (dağıtılır) | review → "review" (insan incelemesi, dağıtılmaz)
-      const depotStatus = match.decision === "accept" ? "active" : "review";
+      const depotStatus = effectiveDecision === "accept" ? "active" : "review";
 
       await prisma.depotProduct.create({
         data: {
@@ -142,13 +162,19 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
           title: match.candidate.title || null,
           imageUrl: match.candidate.imageUrl || null,
           amazonPrice: match.candidate.price,
+          calculatedEbayPrice: viability.projectedEbayPrice,
+          soldCount: item.soldCount,
+          competitorPrice: item.price,
+          projectedProfit: viability.projectedProfit,
+          projectedMarginPct: viability.projectedMarginPct,
+          rankScore: viability.rankScore,
           sourceStoreId: store.id,
           sourceKeyword: item.title,
           status: depotStatus,
         },
       });
 
-      if (match.decision === "accept") {
+      if (effectiveDecision === "accept") {
         acceptedCount++;
         // Satıcı marj profilini öğret (yalnız kesin kabul + bilinen oran).
         if (redis && priceRatio !== null) {
@@ -159,8 +185,8 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
       }
 
       await job.log(
-        `[${match.decision}] ${match.candidate.asin} ← "${item.title.slice(0, 50)}" ` +
-        `(${match.contract ? "sözleşme " + match.contract : match.reason}, güven ${match.confidence.toFixed(2)})`,
+        `[${effectiveDecision}] ${match.candidate.asin} ← "${item.title.slice(0, 50)}" ` +
+        `(${match.contract ? "sözleşme " + match.contract : match.reason}, ${viability.reason})`,
       );
     } catch (err) {
       await job.log(`Amazon arama hata (${item.title}): ${err}`);
@@ -175,7 +201,7 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
 
   await job.log(
     `Tamamlandı: ${acceptedCount} kabul, ${reviewCount} inceleme, ` +
-    `${skippedCount} atlandı, ${dedupCount} zaten depoda`,
+    `${skippedCount} atlandı, ${uncompetitiveCount} rekabetçi değil, ${dedupCount} zaten depoda`,
   );
 }
 

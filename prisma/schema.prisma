@@ -381,6 +381,12 @@ model DepotProduct {
   amazonStockQty      Int?
   ebayFeeRate         Float     @default(0.136)
   calculatedEbayPrice Float?
+  // Radar "para motoru" (P5) — talep + kârlılık + rekabetçilik sinyalleri
+  soldCount           Int?      // rakip eBay mağazasının sattığı adet (talep kanıtı)
+  competitorPrice     Float?    // rakibin eBay satış fiyatı (rekabetçilik için)
+  projectedProfit     Float?    // radar-anı net kâr (repricer)
+  projectedMarginPct  Float?    // radar-anı net marj
+  rankScore           Float     @default(0) // dağıtım sırası: kâr × talep × rekabetçilik
   sourceStoreId       String?
   sourceKeyword       String?
   lastScrapedAt       DateTime?
@@ -389,6 +395,8 @@ model DepotProduct {
 
   sourceStore     TrackedStore?         @relation(fields: [sourceStoreId], references: [id])
   distributions   ProductDistribution[]
+
+  @@index([status, rankScore])
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

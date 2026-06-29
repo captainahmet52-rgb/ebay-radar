@@ -7,6 +7,19 @@ export interface EbayStoreItem {
   price: number | null;
   itemId: string | null;
   imageUrl: string | null;
+  soldCount: number | null; // "X sold" — talep sinyali (P5 para motoru)
+}
+
+// "1,234 sold" / "1.2K sold" → 1234. Bulunamazsa null.
+export function parseSoldCount(text: string | undefined): number | null {
+  if (!text) return null;
+  const m = text.match(/([\d.,]+)\s*K?\s*sold/i);
+  if (!m) return null;
+  const raw = m[1].replace(/,/g, "");
+  let n = parseFloat(raw);
+  if (!Number.isFinite(n)) return null;
+  if (/K\s*sold/i.test(text)) n *= 1000; // "1.2K sold"
+  return Math.round(n);
 }
 
 export async function fetchEbayStoreListing(
@@ -30,6 +43,9 @@ export async function fetchEbayStoreListing(
         // Ürün görseli (Faz 2 görsel kanıtı) — kart içindeki ilk img. render_js=true
         // ile src dolu gelir; boş gelirse görsel kanıt sessizce atlanır (güvenli).
         image:  { selector: "img", output: "@src" },
+        // "X sold" talep sinyali (P5). Selector belirsiz olabilir → bulunamazsa null
+        // (talep "bilinmiyor", kâr ile sıralanır). Layout değişirse ilk bakılacak yer.
+        soldText: { selector: ".s-card__caption", output: "text" },
       },
     },
   });
@@ -53,13 +69,20 @@ export async function fetchEbayStoreListing(
   }
 
   const data = (await response.json()) as {
-    items?: Array<{ title?: string; price?: string; itemId?: string; image?: string | string[] }>;
+    items?: Array<{
+      title?: string;
+      price?: string;
+      itemId?: string;
+      image?: string | string[];
+      soldText?: string | string[];
+    }>;
   };
 
   return (data.items ?? [])
     .filter(item => item.title && !item.title.includes("Shop on eBay"))
     .map(item => {
       const rawImage = Array.isArray(item.image) ? item.image[0] : item.image;
+      const rawSold = Array.isArray(item.soldText) ? item.soldText.join(" ") : item.soldText;
       return {
         title: (item.title ?? "").replace(/^New Listing\s*/i, "").trim(),
         price: item.price ? parseFloat(item.price.replace(/[^0-9.]/g, "")) || null : null,
@@ -67,6 +90,7 @@ export async function fetchEbayStoreListing(
           ? (item.itemId.match(/\/itm\/(\d+)/) ?? [])[1] ?? null
           : null,
         imageUrl: rawImage && /^https?:\/\//i.test(rawImage) ? rawImage : null,
+        soldCount: parseSoldCount(rawSold),
       };
     });
 }

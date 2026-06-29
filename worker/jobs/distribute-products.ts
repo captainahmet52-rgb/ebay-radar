@@ -30,7 +30,9 @@ async function processDistributeProducts(
     const dailyQuota = Math.max(1, Math.ceil(user.productLimit / 30));
     const toDistribute = Math.min(dailyQuota, remaining);
 
-    // Henüz bu kullanıcıya dağıtılmamış aktif depo ürünlerini al
+    // Henüz bu kullanıcıya dağıtılmamış aktif depo ürünlerini al.
+    // SIRA (P5 para motoru): önce en yüksek rankScore (kâr × talep × rekabetçilik),
+    // eşitlikte en yeni. Böylece kullanıcı önce EN ÇOK SATAN + EN KÂRLI ürünleri alır.
     const availableProducts = await prisma.depotProduct.findMany({
       where: {
         status: "active",
@@ -40,7 +42,7 @@ async function processDistributeProducts(
         },
       },
       take: toDistribute,
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ rankScore: "desc" }, { createdAt: "desc" }],
     });
 
     if (availableProducts.length === 0) {
