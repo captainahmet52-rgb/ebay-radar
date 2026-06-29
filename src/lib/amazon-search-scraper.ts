@@ -31,7 +31,8 @@ export async function searchAmazonProducts(
       type: "list",
       output: {
         asin:     { selector: "[data-asin]", output: "@data-asin" },
-        title:    "h2 .a-text-normal",
+        // Amazon 2026: başlık artık h2 .a-text-normal değil; h2 metni güvenilir.
+        title:    "h2",
         price:    ".a-price .a-offscreen",
         imageUrl: { selector: ".s-image", output: "@src" },
       },

@@ -15,24 +15,29 @@ export async function fetchEbayStoreListing(
   const apiKey = process.env.SCRAPINGBEE_API_KEY;
   if (!apiKey) throw new Error("SCRAPINGBEE_API_KEY tanımlı değil");
 
-  const storeUrl = `https://www.ebay.com/sch/i.html?_ssn=${encodeURIComponent(ebayUsername)}&_pgn=${page}&_skc=${(page - 1) * 48}`;
+  const storeUrl = `https://www.ebay.com/sch/i.html?_ssn=${encodeURIComponent(ebayUsername)}&_pgn=${page}`;
 
+  // eBay 2026 layout: arama sonuçları .s-item → .s-card (yeni BEM yapısı) oldu.
   const extractRules = JSON.stringify({
     items: {
-      selector: ".s-item",
+      selector: ".s-card",
       type: "list",
       output: {
-        title:  ".s-item__title",
-        price:  ".s-item__price",
-        itemId: { selector: ".s-item__link", output: "@href" },
+        title:  ".s-card__title",
+        price:  ".s-card__price",
+        itemId: { selector: "a.s-card__link", output: "@href" },
       },
     },
   });
 
+  // eBay datacenter IP'lerini 403 ile engelliyor → render_js + premium_proxy ZORUNLU
+  // (residential IP + JS challenge). render_js'siz veya premium'suz istek 403/500 döner.
+  // Maliyet: ~25 kredi/sayfa (test edildi, çalışıyor).
   const params = new URLSearchParams({
     api_key: apiKey,
     url: storeUrl,
-    render_js: "false",
+    render_js: "true",
+    premium_proxy: "true",
     country_code: "us",
     extract_rules: extractRules,
   });
