@@ -12,15 +12,21 @@ import { getRadarRedis } from "@/lib/radar/redis-client";
 import { getSellerPriceBand, recordSellerRatio } from "@/lib/radar/seller-profile";
 import { recordRadarDecision } from "@/lib/radar/audit";
 import { assessViability } from "@/lib/radar/viability";
+import { buildAmazonQueries } from "@/lib/radar/query-builder";
+import { wasRecentlySeen, markSeen } from "@/lib/radar/item-cache";
 import type { RadarScanJobData } from "@/lib/queues";
 
 // Görsel karşılaştırıcı (gerçek indir+decode). accept/review kararlarında devreye girer.
 const imageComparator = makeUrlComparator(loadGrayscaleFromUrl);
 
-// Matcher'a kaç aday verilecek (maliyet yok — sadece CPU; çok aday = daha iyi seçim)
-const MAX_CANDIDATES = 12;
+// Matcher'a verilecek azami aday (CPU only; çok-sorgu havuzu için biraz geniş)
+const MAX_CANDIDATES = 20;
 // $15 altı asla alınma (CLAUDE.md) — fiyat bandının yanında ek sert taban
 const MIN_AMAZON_PRICE = 15;
+// Çok-sorgulu arama: en fazla bu kadar Amazon sorgusu dene, accept bulununca DUR.
+const MAX_QUERIES = 3;
+// Taranan item'ların kaçını işle (eBay scrape zaten ödendi → daha çok kapsama, eBay maliyeti +0)
+const MAX_ITEMS_PER_SCAN = 80;
 
 async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
   const { trackedStoreId } = job.data;
@@ -65,32 +71,46 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
   let skippedCount = 0;
   let dedupCount = 0;
   let uncompetitiveCount = 0;
+  let cachedCount = 0;
 
-  for (const item of storeItems.slice(0, 50)) { // ilk 50 ürün
+  for (const item of storeItems.slice(0, MAX_ITEMS_PER_SCAN)) {
     if (!item.title || item.title.length < 5) continue;
 
     try {
-      // Amazon'da ara — sadece ilk sayfa
-      const amazonResults = await searchAmazonProducts(item.title, 1);
-
-      // $15 sert taban — bant öncesi ele
-      const candidates = amazonResults
-        .filter((r) => r.price === null || r.price >= MIN_AMAZON_PRICE)
-        .slice(0, MAX_CANDIDATES);
-
-      if (candidates.length === 0) { skippedCount++; continue; }
+      // KREDİ TASARRUFU: bu itemId yakın zamanda değerlendirildiyse Amazon'da TEKRAR ARAMA.
+      if (item.itemId && redis && (await wasRecentlySeen(redis, item.itemId))) {
+        cachedCount++;
+        continue;
+      }
 
       const sourceItem = { title: item.title, price: item.price, imageUrl: item.imageUrl };
-      let match = selectRadarMatch(
-        sourceItem,
-        candidates.map((c) => ({
-          asin: c.asin,
-          title: c.title,
-          price: c.price,
-          imageUrl: c.imageUrl,
-        })),
-        { precisionBand: sellerBand },
-      );
+
+      // ÇOK-SORGULU ARAMA: sorguları sırayla dene, aday havuzunu birleştir, accept
+      // bulununca DUR (kolay item'da 1 kredi; sadece zor item'da ek sorgu).
+      const queries = buildAmazonQueries(item.title);
+      const seenAsin = new Set<string>();
+      const pool: { asin: string; title: string; price: number | null; imageUrl: string | null }[] = [];
+      let match: ReturnType<typeof selectRadarMatch> | null = null;
+
+      for (let qi = 0; qi < queries.length && qi < MAX_QUERIES; qi++) {
+        const res = await searchAmazonProducts(queries[qi], 1);
+        for (const r of res) {
+          if (r.price !== null && r.price < MIN_AMAZON_PRICE) continue;
+          if (seenAsin.has(r.asin)) continue;
+          seenAsin.add(r.asin);
+          pool.push({ asin: r.asin, title: r.title, price: r.price, imageUrl: r.imageUrl });
+        }
+        if (pool.length === 0) continue;
+        match = selectRadarMatch(sourceItem, pool.slice(0, MAX_CANDIDATES), { precisionBand: sellerBand });
+        if (match.decision === "accept") break; // güçlü eşleşme → ek sorgu yapma
+      }
+
+      const candidates = pool;
+      if (!match || candidates.length === 0) {
+        skippedCount++;
+        if (item.itemId && redis) await markSeen(redis, item.itemId, "skip");
+        continue;
+      }
 
       // Görsel kanıt katmanı — yalnız accept (savunma) ve review (yükseltme) için.
       // skip'te görsel indirmeyiz (çöp adaylar için bant genişliği israfı olmasın).
@@ -143,6 +163,7 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
         } else {
           skippedCount++;
         }
+        if (item.itemId && redis) await markSeen(redis, item.itemId, effectiveDecision);
         continue;
       }
 
@@ -151,7 +172,11 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
         where: { asin: match.candidate.asin },
         select: { id: true },
       });
-      if (exists) { dedupCount++; continue; }
+      if (exists) {
+        dedupCount++;
+        if (item.itemId && redis) await markSeen(redis, item.itemId, "dedup");
+        continue;
+      }
 
       // accept → status "active" (dağıtılır) | review → "review" (insan incelemesi, dağıtılmaz)
       const depotStatus = effectiveDecision === "accept" ? "active" : "review";
@@ -183,6 +208,7 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
       } else {
         reviewCount++;
       }
+      if (item.itemId && redis) await markSeen(redis, item.itemId, effectiveDecision);
 
       await job.log(
         `[${effectiveDecision}] ${match.candidate.asin} ← "${item.title.slice(0, 50)}" ` +
@@ -201,7 +227,8 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
 
   await job.log(
     `Tamamlandı: ${acceptedCount} kabul, ${reviewCount} inceleme, ` +
-    `${skippedCount} atlandı, ${uncompetitiveCount} rekabetçi değil, ${dedupCount} zaten depoda`,
+    `${skippedCount} atlandı, ${uncompetitiveCount} rekabetçi değil, ${dedupCount} zaten depoda, ` +
+    `${cachedCount} cache (Amazon araması yapılmadı)`,
   );
 }
 

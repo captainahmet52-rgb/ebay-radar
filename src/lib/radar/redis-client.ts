@@ -6,13 +6,15 @@
 
 import Redis from "ioredis";
 import type { RadarRedis } from "@/lib/radar/seller-profile";
+import type { CacheRedis } from "@/lib/radar/item-cache";
 
 let client: Redis | null = null;
 
 const IS_BUILD = process.env.NEXT_PHASE === "phase-production-build";
 
-/** Radar Redis istemcisi (lazy singleton). Build fazında null. */
-export function getRadarRedis(): RadarRedis | null {
+/** Radar Redis istemcisi (lazy singleton). Build fazında null.
+ *  Hem liste (profil/audit) hem KV (item cache) metodlarını sağlar. */
+export function getRadarRedis(): (RadarRedis & CacheRedis) | null {
   if (IS_BUILD) return null;
   if (client) return client;
   const url = process.env.REDIS_URL ?? "redis://localhost:6379";
