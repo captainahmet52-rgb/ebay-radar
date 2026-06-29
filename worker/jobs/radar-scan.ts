@@ -4,10 +4,13 @@ import type { ConnectionOptions } from "bullmq";
 import { prisma } from "@/lib/prisma";
 import { fetchEbayStoreListing } from "@/lib/ebay-store-scraper";
 import { searchAmazonProducts } from "@/lib/amazon-search-scraper";
-import { selectRadarMatch } from "@/lib/radar/source-matcher";
+import { selectRadarMatch, GLOBAL_PRECISION_BAND } from "@/lib/radar/source-matcher";
 import { refineWithImageEvidence } from "@/lib/radar/image-evidence";
 import { makeUrlComparator } from "@/lib/radar/image-compare";
 import { loadGrayscaleFromUrl } from "@/lib/radar/image-fetch";
+import { getRadarRedis } from "@/lib/radar/redis-client";
+import { getSellerPriceBand, recordSellerRatio } from "@/lib/radar/seller-profile";
+import { recordRadarDecision } from "@/lib/radar/audit";
 import type { RadarScanJobData } from "@/lib/queues";
 
 // Görsel karşılaştırıcı (gerçek indir+decode). accept/review kararlarında devreye girer.
@@ -47,6 +50,12 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
 
   await job.log(`${storeItems.length} eBay ürünü bulundu`);
 
+  // Satıcıya-özel hassas fiyat bandını TUR BAŞINA bir kez öğren (mağaza sabit).
+  const redis = getRadarRedis();
+  const sellerBand = redis
+    ? await getSellerPriceBand(redis, store.id, GLOBAL_PRECISION_BAND)
+    : GLOBAL_PRECISION_BAND;
+
   // 2. Her ürün başlığı için Amazon'da ara → ÇEKİMSER SEÇİCİ → en fazla TEK ASIN.
   //    "Kanıtla ya da atla": tek bir yanlış ASIN müşterinin gerçek mağazasına
   //    listelenir → yanlış kargo → ban. Kanıt yoksa hiç ekleme.
@@ -78,6 +87,7 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
           price: c.price,
           imageUrl: c.imageUrl,
         })),
+        { precisionBand: sellerBand },
       );
 
       // Görsel kanıt katmanı — yalnız accept (savunma) ve review (yükseltme) için.
@@ -88,6 +98,27 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
         } catch {
           /* görsel hatası → metin kararı korunur */
         }
+      }
+
+      // Karar denetimi — her karar (atla dahil) kalibrasyon için kaydedilir.
+      const priceRatio =
+        item.price && item.price > 0 && match.candidate?.price
+          ? match.candidate.price / item.price
+          : null;
+      if (redis) {
+        await recordRadarDecision(redis, {
+          ts: Date.now(),
+          storeId: store.id,
+          ebayTitle: item.title.slice(0, 120),
+          ebayPrice: item.price,
+          decision: match.decision,
+          asin: match.candidate?.asin ?? null,
+          contract: match.contract,
+          confidence: match.confidence,
+          reason: match.reason,
+          priceRatio,
+          candidateCount: candidates.length,
+        });
       }
 
       if (match.decision === "skip" || !match.candidate) {
@@ -117,8 +148,15 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
         },
       });
 
-      if (match.decision === "accept") acceptedCount++;
-      else reviewCount++;
+      if (match.decision === "accept") {
+        acceptedCount++;
+        // Satıcı marj profilini öğret (yalnız kesin kabul + bilinen oran).
+        if (redis && priceRatio !== null) {
+          await recordSellerRatio(redis, store.id, priceRatio);
+        }
+      } else {
+        reviewCount++;
+      }
 
       await job.log(
         `[${match.decision}] ${match.candidate.asin} ← "${item.title.slice(0, 50)}" ` +

@@ -31,6 +31,22 @@ export const STRONG_SIM = 0.7; // Sözleşme D güçlü benzerlik
 export const WINNER_GAP = 0.12; // en iyi, ikinciyi bu kadar geçmeli (belirsizlik freni)
 export const THIN_TITLE_MIN = 3; // kaynak başlıkta en az bu kadar anlamlı kelime
 
+export interface PriceBand {
+  min: number; // amazon/ebay oranı alt sınır
+  max: number; // amazon/ebay oranı üst sınır
+}
+
+// Varsayılan (global) hassas bant. Satıcıya-özel öğrenilen bant (Faz 3) bunu daraltır.
+export const GLOBAL_PRECISION_BAND: PriceBand = {
+  min: PRICE_PRECISION_MIN,
+  max: PRICE_PRECISION_MAX,
+};
+
+export interface SelectOptions {
+  /** Hassas fiyat bandı (satıcıya-özel öğrenilmişse). Verilmezse global kullanılır. */
+  precisionBand?: PriceBand;
+}
+
 export interface RadarSourceItem {
   title: string;
   price: number | null; // eBay (bayi) satış fiyatı
@@ -112,6 +128,7 @@ function evaluateCandidate(
   cand: RadarCandidate,
   srcTokens: Set<string>,
   srcModels: Set<string>,
+  band: PriceBand,
 ): RadarCandidateEval {
   const base: Omit<RadarCandidateEval, "vetoed" | "vetoReason"> = {
     asin: cand.asin,
@@ -134,7 +151,7 @@ function evaluateCandidate(
       return veto(`fiyat bandı dışı (oran ${ratio.toFixed(2)})`);
     }
     base.priceAbsoluteOk = true;
-    base.pricePrecision = ratio >= PRICE_PRECISION_MIN && ratio <= PRICE_PRECISION_MAX;
+    base.pricePrecision = ratio >= band.min && ratio <= band.max;
   }
 
   // 2) Ürün tipi çelişkisi (uyumluluk bağlamı atılmış core üzerinden)
@@ -186,7 +203,9 @@ function evaluateCandidate(
 export function selectRadarMatch(
   item: RadarSourceItem,
   candidates: RadarCandidate[],
+  opts: SelectOptions = {},
 ): RadarMatchResult {
+  const band = opts.precisionBand ?? GLOBAL_PRECISION_BAND;
   const none = (
     decision: RadarDecision,
     reason: string,
@@ -213,7 +232,7 @@ export function selectRadarMatch(
   if (candidates.length === 0) return none("skip", "aday yok");
 
   // 1) Her adayı değerlendir
-  const evals = candidates.map((c) => evaluateCandidate(item, c, srcTokens, srcModels));
+  const evals = candidates.map((c) => evaluateCandidate(item, c, srcTokens, srcModels, band));
   const survivorsIdx = evals
     .map((e, i) => ({ e, i }))
     .filter((x) => !x.e.vetoed)
