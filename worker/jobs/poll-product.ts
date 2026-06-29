@@ -5,6 +5,7 @@ import type { ConnectionOptions } from "bullmq";
 import { prisma } from "@/lib/prisma";
 import { fetchAmazonProduct, ScraperOutOfCreditsError } from "@/lib/scraper";
 import { calculateEbayPriceForMarket, isPriceSpike, determineQty, isSignificantChange } from "@/lib/repricer";
+import { revalidateListingTitle } from "@/lib/radar/revalidate";
 import { notifyScraperOutOfCredits } from "@/lib/admin-notify";
 import { updateListingQueue, publishListingQueue, type PollProductJobData } from "@/lib/queues";
 
@@ -220,6 +221,7 @@ async function processPollProduct(job: Job<PollProductJobData>): Promise<void> {
   let updateCount = 0;
   let reactivateCount = 0;
   let skipCount = 0;
+  let blockedCount = 0;
 
   await Promise.all(
     eligible.map(async (listing) => {
@@ -244,6 +246,19 @@ async function processPollProduct(job: Job<PollProductJobData>): Promise<void> {
       });
 
       if (!listing.ebayListingId) {
+        // YENİDEN DOĞRULAMA (ilk yayın kapısı) — depo başlığı (product.title, in-memory
+        // baseline) ile o an canlı çekilen başlık (scraped.title) tutarlı mı? ASIN farklı
+        // ürüne dönüştürülmüşse müşterinin mağazasına YANLIŞ ürün düşmesin → yayını engelle.
+        const reval = revalidateListingTitle(product.title, scraped.title);
+        if (!reval.ok) {
+          blockedCount++;
+          await prisma.listing.update({
+            where: { id: listing.id },
+            data: { status: "paused", currentQty: 0, lastEbayError: `revalidate: ${reval.reason}` },
+          });
+          job.log(`Yayın ENGELLENDI (revalidate): ${reval.reason} | listing ${listing.id} | ${product.asin}`);
+          return undefined;
+        }
         publishCount++;
         return publishListingQueue.add(
           "publish-listing",
@@ -271,7 +286,7 @@ async function processPollProduct(job: Job<PollProductJobData>): Promise<void> {
   );
 
   job.log(
-    `Tamamlandı${recovery ? " (RECOVERY)" : ""}: ${product.asin} | eBay: $${newEbayPrice?.toFixed(2) ?? "?"} | stok: ${stockStatus}(${stockQty ?? "∞"}) | yayınla=${publishCount} güncelle=${updateCount} reaktive=${reactivateCount} atlanan(histerezis)=${skipCount}`
+    `Tamamlandı${recovery ? " (RECOVERY)" : ""}: ${product.asin} | eBay: $${newEbayPrice?.toFixed(2) ?? "?"} | stok: ${stockStatus}(${stockQty ?? "∞"}) | yayınla=${publishCount} güncelle=${updateCount} reaktive=${reactivateCount} atlanan(histerezis)=${skipCount} engellenen(revalidate)=${blockedCount}`
   );
 }
 

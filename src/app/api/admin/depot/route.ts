@@ -8,8 +8,13 @@ export const GET = requireAdmin(async (req) => {
   const limit = Math.min(100, parseInt(searchParams.get("limit") ?? "50", 10));
   const skip = (page - 1) * limit;
 
-  const [products, total] = await Promise.all([
+  // Opsiyonel durum filtresi (active | review | rejected). Verilmezse tümü.
+  const statusParam = searchParams.get("status");
+  const where = statusParam ? { status: statusParam } : {};
+
+  const [products, total, reviewCount] = await Promise.all([
     prisma.depotProduct.findMany({
+      where,
       skip,
       take: limit,
       orderBy: { createdAt: "desc" },
@@ -18,11 +23,12 @@ export const GET = requireAdmin(async (req) => {
         _count: { select: { distributions: true } },
       },
     }),
-    prisma.depotProduct.count(),
+    prisma.depotProduct.count({ where }),
+    prisma.depotProduct.count({ where: { status: "review" } }),
   ]);
 
   return NextResponse.json({
     data: products,
-    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    meta: { page, limit, total, totalPages: Math.ceil(total / limit), reviewCount },
   });
 });
