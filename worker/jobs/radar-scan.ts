@@ -2,7 +2,7 @@
 import { Worker, Job } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
 import { prisma } from "@/lib/prisma";
-import { fetchStoreListingsViaApi } from "@/lib/ebay/seller-listings";
+import { fetchSellerListings } from "@/lib/ebay/seller-listings";
 import { searchAmazonProducts } from "@/lib/amazon-search-scraper";
 import { selectRadarMatch, GLOBAL_PRECISION_BAND } from "@/lib/radar/source-matcher";
 import { refineWithImageEvidence } from "@/lib/radar/image-evidence";
@@ -43,16 +43,17 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
   await job.log(`Mağaza taranıyor: ${store.ebayUsername}`);
   await job.updateProgress({ phase: "fetching", processed: 0, total: 0 });
 
-  // 1. eBay mağazasının ilanlarını RESMİ API ile çek (BEDAVA — ScrapingBee YOK).
-  //    store.ebayUsername = mağazanın GÖRÜNEN adı (örn. "USA One Mart").
-  let storeItems: Awaited<ReturnType<typeof fetchStoreListingsViaApi>> = [];
+  // 1. Satıcının ilanlarını RESMİ Browse API ile çek (BEDAVA — ScrapingBee YOK).
+  //    store.ebayUsername = GERÇEK eBay satıcı kullanıcı adı (örn. "md.asifpa-0"),
+  //    mağaza URL slug'ı DEĞİL — mağaza eklenirken ürün linkinden çözülür.
+  let storeItems: Awaited<ReturnType<typeof fetchSellerListings>> = [];
   try {
-    storeItems = await fetchStoreListingsViaApi(store.ebayUsername, 160);
+    storeItems = await fetchSellerListings(store.ebayUsername, 160);
   } catch (err) {
-    await job.log(`eBay API hata: ${err}`);
+    await job.log(`eBay Browse API hata: ${err}`);
   }
 
-  await job.log(`${storeItems.length} eBay ürünü bulundu (resmi API)`);
+  await job.log(`${storeItems.length} eBay ürünü bulundu (Browse API)`);
 
   // Satıcıya-özel hassas fiyat bandını TUR BAŞINA bir kez öğren (mağaza sabit).
   const redis = getRadarRedis();

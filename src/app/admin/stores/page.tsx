@@ -31,22 +31,31 @@ export default function AdminStoresPage() {
   const [storeUrl, setStoreUrl] = useState("");
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [scan, setScan] = useState<Record<string, ScanProgress>>({});
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     setAdding(true);
     setError("");
+    setNotice("");
     try {
       const res = await fetch("/api/admin/stores", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ebayUsername: username, storeUrl }),
+        body: JSON.stringify({ sellerInput: username, storeUrl }),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as {
+        error?: string;
+        resolvedUsername?: string;
+        resolvedFromLink?: boolean;
+      };
       if (!res.ok) {
         setError(data.error ?? "Hata olustu");
       } else {
+        if (data.resolvedFromLink && data.resolvedUsername) {
+          setNotice(`Satıcı çözüldü: ${data.resolvedUsername}`);
+        }
         setUsername("");
         setStoreUrl("");
         void mutate();
@@ -114,11 +123,16 @@ export default function AdminStoresPage() {
 
       {/* Ekleme formu */}
       <div className="bg-slate-900/50 border border-slate-700/50 rounded-2xl p-6 mb-8">
-        <h2 className="font-semibold mb-4">Yeni Magaza Ekle</h2>
+        <h2 className="font-semibold mb-1">Yeni Magaza Ekle</h2>
+        <p className="text-xs text-slate-400 mb-4">
+          En kolayı: mağazadan <strong>bir ürün linki</strong> yapıştır (örn.
+          https://www.ebay.com/itm/123456789012) — gerçek satıcı otomatik bulunur.
+          İstersen doğrudan satıcı kullanıcı adını da yazabilirsin.
+        </p>
         <form onSubmit={handleAdd} className="flex flex-col md:flex-row gap-3">
           <input
             type="text"
-            placeholder="eBay Kullanici Adi"
+            placeholder="Ürün linki VEYA satıcı kullanıcı adı"
             value={username}
             onChange={e => setUsername(e.target.value)}
             required
@@ -141,6 +155,7 @@ export default function AdminStoresPage() {
           </button>
         </form>
         {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
+        {notice && <p className="text-emerald-400 text-sm mt-2">✓ {notice}</p>}
       </div>
 
       {/* Mağaza listesi */}

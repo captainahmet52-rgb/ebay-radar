@@ -1,102 +1,134 @@
-// eBay satıcı/mağaza ilanlarını RESMİ API ile çek — ScrapingBee'siz, BEDAVA.
+// eBay satıcı/mağaza ilanlarını RESMİ Browse API ile çek — ScrapingBee'siz, BEDAVA.
 //
-// findItemsIneBayStores (Finding API): bir eBay mağazasının tüm ilanlarını storeName
-// ile listeler, anahtar kelime GEREKTİRMEZ. Auth = App ID (EBAY_CLIENT_ID, gizli secret
-// gerekmez). Radar'ın eBay tarafını scrape yerine buna bağlarız:
-//   • Bedava (eBay API ücretsiz, cömert kota) — ScrapingBee kredisi yanmaz
-//   • Güvenilir — 403 yok, selector kırılması yok, yapılandırılmış JSON
-//   • ÖDÜN: "X sold" (satış adedi) API'de yok → soldCount null (para motoru kâr×rekabetçilikle çalışır)
+// NEDEN BROWSE API:
+//   • Finding API (svcs.ebay.com) 2026'da EMEKLİ → VPS'ten 503/HTML döndürüyor (ÖLÜ).
+//   • Mağaza sayfası (/str) ve /sch artık JS-render / IP-bloklu → ham scrape boş.
+//   • Browse API (api.ebay.com) OAuth app-token ile çalışır, VPS'ten ERİŞİLEBİLİR,
+//     yapılandırılmış JSON, ücretsiz cömert kota. (OAuth zaten üretimde canlı.)
+//
+// MAĞAZA → SATICI: Browse satıcıyı GERÇEK kullanıcı adıyla tanır (mağaza URL slug'ı
+//   DEĞİL). Örn. "usaonemart" mağazası aslında "md.asifpa-0" satıcısıdır. Slug'dan
+//   username'e geçiş için mağazadan TEK bir ürün linki yeter (resolveSellerUsername).
+//
+// TÜM-MAĞAZA DÖKÜMÜ: Browse "q" zorunlu kılar; ama category_ids=0 (kök kategori) +
+//   filter=sellers:{username} kombinasyonu satıcının TÜM kataloğunu döker (kanıtlandı:
+//   945 ürün). q ile yapılırsa eksik döner; bu yüzden category_ids=0 kullanılır.
+//
+//   ÖDÜN: Browse item_summary "X sold" (satış adedi) vermez → soldCount null
+//   (para motoru kâr × rekabetçilik ile çalışır, talebe bağımlı değil).
 
-const FINDING_URL = "https://svcs.ebay.com/services/search/FindingService/v1";
+import { getApplicationToken } from "@/lib/ebay/oauth";
+
+const BROWSE_BASE = "https://api.ebay.com/buy/browse/v1";
+const BROWSE_PAGE_SIZE = 200; // Browse item_summary azami limit
+const BROWSE_MAX_OFFSET = 10000; // Browse erişilebilir azami sonuç
 
 export interface EbayApiItem {
   title: string;
   price: number | null;
   itemId: string | null;
   imageUrl: string | null;
-  soldCount: number | null; // Finding API vermiyor → her zaman null
+  soldCount: number | null; // Browse vermiyor → her zaman null
 }
 
-// Finding API'nin (JSON) item kaydı — alanlar dizi içinde gelir.
-interface RawFindingItem {
-  itemId?: string[];
-  title?: string[];
-  galleryURL?: string[];
-  sellingStatus?: Array<{ currentPrice?: Array<{ __value__?: string }> }>;
+// Browse item_summary kaydının ilgilendiğimiz alanları.
+interface BrowseItemSummary {
+  itemId?: string;
+  legacyItemId?: string;
+  title?: string;
+  price?: { value?: string };
+  image?: { imageUrl?: string };
+  thumbnailImages?: Array<{ imageUrl?: string }>;
 }
 
-/** Finding API item dizisini sade EbayApiItem listesine çevirir (SAF, test edilebilir). */
-export function parseFindingItems(items: RawFindingItem[]): EbayApiItem[] {
+function browseHeaders(token: string): Record<string, string> {
+  return {
+    Authorization: `Bearer ${token}`,
+    "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
+    "Content-Type": "application/json",
+  };
+}
+
+/** Browse item_summary dizisini sade EbayApiItem listesine çevirir (SAF, test edilebilir). */
+export function parseBrowseItems(items: BrowseItemSummary[]): EbayApiItem[] {
   return items.map((it) => {
-    const priceStr = it.sellingStatus?.[0]?.currentPrice?.[0]?.__value__;
+    const priceStr = it.price?.value;
     const price = priceStr ? parseFloat(priceStr) || null : null;
-    const img = it.galleryURL?.[0] ?? null;
+    const img = it.image?.imageUrl ?? it.thumbnailImages?.[0]?.imageUrl ?? null;
     return {
-      title: (it.title?.[0] ?? "").trim(),
+      title: (it.title ?? "").trim(),
       price,
-      itemId: it.itemId?.[0] ?? null,
+      itemId: it.itemId ?? it.legacyItemId ?? null,
       imageUrl: img && /^https?:\/\//i.test(img) ? img : null,
       soldCount: null,
     };
   });
 }
 
-interface FindingResponse {
-  findItemsIneBayStoresResponse?: Array<{
-    ack?: string[];
-    errorMessage?: unknown;
-    searchResult?: Array<{ item?: RawFindingItem[] }>;
-    paginationOutput?: Array<{ totalPages?: string[] }>;
-  }>;
+/** Bir ürün linkinden/metninden eBay legacy item id'sini (9+ rakam) çıkarır (SAF). */
+export function extractLegacyItemId(input: string): string | null {
+  const trimmed = input.trim();
+  const m =
+    trimmed.match(/\/itm\/(?:[^/?]*\/)?(\d{9,})/) ?? trimmed.match(/(\d{9,})/);
+  return m ? m[1] : null;
 }
 
 /**
- * Bir eBay mağazasının ilanlarını çeker (sayfalı). storeName = mağazanın GÖRÜNEN adı
- * (örn. "USA One Mart"). maxItems'a ulaşınca ya da sayfa bitince durur.
+ * Bir eBay ürün linkindeki/legacy id'deki satıcının GERÇEK kullanıcı adını çözer.
+ * Browse getItemByLegacyId → seller.username. Bulamazsa null.
  */
-export async function fetchStoreListingsViaApi(
-  storeName: string,
-  maxItems = 160,
-): Promise<EbayApiItem[]> {
-  const appId = process.env.EBAY_CLIENT_ID;
-  if (!appId) throw new Error("EBAY_CLIENT_ID tanımlı değil");
+export async function resolveSellerUsername(legacyItemId: string): Promise<string | null> {
+  const token = await getApplicationToken();
+  const res = await fetch(
+    `${BROWSE_BASE}/item/get_item_by_legacy_id?legacy_item_id=${encodeURIComponent(legacyItemId)}`,
+    { headers: browseHeaders(token) },
+  );
+  if (!res.ok) return null;
+  const data = (await res.json()) as { seller?: { username?: string } };
+  return data.seller?.username ?? null;
+}
 
+/**
+ * Bir satıcının (eBay kullanıcı adı) TÜM ilanlarını Browse API ile çeker (sayfalı).
+ * category_ids=0 + filter=sellers:{username} → tüm katalog. maxItems'a ulaşınca durur.
+ *
+ * NOT: Braces ({}) URL'de LİTERAL kalmalı (eBay filtre söz dizimi); yalnız username
+ * encode edilir — kanıtlanmış çalışan biçim budur.
+ */
+export async function fetchSellerListings(
+  username: string,
+  maxItems = BROWSE_PAGE_SIZE,
+): Promise<EbayApiItem[]> {
+  const token = await getApplicationToken();
   const out: EbayApiItem[] = [];
-  const perPage = 100; // Finding API sayfa başına azami
-  let page = 1;
+  let offset = 0;
 
   while (out.length < maxItems) {
-    const params = new URLSearchParams({
-      "OPERATION-NAME": "findItemsIneBayStores",
-      "SERVICE-VERSION": "1.13.0",
-      "SECURITY-APPNAME": appId,
-      "RESPONSE-DATA-FORMAT": "JSON",
-      "REST-PAYLOAD": "",
-      storeName,
-      "paginationInput.entriesPerPage": String(perPage),
-      "paginationInput.pageNumber": String(page),
-    });
+    const url =
+      `${BROWSE_BASE}/item_summary/search` +
+      `?category_ids=0` +
+      `&filter=sellers:{${encodeURIComponent(username)}}` +
+      `&limit=${BROWSE_PAGE_SIZE}` +
+      `&offset=${offset}`;
 
-    const res = await fetch(`${FINDING_URL}?${params.toString()}`);
+    const res = await fetch(url, { headers: browseHeaders(token) });
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      throw new Error(`eBay Finding API hatası: ${res.status} — ${body.slice(0, 200)}`);
+      throw new Error(`eBay Browse API hatası: ${res.status} — ${body.slice(0, 200)}`);
     }
 
-    const data = (await res.json()) as FindingResponse;
-    const resp = data.findItemsIneBayStoresResponse?.[0];
-    const ack = resp?.ack?.[0];
-    if (ack !== "Success" && ack !== "Warning") {
-      throw new Error(`eBay Finding API ack=${ack ?? "?"}: ${JSON.stringify(resp?.errorMessage ?? {}).slice(0, 200)}`);
-    }
-
-    const items = resp?.searchResult?.[0]?.item ?? [];
+    const data = (await res.json()) as {
+      total?: number;
+      itemSummaries?: BrowseItemSummary[];
+    };
+    const items = data.itemSummaries ?? [];
     if (items.length === 0) break;
-    out.push(...parseFindingItems(items));
 
-    const totalPages = parseInt(resp?.paginationOutput?.[0]?.totalPages?.[0] ?? "1", 10);
-    if (page >= totalPages) break;
-    page++;
+    out.push(...parseBrowseItems(items));
+
+    const total = data.total ?? 0;
+    offset += BROWSE_PAGE_SIZE;
+    if (offset >= total || offset >= BROWSE_MAX_OFFSET) break;
   }
 
   return out.slice(0, maxItems);
