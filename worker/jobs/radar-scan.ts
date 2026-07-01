@@ -2,7 +2,7 @@
 import { Worker, Job } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
 import { prisma } from "@/lib/prisma";
-import { fetchSellerListings } from "@/lib/ebay/seller-listings";
+import { fetchSellerListings, enrichSoldCounts } from "@/lib/ebay/seller-listings";
 import { searchAmazonProducts } from "@/lib/amazon-search-scraper";
 import { selectRadarMatch, GLOBAL_PRECISION_BAND } from "@/lib/radar/source-matcher";
 import { refineWithImageEvidence } from "@/lib/radar/image-evidence";
@@ -27,9 +27,12 @@ const MIN_AMAZON_PRICE = 15;
 const MAX_QUERIES = 3;
 // eBay tarafından TÜM mağaza kataloğunu çek (Browse BEDAVA → tümünü al, kapsama için).
 const MAX_STORE_FETCH = 1000;
-// Amazon eşleştirmesi ScrapingBee kredisi yakar → tur başına bu kadar YENİ ürün işle.
-// Cache sayesinde her tarama katalogda İLERLER (tur1: 1-80, tur2: 81-160 ...) →
-// birkaç turda tüm mağaza taranır. Sayıyı artırmak = tur başına daha çok kredi.
+// Satış zenginleştirmesi: bu kadar görülmemiş ürünü getItem ile satış adediyle
+// zenginleştir, EN ÇOK SATANLARI öne al (Browse getItem bedava; rate-limit dostu havuz).
+const SOLD_ENRICH_POOL = 200;
+// Amazon eşleştirmesi ScrapingBee kredisi yakar → tur başına bu kadar EN ÇOK SATAN'ı işle.
+// Cache sayesinde her tarama katalogda İLERLER → birkaç turda tüm satan ürünler taranır.
+// Sayıyı artırmak = tur başına daha çok kredi.
 const MAX_ITEMS_PER_SCAN = 80;
 
 async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
@@ -77,22 +80,32 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
   let processedItems = 0;
 
   // KAPSAMA: tüm katalogtan HENÜZ değerlendirilmemiş (cache'te olmayan) ürünleri süz,
-  // bu turda sadece ilk MAX_ITEMS_PER_SCAN'ini işle. Böylece her tarama katalogda
-  // İLERLER (tur1: 1-80, tur2: 81-160 ...) → birkaç turda TÜM mağaza taranır.
+  // satış zenginleştirmesi için MAX_ITEMS'ten geniş bir havuz topla.
   // cachedCount = önceki turlarda kapsanan ürün sayısı (ilerleme göstergesi).
-  const pending: typeof storeItems = [];
+  const unseen: typeof storeItems = [];
   for (const item of storeItems) {
     if (!item.title || item.title.length < 5) continue;
     if (item.itemId && redis && (await wasRecentlySeen(redis, item.itemId))) {
       cachedCount++;
       continue;
     }
-    if (pending.length < MAX_ITEMS_PER_SCAN) pending.push(item);
+    if (unseen.length < SOLD_ENRICH_POOL) unseen.push(item);
   }
 
+  // SATIŞ ODAKLI SIRALAMA: havuzu satış adediyle zenginleştir (Browse getItem, bedava),
+  // EN ÇOK SATANI öne al → boşa Amazon kredisi yakmadan kazanan ürünleri işle.
+  await job.updateProgress({ phase: "sold", processed: 0, total: unseen.length });
+  await job.log(`${unseen.length} görülmemiş ürün için satış verisi çekiliyor…`);
+  const enriched = await enrichSoldCounts(unseen, 6, (soldDone) => {
+    void job.updateProgress({ phase: "sold", processed: soldDone, total: unseen.length });
+  });
+  enriched.sort((a, b) => (b.soldCount ?? 0) - (a.soldCount ?? 0));
+  const pending = enriched.slice(0, MAX_ITEMS_PER_SCAN);
+
+  const topSold = pending[0]?.soldCount ?? 0;
   await job.log(
-    `Bu turda ${pending.length} YENİ ürün işlenecek ` +
-    `(${cachedCount} zaten kapsandı, toplam katalog ${storeItems.length})`,
+    `Bu turda ${pending.length} EN ÇOK SATAN ürün işlenecek ` +
+    `(en yüksek: ${topSold} satış; ${cachedCount} zaten kapsandı, toplam katalog ${storeItems.length})`,
   );
 
   const totalToProcess = pending.length;

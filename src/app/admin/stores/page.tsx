@@ -261,6 +261,15 @@ function ScanIndicator({ s }: { s?: ScanProgress }) {
     );
   }
 
+  if (s.phase === "sold") {
+    return (
+      <p className="text-xs text-slate-400 flex items-center gap-1.5">
+        <span className="inline-block w-3 h-3 border-2 border-slate-600 border-t-amber-400 rounded-full animate-spin" />
+        satış verileri çekiliyor… {s.total > 0 ? `${s.processed}/${s.total}` : ""}
+      </p>
+    );
+  }
+
   return (
     <p className="text-xs text-slate-400 flex items-center gap-1.5">
       <span className="inline-block w-3 h-3 border-2 border-slate-600 border-t-violet-400 rounded-full animate-spin" />

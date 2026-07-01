@@ -133,3 +133,65 @@ export async function fetchSellerListings(
 
   return out.slice(0, maxItems);
 }
+
+// ─── Satış adedi (talep sinyali) ─────────────────────────────────────────────
+// Browse getItem, estimatedAvailabilities[].estimatedSoldQuantity döndürür —
+// ürün başına TAHMİNİ satış adedi (kanıtlandı: iğne seti 362, kart kılıfı 112).
+// Marketplace Insights bu app'e kapalı (404); getItem tek yol. BEDAVA.
+
+interface ItemAvailability {
+  estimatedAvailabilities?: Array<{ estimatedSoldQuantity?: number }>;
+}
+
+/** getItem yanıtından satış adedini çıkarır (SAF, test edilebilir). */
+export function parseSoldQuantity(item: ItemAvailability): number | null {
+  return item.estimatedAvailabilities?.[0]?.estimatedSoldQuantity ?? null;
+}
+
+/** Tek bir ürünün tahmini satış adedini çeker (Browse getItem). Hata → null. */
+export async function getItemSoldCount(itemId: string): Promise<number | null> {
+  const token = await getApplicationToken();
+  const res = await fetch(`${BROWSE_BASE}/item/${encodeURIComponent(itemId)}`, {
+    headers: browseHeaders(token),
+  });
+  if (!res.ok) return null;
+  const data = (await res.json()) as ItemAvailability;
+  return parseSoldQuantity(data);
+}
+
+/**
+ * Ürün listesini satış adediyle zenginleştirir (sınırlı eşzamanlılıkla — Browse
+ * rate limit dostu). Her öğe için getItem → soldCount. Yeni dizi döndürür (immutable).
+ * onProgress: her ~15 üründe bir ilerleme (UI bar'ı için).
+ */
+export async function enrichSoldCounts(
+  items: EbayApiItem[],
+  concurrency = 6,
+  onProgress?: (done: number) => void,
+): Promise<EbayApiItem[]> {
+  const out = [...items];
+  let idx = 0;
+  let done = 0;
+
+  async function worker(): Promise<void> {
+    for (;;) {
+      const i = idx++;
+      if (i >= out.length) break;
+      const it = out[i];
+      if (it.itemId) {
+        try {
+          out[i] = { ...it, soldCount: await getItemSoldCount(it.itemId) };
+        } catch {
+          /* satış verisi alınamadı → soldCount null kalır */
+        }
+      }
+      done++;
+      if (onProgress && done % 15 === 0) onProgress(done);
+    }
+  }
+
+  const workers = Math.max(1, Math.min(concurrency, out.length));
+  await Promise.all(Array.from({ length: workers }, () => worker()));
+  onProgress?.(out.length);
+  return out;
+}
