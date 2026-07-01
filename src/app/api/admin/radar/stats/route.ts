@@ -21,7 +21,7 @@ export const GET = requireAdmin(async () => {
       orderBy: { rankScore: "desc" },
       take: 15,
       select: {
-        asin: true, title: true, amazonPrice: true, calculatedEbayPrice: true,
+        asin: true, title: true, imageUrl: true, amazonPrice: true, calculatedEbayPrice: true,
         soldCount: true, projectedProfit: true, rankScore: true,
       },
     }),

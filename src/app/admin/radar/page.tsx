@@ -13,6 +13,7 @@ interface StoreRow {
 interface TopProduct {
   asin: string;
   title: string | null;
+  imageUrl: string | null;
   amazonPrice: number | null;
   calculatedEbayPrice: number | null;
   soldCount: number | null;
@@ -144,6 +145,7 @@ export default function RadarPanelPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-900/80 text-slate-400 text-xs">
               <tr>
+                <th className="text-left p-2">Görsel</th>
                 <th className="text-left p-2">ASIN</th>
                 <th className="text-left p-2">Başlık</th>
                 <th className="text-right p-2">Sold</th>
@@ -155,6 +157,14 @@ export default function RadarPanelPage() {
             <tbody>
               {data.topProducts.map((t) => (
                 <tr key={t.asin} className="border-t border-slate-800">
+                  <td className="p-1.5">
+                    {t.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={t.imageUrl} alt={t.title ?? t.asin} className="w-10 h-10 rounded object-cover bg-slate-800" loading="lazy" />
+                    ) : (
+                      <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center text-slate-600 text-[10px]">yok</div>
+                    )}
+                  </td>
                   <td className="p-2 font-mono text-xs">{t.asin}</td>
                   <td className="p-2 text-slate-300 truncate max-w-[220px]">{t.title ?? "—"}</td>
                   <td className="p-2 text-right text-slate-400">{t.soldCount ?? "—"}</td>
@@ -166,7 +176,7 @@ export default function RadarPanelPage() {
                 </tr>
               ))}
               {data.topProducts.length === 0 && (
-                <tr><td colSpan={6} className="p-3 text-center text-slate-500">Henüz ürün yok</td></tr>
+                <tr><td colSpan={7} className="p-3 text-center text-slate-500">Henüz ürün yok</td></tr>
               )}
             </tbody>
           </table>

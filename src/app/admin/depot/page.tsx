@@ -6,6 +6,7 @@ interface DepotProduct {
   id: string;
   asin: string;
   title: string | null;
+  imageUrl: string | null;
   amazonPrice: number | null;
   calculatedEbayPrice: number | null;
   status: string;
@@ -81,6 +82,7 @@ export default function AdminDepotPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-700/50 text-slate-400">
+                <th className="text-left p-4">Gorsel</th>
                 <th className="text-left p-4">ASIN</th>
                 <th className="text-left p-4">Baslik</th>
                 <th className="text-left p-4">Kaynak Magaza</th>
@@ -93,6 +95,21 @@ export default function AdminDepotPage() {
             <tbody>
               {data.data.map(product => (
                 <tr key={product.id} className="border-b border-slate-800/50 hover:bg-slate-800/20">
+                  <td className="p-3">
+                    {product.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={product.imageUrl}
+                        alt={product.title ?? product.asin}
+                        className="w-12 h-12 rounded-lg object-cover bg-slate-800 border border-slate-700/50"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-slate-800 border border-slate-700/50 flex items-center justify-center text-slate-600 text-xs">
+                        yok
+                      </div>
+                    )}
+                  </td>
                   <td className="p-4 font-mono text-violet-300 text-xs">{product.asin}</td>
                   <td className="p-4 text-slate-300 max-w-xs truncate">
                     {product.title ?? "-"}
