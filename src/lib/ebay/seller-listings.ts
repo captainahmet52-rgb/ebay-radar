@@ -120,7 +120,22 @@ export async function fetchSellerListings(
     const data = (await res.json()) as {
       total?: number;
       itemSummaries?: BrowseItemSummary[];
+      warnings?: Array<{ message?: string; longMessage?: string }>;
     };
+
+    // GÜVENLİK (1 numaralı kural): geçersiz satıcı adında eBay filtreyi YOK SAYIP
+    // rastgele ~23M ürün döndürür. Bunları ASLA radara sokma (yanlış eşleşme = ban).
+    // Uyarı "seller ... invalid" içeriyorsa dur — rastgele ürün çekme.
+    const warn = (data.warnings ?? [])
+      .map((w) => `${w.message ?? ""} ${w.longMessage ?? ""}`)
+      .join(" ");
+    if (/seller.*invalid|invalid.*seller/i.test(warn)) {
+      throw new Error(
+        `Geçersiz satıcı adı "${username}" — Browse filtreyi reddetti ` +
+        `(rastgele ürün gelmesin diye durduruldu). Mağazadan bir ÜRÜN LİNKİ ile satıcıyı çöz.`,
+      );
+    }
+
     const items = data.itemSummaries ?? [];
     if (items.length === 0) break;
 
