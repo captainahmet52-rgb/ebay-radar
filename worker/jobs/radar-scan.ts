@@ -25,7 +25,11 @@ const MAX_CANDIDATES = 20;
 const MIN_AMAZON_PRICE = 15;
 // Çok-sorgulu arama: en fazla bu kadar Amazon sorgusu dene, accept bulununca DUR.
 const MAX_QUERIES = 3;
-// Taranan item'ların kaçını işle (eBay scrape zaten ödendi → daha çok kapsama, eBay maliyeti +0)
+// eBay tarafından TÜM mağaza kataloğunu çek (Browse BEDAVA → tümünü al, kapsama için).
+const MAX_STORE_FETCH = 1000;
+// Amazon eşleştirmesi ScrapingBee kredisi yakar → tur başına bu kadar YENİ ürün işle.
+// Cache sayesinde her tarama katalogda İLERLER (tur1: 1-80, tur2: 81-160 ...) →
+// birkaç turda tüm mağaza taranır. Sayıyı artırmak = tur başına daha çok kredi.
 const MAX_ITEMS_PER_SCAN = 80;
 
 async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
@@ -48,12 +52,12 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
   //    mağaza URL slug'ı DEĞİL — mağaza eklenirken ürün linkinden çözülür.
   let storeItems: Awaited<ReturnType<typeof fetchSellerListings>> = [];
   try {
-    storeItems = await fetchSellerListings(store.ebayUsername, 160);
+    storeItems = await fetchSellerListings(store.ebayUsername, MAX_STORE_FETCH);
   } catch (err) {
     await job.log(`eBay Browse API hata: ${err}`);
   }
 
-  await job.log(`${storeItems.length} eBay ürünü bulundu (Browse API)`);
+  await job.log(`${storeItems.length} eBay ürünü bulundu (Browse API — tüm katalog)`);
 
   // Satıcıya-özel hassas fiyat bandını TUR BAŞINA bir kez öğren (mağaza sabit).
   const redis = getRadarRedis();
@@ -72,13 +76,32 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
   let cachedCount = 0;
   let processedItems = 0;
 
-  const totalToProcess = Math.min(storeItems.length, MAX_ITEMS_PER_SCAN);
+  // KAPSAMA: tüm katalogtan HENÜZ değerlendirilmemiş (cache'te olmayan) ürünleri süz,
+  // bu turda sadece ilk MAX_ITEMS_PER_SCAN'ini işle. Böylece her tarama katalogda
+  // İLERLER (tur1: 1-80, tur2: 81-160 ...) → birkaç turda TÜM mağaza taranır.
+  // cachedCount = önceki turlarda kapsanan ürün sayısı (ilerleme göstergesi).
+  const pending: typeof storeItems = [];
+  for (const item of storeItems) {
+    if (!item.title || item.title.length < 5) continue;
+    if (item.itemId && redis && (await wasRecentlySeen(redis, item.itemId))) {
+      cachedCount++;
+      continue;
+    }
+    if (pending.length < MAX_ITEMS_PER_SCAN) pending.push(item);
+  }
+
+  await job.log(
+    `Bu turda ${pending.length} YENİ ürün işlenecek ` +
+    `(${cachedCount} zaten kapsandı, toplam katalog ${storeItems.length})`,
+  );
+
+  const totalToProcess = pending.length;
   await job.updateProgress({
     phase: "matching", processed: 0, total: totalToProcess,
-    accepted: 0, review: 0, skipped: 0, cached: 0,
+    accepted: 0, review: 0, skipped: 0, cached: cachedCount,
   });
 
-  for (const item of storeItems.slice(0, MAX_ITEMS_PER_SCAN)) {
+  for (const item of pending) {
     processedItems++;
     await job.updateProgress({
       phase: "matching",
@@ -89,15 +112,8 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
       skipped: skippedCount + uncompetitiveCount,
       cached: cachedCount,
     });
-    if (!item.title || item.title.length < 5) continue;
 
     try {
-      // KREDİ TASARRUFU: bu itemId yakın zamanda değerlendirildiyse Amazon'da TEKRAR ARAMA.
-      if (item.itemId && redis && (await wasRecentlySeen(redis, item.itemId))) {
-        cachedCount++;
-        continue;
-      }
-
       const sourceItem = { title: item.title, price: item.price, imageUrl: item.imageUrl };
 
       // ÇOK-SORGULU ARAMA: sorguları sırayla dene, aday havuzunu birleştir, accept
