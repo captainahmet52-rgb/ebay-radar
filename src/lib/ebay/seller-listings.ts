@@ -73,6 +73,12 @@ export function extractLegacyItemId(input: string): string | null {
   return m ? m[1] : null;
 }
 
+/** Bir mağaza linkinden (/str/SLUG) mağaza slug'ını çıkarır (SAF). Yoksa null. */
+export function extractStoreSlug(input: string): string | null {
+  const m = input.trim().match(/\/str\/([^/?#\s]+)/i);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
 /**
  * Bir eBay ürün linkindeki/legacy id'deki satıcının GERÇEK kullanıcı adını çözer.
  * Browse getItemByLegacyId → seller.username. Bulamazsa null.

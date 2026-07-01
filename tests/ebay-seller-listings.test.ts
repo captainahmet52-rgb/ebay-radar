@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { parseBrowseItems, extractLegacyItemId } from "@/lib/ebay/seller-listings";
+import { parseBrowseItems, extractLegacyItemId, extractStoreSlug } from "@/lib/ebay/seller-listings";
 
 describe("parseBrowseItems", () => {
   test("Browse item_summary'lerini sadeleştirir", () => {
@@ -68,5 +68,25 @@ describe("extractLegacyItemId", () => {
 
   test("kısa rakam dizisi → null", () => {
     expect(extractLegacyItemId("abc123")).toBeNull();
+  });
+});
+
+describe("extractStoreSlug", () => {
+  test("mağaza linkinden slug çıkarır", () => {
+    expect(extractStoreSlug("https://www.ebay.com/str/telitetech")).toBe("telitetech");
+  });
+
+  test("trksid parametreli mağaza linkinden slug", () => {
+    expect(
+      extractStoreSlug("https://ebay.com/str/telitetech?_trksid=p4429486.m3561.l161211"),
+    ).toBe("telitetech");
+  });
+
+  test("ürün linki → null (mağaza değil)", () => {
+    expect(extractStoreSlug("https://www.ebay.com/itm/365979402122")).toBeNull();
+  });
+
+  test("düz kullanıcı adı → null", () => {
+    expect(extractStoreSlug("telitetech")).toBeNull();
   });
 });

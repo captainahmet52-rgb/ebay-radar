@@ -48,13 +48,13 @@ export default function AdminStoresPage() {
       const data = (await res.json()) as {
         error?: string;
         resolvedUsername?: string;
-        resolvedFromLink?: boolean;
+        resolvedFrom?: "item" | "store" | "username";
       };
       if (!res.ok) {
         setError(data.error ?? "Hata olustu");
       } else {
-        if (data.resolvedFromLink && data.resolvedUsername) {
-          setNotice(`Satıcı çözüldü: ${data.resolvedUsername}`);
+        if (data.resolvedUsername) {
+          setNotice(`Satıcı: ${data.resolvedUsername}`);
         }
         setUsername("");
         setStoreUrl("");
@@ -125,25 +125,24 @@ export default function AdminStoresPage() {
       <div className="bg-slate-900/50 border border-slate-700/50 rounded-2xl p-6 mb-8">
         <h2 className="font-semibold mb-1">Yeni Magaza Ekle</h2>
         <p className="text-xs text-slate-400 mb-4">
-          En kolayı: mağazadan <strong>bir ürün linki</strong> yapıştır (örn.
-          https://www.ebay.com/itm/123456789012) — gerçek satıcı otomatik bulunur.
-          İstersen doğrudan satıcı kullanıcı adını da yazabilirsin.
+          <strong>Mağaza linkini</strong> yapıştır (örn. https://www.ebay.com/str/telitetech) —
+          çoğu mağazada bu yeter. Çalışmazsa mağazadan <strong>bir ürün linki</strong> yapıştır
+          (https://www.ebay.com/itm/…) → gerçek satıcı otomatik çözülür.
         </p>
         <form onSubmit={handleAdd} className="flex flex-col md:flex-row gap-3">
           <input
             type="text"
-            placeholder="Ürün linki VEYA satıcı kullanıcı adı"
+            placeholder="Mağaza linki, ürün linki veya satıcı adı"
             value={username}
             onChange={e => setUsername(e.target.value)}
             required
             className="flex-1 bg-slate-800 border border-slate-600 rounded-xl px-4 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-violet-500"
           />
           <input
-            type="url"
-            placeholder="Magaza URL (https://...)"
+            type="text"
+            placeholder="Mağaza URL (opsiyonel)"
             value={storeUrl}
             onChange={e => setStoreUrl(e.target.value)}
-            required
             className="flex-1 bg-slate-800 border border-slate-600 rounded-xl px-4 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-violet-500"
           />
           <button
