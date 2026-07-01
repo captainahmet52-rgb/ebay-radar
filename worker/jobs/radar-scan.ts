@@ -54,13 +54,30 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
   //    store.ebayUsername = GERÇEK eBay satıcı kullanıcı adı (örn. "md.asifpa-0"),
   //    mağaza URL slug'ı DEĞİL — mağaza eklenirken ürün linkinden çözülür.
   let storeItems: Awaited<ReturnType<typeof fetchSellerListings>> = [];
+  let fetchError = "";
   try {
     storeItems = await fetchSellerListings(store.ebayUsername, MAX_STORE_FETCH);
   } catch (err) {
-    await job.log(`eBay Browse API hata: ${err}`);
+    fetchError = err instanceof Error ? err.message : String(err);
+    await job.log(`eBay Browse API hata: ${fetchError}`);
   }
 
   await job.log(`${storeItems.length} eBay ürünü bulundu (Browse API — tüm katalog)`);
+
+  // eBay 0 ürün döndürdüyse erken çık + sebebi UI'a bildir (kör kalma)
+  if (storeItems.length === 0) {
+    await job.updateProgress({
+      phase: "done", processed: 0, total: 0,
+      accepted: 0, review: 0, skipped: 0, cached: 0,
+      note: fetchError
+        ? `eBay hata: ${fetchError.slice(0, 140)}`
+        : `"${store.ebayUsername}" için eBay 0 ürün döndürdü (satıcı adı/kapsam kontrol et)`,
+    });
+    await prisma.trackedStore.update({
+      where: { id: trackedStoreId }, data: { lastScannedAt: new Date() },
+    });
+    return;
+  }
 
   // Satıcıya-özel hassas fiyat bandını TUR BAŞINA bir kez öğren (mağaza sabit).
   const redis = getRadarRedis();

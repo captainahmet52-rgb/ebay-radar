@@ -14,13 +14,14 @@ interface TrackedStore {
 
 interface ScanProgress {
   state: string; // starting | waiting | active | completed | failed | unknown
-  phase?: string; // fetching | matching | done
+  phase?: string; // fetching | sold | matching | done
   processed: number;
   total: number;
   accepted?: number;
   review?: number;
   skipped?: number;
   cached?: number;
+  note?: string; // done: 0 ürün sebebi / hata
 }
 
 const fetcher = (url: string) => fetch(url).then(r => r.json()) as Promise<TrackedStore[]>;
@@ -80,6 +81,7 @@ export default function AdminStoresPage() {
             review: p?.review ?? cur.review,
             skipped: p?.skipped ?? cur.skipped,
             cached: p?.cached ?? cur.cached,
+            note: p?.note ?? cur.note,
           },
         };
       });
@@ -225,6 +227,10 @@ function ScanIndicator({ s }: { s?: ScanProgress }) {
   if (s.state === "failed") return <p className="text-xs text-red-400">✗ Tarama hatası</p>;
 
   if (done) {
+    // 0 ürün / hata durumunda sebebi göster (kör kalma)
+    if (s.note) {
+      return <p className="text-xs text-amber-400 max-w-xs">⚠ {s.note}</p>;
+    }
     return (
       <p className="text-xs text-emerald-400">
         ✓ Bitti — kabul {s.accepted ?? 0}, inceleme {s.review ?? 0}, atla {s.skipped ?? 0}

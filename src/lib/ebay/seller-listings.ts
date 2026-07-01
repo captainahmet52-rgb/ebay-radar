@@ -146,6 +146,9 @@ export async function fetchSellerListings(
 
     const res = await fetch(url, { headers: browseHeaders(token) });
     if (!res.ok) {
+      // DAYANIKLILIK: sonraki sayfada geçici hata (rate-limit/500) → elimizdekiyle
+      // devam et, HER ŞEYİ atma. Sadece İLK sayfa hatasında gerçek hata fırlat.
+      if (out.length > 0) break;
       const body = await res.text().catch(() => "");
       throw new Error(`eBay Browse API hatası: ${res.status} — ${body.slice(0, 200)}`);
     }
@@ -163,6 +166,7 @@ export async function fetchSellerListings(
       .map((w) => `${w.message ?? ""} ${w.longMessage ?? ""}`)
       .join(" ");
     if (/seller.*invalid|invalid.*seller/i.test(warn)) {
+      if (out.length > 0) break; // ilk sayfa geçtiyse satıcı geçerli; sonraki uyarıyı yut
       throw new Error(
         `Geçersiz satıcı adı "${username}" — Browse filtreyi reddetti ` +
         `(rastgele ürün gelmesin diye durduruldu). Mağazadan bir ÜRÜN LİNKİ ile satıcıyı çöz.`,
