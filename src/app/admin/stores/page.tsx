@@ -28,7 +28,6 @@ const fetcher = (url: string) => fetch(url).then(r => r.json()) as Promise<Track
 export default function AdminStoresPage() {
   const { data: stores, mutate, isLoading } = useSWR<TrackedStore[]>("/api/admin/stores", fetcher);
   const [username, setUsername] = useState("");
-  const [storeUrl, setStoreUrl] = useState("");
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -43,21 +42,19 @@ export default function AdminStoresPage() {
       const res = await fetch("/api/admin/stores", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sellerInput: username, storeUrl }),
+        body: JSON.stringify({ sellerInput: username }),
       });
       const data = (await res.json()) as {
         error?: string;
         resolvedUsername?: string;
-        resolvedFrom?: "item" | "store" | "username";
       };
       if (!res.ok) {
         setError(data.error ?? "Hata olustu");
       } else {
         if (data.resolvedUsername) {
-          setNotice(`Satıcı: ${data.resolvedUsername}`);
+          setNotice(`Mağaza eklendi: ${data.resolvedUsername}`);
         }
         setUsername("");
-        setStoreUrl("");
         void mutate();
       }
     } finally {
@@ -125,24 +122,16 @@ export default function AdminStoresPage() {
       <div className="bg-slate-900/50 border border-slate-700/50 rounded-2xl p-6 mb-8">
         <h2 className="font-semibold mb-1">Yeni Magaza Ekle</h2>
         <p className="text-xs text-slate-400 mb-4">
-          <strong>Mağaza linkini</strong> yapıştır (örn. https://www.ebay.com/str/telitetech) —
-          çoğu mağazada bu yeter. Çalışmazsa mağazadan <strong>bir ürün linki</strong> yapıştır
-          (https://www.ebay.com/itm/…) → gerçek satıcı otomatik çözülür.
+          Takip etmek istediğin <strong>eBay mağaza linkini</strong> yapıştır — hepsi bu.
+          Örn: <span className="text-slate-300">https://www.ebay.com/str/telitetech</span>
         </p>
         <form onSubmit={handleAdd} className="flex flex-col md:flex-row gap-3">
           <input
             type="text"
-            placeholder="Mağaza linki, ürün linki veya satıcı adı"
+            placeholder="https://www.ebay.com/str/magaza-adi"
             value={username}
             onChange={e => setUsername(e.target.value)}
             required
-            className="flex-1 bg-slate-800 border border-slate-600 rounded-xl px-4 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-violet-500"
-          />
-          <input
-            type="text"
-            placeholder="Mağaza URL (opsiyonel)"
-            value={storeUrl}
-            onChange={e => setStoreUrl(e.target.value)}
             className="flex-1 bg-slate-800 border border-slate-600 rounded-xl px-4 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-violet-500"
           />
           <button

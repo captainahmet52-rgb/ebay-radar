@@ -5,6 +5,7 @@ import {
   extractLegacyItemId,
   extractStoreSlug,
   resolveSellerUsername,
+  resolveUsernameFromStorePage,
   fetchSellerListings,
 } from "@/lib/ebay/seller-listings";
 
@@ -16,97 +17,73 @@ export const GET = requireAdmin(async () => {
   return NextResponse.json(stores);
 });
 
-// POST — Mağaza/satıcı ekle. "sellerInput" şunlardan biri olabilir:
-//   • Mağaza linki (https://www.ebay.com/str/telitetech) → slug denenir
-//   • Ürün linki (https://www.ebay.com/itm/123...) → gerçek satıcı çözülür (en kesin)
-//   • Doğrudan satıcı kullanıcı adı
-// Mağaza URL opsiyonel — verilmezse girdiden türetilir. "Sadece link" yeterli.
+/** username Browse'da geçerli + ürünü var mı? (sertleştirilmiş fetch throw ederse false) */
+async function sellerHasItems(username: string): Promise<boolean> {
+  try {
+    return (await fetchSellerListings(username, 1)).length > 0;
+  } catch {
+    return false;
+  }
+}
+
+// POST — SADECE MAĞAZA LİNKİ ile ekle (radar mağaza mantığı, ürün değil).
+// Girdi: https://www.ebay.com/str/telitetech (ya da düz mağaza adı).
+// Akış: slug'ı dene → olmazsa mağaza sayfasından satıcıyı OTOMATİK çöz → yine
+// olmazsa net hata. Kullanıcı ürün linkiyle uğraşmaz.
 export const POST = requireAdmin(async (req) => {
   const body = (await req.json()) as {
-    ebayUsername?: string; // geriye dönük uyumluluk
+    ebayUsername?: string;
     sellerInput?: string;
     storeUrl?: string;
   };
   const rawInput = (body.sellerInput ?? body.ebayUsername ?? "").trim();
   if (!rawInput) {
-    return NextResponse.json({ error: "Mağaza linki / ürün linki / satıcı adı gerekli" }, { status: 400 });
+    return NextResponse.json({ error: "Mağaza linki gerekli" }, { status: 400 });
   }
 
-  // 1) Girdiyi sınıflandır → gerçek satıcı username'ini bul
-  let username = rawInput;
-  let resolvedFrom: "item" | "store" | "username" = "username";
-  const isItem = /\/itm\//.test(rawInput) || /^\d{9,}$/.test(rawInput);
+  // Slug'ı çıkar: mağaza linkiyse /str/'den, değilse düz metni slug kabul et.
+  const slug = extractStoreSlug(rawInput) ?? rawInput;
 
-  if (isItem) {
-    // Ürün linki → gerçek satıcıyı çöz (en kesin yol)
-    const legacyId = extractLegacyItemId(rawInput);
-    let resolved: string | null = null;
-    try {
-      resolved = legacyId ? await resolveSellerUsername(legacyId) : null;
-    } catch (err) {
-      return NextResponse.json(
-        { error: `Ürün linkinden satıcı çözülemedi: ${err instanceof Error ? err.message : "hata"}` },
-        { status: 502 },
-      );
-    }
-    if (!resolved) {
-      return NextResponse.json(
-        { error: "Bu ürün linkinden satıcı bulunamadı. Geçerli bir eBay ürün linki ver." },
-        { status: 422 },
-      );
-    }
-    username = resolved;
-    resolvedFrom = "item";
-  } else {
-    // Mağaza linki → slug; değilse düz kullanıcı adı
-    const slug = extractStoreSlug(rawInput);
-    if (slug) {
-      username = slug;
-      resolvedFrom = "store";
+  // 1) Slug doğrudan geçerli satıcı adı mı? (çoğu mağazada öyle)
+  let username: string | null = null;
+  if (await sellerHasItems(slug)) {
+    username = slug;
+  }
+
+  // 2) Değilse: mağaza sayfasından satıcıyı OTOMATİK çöz (kullanıcı görmeden)
+  if (!username) {
+    const auto = await resolveUsernameFromStorePage(slug);
+    if (auto && (await sellerHasItems(auto))) {
+      username = auto;
     }
   }
 
-  // 2) Sanity — bu satıcının Browse'da gerçekten ürünü var mı?
-  //    (fetchSellerListings sertleştirildi: geçersiz satıcıda THROW → rastgele ürün gelmez)
-  let sampleCount = 0;
-  let sanityError = "";
-  try {
-    const sample = await fetchSellerListings(username, 1);
-    sampleCount = sample.length;
-  } catch (err) {
-    sanityError = err instanceof Error ? err.message : String(err);
+  // 3) (Nadiren) girdi bir ürün linkiyse yine de destekle — sessiz kolaylık
+  if (!username) {
+    const legacyId = /\/itm\//.test(rawInput) ? extractLegacyItemId(rawInput) : null;
+    if (legacyId) {
+      const resolved = await resolveSellerUsername(legacyId).catch(() => null);
+      if (resolved && (await sellerHasItems(resolved))) username = resolved;
+    }
   }
 
-  if (sampleCount === 0) {
-    // Slug doğrudan çalışmadıysa kullanıcıyı ürün linkine yönlendir
-    const needsItemLink = resolvedFrom !== "item";
+  if (!username) {
     return NextResponse.json(
-      {
-        error: needsItemLink
-          ? `"${username}" doğrudan çalışmadı. Bu mağazadan bir ÜRÜN LİNKİ yapıştır ` +
-            `(https://www.ebay.com/itm/...) — gerçek satıcı otomatik çözülür.`
-          : `"${username}" için ürün bulunamadı.${sanityError ? " (" + sanityError.slice(0, 120) + ")" : ""}`,
-        resolvedUsername: username,
-      },
+      { error: "Bu mağaza şu an okunamadı. Mağaza linkini kontrol edip tekrar dene." },
       { status: 422 },
     );
   }
 
-  // 3) Mağaza URL — verilmemişse girdiden türet
+  // Mağaza URL: verilen ya da slug'dan türet
   const storeUrl =
     (body.storeUrl ?? "").trim() ||
-    (resolvedFrom === "store" ? `https://www.ebay.com/str/${username}` : rawInput) ||
-    `https://www.ebay.com/usr/${username}`;
+    (extractStoreSlug(rawInput) ? rawInput : `https://www.ebay.com/str/${slug}`);
 
-  // 4) Kaydet (ebayUsername GERÇEK satıcı username'ini tutar)
   try {
     const store = await prisma.trackedStore.create({
       data: { ebayUsername: username, storeUrl },
     });
-    return NextResponse.json(
-      { ...store, resolvedUsername: username, resolvedFrom },
-      { status: 201 },
-    );
+    return NextResponse.json({ ...store, resolvedUsername: username }, { status: 201 });
   } catch (err) {
     if (err instanceof Error && err.message.includes("Unique")) {
       return NextResponse.json({ error: `"${username}" zaten takip ediliyor.` }, { status: 409 });

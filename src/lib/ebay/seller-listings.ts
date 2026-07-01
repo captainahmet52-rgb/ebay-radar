@@ -80,6 +80,33 @@ export function extractStoreSlug(input: string): string | null {
 }
 
 /**
+ * Mağaza slug'ından GERÇEK satıcı username'ini otomatik çözer (kullanıcı ürün
+ * linki vermeden). Mağaza sayfasını çeker → içindeki bir ürün linkini bulur →
+ * Browse getItem ile satıcıyı çözer. Sayfa JS-render (ürünsüz) ise null döner.
+ */
+export async function resolveUsernameFromStorePage(slug: string): Promise<string | null> {
+  try {
+    const res = await fetch(`https://www.ebay.com/str/${encodeURIComponent(slug)}`, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+          "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+      redirect: "follow",
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    const m = html.match(/\/itm\/(\d{9,})/);
+    if (!m) return null;
+    return await resolveSellerUsername(m[1]);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Bir eBay ürün linkindeki/legacy id'deki satıcının GERÇEK kullanıcı adını çözer.
  * Browse getItemByLegacyId → seller.username. Bulamazsa null.
  */
