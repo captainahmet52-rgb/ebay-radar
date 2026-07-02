@@ -25,15 +25,14 @@ const MAX_CANDIDATES = 20;
 const MIN_AMAZON_PRICE = 15;
 // Çok-sorgulu arama: en fazla bu kadar Amazon sorgusu dene, accept bulununca DUR.
 const MAX_QUERIES = 3;
-// eBay tarafından TÜM mağaza kataloğunu çek (Browse BEDAVA → tümünü al, kapsama için).
-const MAX_STORE_FETCH = 1000;
-// Satış zenginleştirmesi: bu kadar görülmemiş ürünü getItem ile satış adediyle
-// zenginleştir, EN ÇOK SATANLARI öne al (Browse getItem bedava; rate-limit dostu havuz).
-const SOLD_ENRICH_POOL = 200;
-// Amazon eşleştirmesi ScrapingBee kredisi yakar → tur başına bu kadar EN ÇOK SATAN'ı işle.
+// KAYNAK GÜVENLİĞİ (küçük VPS): tarama hafif tutulur ki bellek/CPU boğulmasın.
+// eBay katalog çekimi (Browse bedava ama JSON belleği + sonraki işlem yükü sınırlı).
+const MAX_STORE_FETCH = 400;
+// Satış zenginleştirmesi havuzu (getItem çağrıları — ölçülü tut).
+const SOLD_ENRICH_POOL = 60;
+// Tur başına işlenecek EN ÇOK SATAN ürün (Amazon araması + görsel decode = ağır iş).
 // Cache sayesinde her tarama katalogda İLERLER → birkaç turda tüm satan ürünler taranır.
-// Sayıyı artırmak = tur başına daha çok kredi.
-const MAX_ITEMS_PER_SCAN = 80;
+const MAX_ITEMS_PER_SCAN = 30;
 
 async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
   const { trackedStoreId } = job.data;
@@ -113,7 +112,7 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
   // EN ÇOK SATANI öne al → boşa Amazon kredisi yakmadan kazanan ürünleri işle.
   await job.updateProgress({ phase: "sold", processed: 0, total: unseen.length });
   await job.log(`${unseen.length} görülmemiş ürün için satış verisi çekiliyor…`);
-  const enriched = await enrichSoldCounts(unseen, 6, (soldDone) => {
+  const enriched = await enrichSoldCounts(unseen, 4, (soldDone) => {
     void job.updateProgress({ phase: "sold", processed: soldDone, total: unseen.length });
   });
   enriched.sort((a, b) => (b.soldCount ?? 0) - (a.soldCount ?? 0));
@@ -308,7 +307,8 @@ async function processRadarScan(job: Job<RadarScanJobData>): Promise<void> {
 export function createRadarScanWorker(connection: ConnectionOptions): Worker {
   const worker = new Worker<RadarScanJobData>("radar-scan", processRadarScan, {
     connection,
-    concurrency: 2,
+    // KAYNAK GÜVENLİĞİ: aynı anda TEK mağaza tara (küçük VPS'te 2 ağır tarama = OOM riski).
+    concurrency: 1,
     limiter: { max: 5, duration: 1000 },
   });
 
