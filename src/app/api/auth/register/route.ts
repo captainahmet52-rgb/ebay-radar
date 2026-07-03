@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { ensureReferralCode, REFERRAL_REWARD_DAYS } from "@/lib/referral";
-import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import { rateLimitAsync, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
-  // Brute-force / kötüye kullanım koruması — IP başına sabit pencere.
+  // Brute-force / kötüye kullanım koruması — IP başına kalıcı (Redis) pencere.
   const ip = getClientIp(req);
-  const limit = rateLimit(`register:${ip}`);
+  const limit = await rateLimitAsync(`register:${ip}`);
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Çok fazla deneme. Lütfen daha sonra tekrar deneyin." },
@@ -88,7 +88,9 @@ export async function POST(req: NextRequest) {
         { status: 409 }
       );
     }
-    console.error("[register]", err);
+    // LOG HİJYENİ: ham hata objesini basma (istek gövdesi/e-posta PII sızabilir) —
+    // yalnız hata mesajını/kodunu logla.
+    console.error("[register] hata:", err instanceof Error ? err.message : "bilinmeyen");
     return NextResponse.json(
       { error: "Sunucu hatası" },
       { status: 500 }

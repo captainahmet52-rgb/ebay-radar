@@ -3,6 +3,11 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { rateLimitAsync, getClientIpFromHeaders, LOGIN_RATE_LIMIT_MAX } from "@/lib/rate-limit";
+
+// Kullanıcı bulunamadığında da AYNI maliyette bir bcrypt.compare çalıştır → yanıt
+// süresi eşitlenir, e-posta enumerate edilemez (timing side-channel kapatılır).
+const DUMMY_BCRYPT_HASH = "$2a$12$BfylEKfQqM6qqerS7pC8mOG8G.Ye2KhaBaqzuxONfawcfZHH6M3hK";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -18,19 +23,26 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         email:    { label: "E-posta", type: "email" },
         password: { label: "Şifre",  type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
-        });
+        // BRUTE-FORCE KORUMASI: IP başına login denemesini sınırla (kalıcı Redis sayacı).
+        const ip = getClientIpFromHeaders(new Headers(request?.headers as HeadersInit));
+        const limit = await rateLimitAsync(`login:${ip}`, LOGIN_RATE_LIMIT_MAX);
+        if (!limit.allowed) return null;
 
-        if (!user) return null;
+        const email = (credentials.email as string).toLowerCase().trim();
+        const password = credentials.password as string;
 
-        const valid = await bcrypt.compare(
-          credentials.password as string,
-          user.passwordHash
-        );
+        const user = await prisma.user.findUnique({ where: { email } });
+
+        // TIMING-SAFE: kullanıcı yoksa da dummy hash ile compare çalıştır → süre eşit.
+        if (!user) {
+          await bcrypt.compare(password, DUMMY_BCRYPT_HASH);
+          return null;
+        }
+
+        const valid = await bcrypt.compare(password, user.passwordHash);
         if (!valid) return null;
 
         return { id: user.id, email: user.email, plan: user.plan, role: user.role };

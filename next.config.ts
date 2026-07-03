@@ -25,7 +25,25 @@ const nextConfig: NextConfig = {
   },
   // Güvenlik + performans HTTP başlıkları
   async headers() {
+    // Content-Security-Policy — XSS savunma derinliği. Next.js hidrasyon inline
+    // script/style kullandığı için 'unsafe-inline' gerekli (nonce altyapısı yok);
+    // yine de object/base/form/frame kısıtları dış-kaynak enjeksiyonunu engeller.
+    // img/connect https: → Amazon/eBay görselleri + API çağrıları serbest.
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https:",
+      "frame-ancestors 'self'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "object-src 'none'",
+    ].join("; ");
+
     const securityHeaders = [
+      { key: "Content-Security-Policy", value: csp },
       { key: "X-Content-Type-Options", value: "nosniff" },
       { key: "X-Frame-Options", value: "SAMEORIGIN" },
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
