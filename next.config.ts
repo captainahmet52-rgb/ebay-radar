@@ -54,8 +54,22 @@ const nextConfig: NextConfig = {
       },
       { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
     ];
+    // Uygulama-içi sayfalar dizine girmesin (robots disallow tek başına indexlemeyi
+    // engellemez — dış link ile yine indexlenebilir; X-Robots-Tag kesin çözüm).
+    const noindex = [{ key: "X-Robots-Tag", value: "noindex, nofollow" }];
+
     return [
       { source: "/:path*", headers: securityHeaders },
+      { source: "/dashboard/:path*", headers: noindex },
+      { source: "/dashboard", headers: noindex },
+      { source: "/admin/:path*", headers: noindex },
+      { source: "/admin", headers: noindex },
+      { source: "/amazon/:path*", headers: noindex },
+      { source: "/amazon", headers: noindex },
+      { source: "/etsy/:path*", headers: noindex },
+      { source: "/etsy", headers: noindex },
+      { source: "/login", headers: noindex },
+      { source: "/register", headers: noindex },
       // Statik görseller / favicon uzun süre cache'lensin
       {
         source: "/:all*(svg|jpg|jpeg|png|webp|avif|ico|woff2)",

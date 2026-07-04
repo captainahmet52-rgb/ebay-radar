@@ -32,4 +32,16 @@ export const FAQ: FaqItem[] = [
     q: "Fiyat ve stok güncellemeleri ne sıklıkla yapılır?",
     a: "Ürünler risk grubuna göre kademeli taranır: az stoklu veya çok satan ürünler sık (yaklaşık 15 dakikada bir), normal ürünler saatlik, hareketsiz ürünler günde birkaç kez kontrol edilir. Böylece hem güncellik hem maliyet dengelenir.",
   },
+  {
+    q: "eBay repricer nedir ve nasıl çalışır?",
+    a: "Repricer, eBay satış fiyatını maliyet ve komisyonlara göre otomatik hesaplayıp güncelleyen sistemdir. Lean Automation'ın repricer'ı kaynak fiyat değiştiğinde eBay fiyatını iki yönde de otomatik ayarlar, kategori bazlı eBay komisyonunu hesaba katar ve belirlediğin taban fiyatın altına asla inmez.",
+  },
+  {
+    q: "eBay mağazamı bağlamak güvenli mi?",
+    a: "Evet. Bağlantı eBay'in resmi OAuth sistemi üzerinden yapılır; şifreni bizimle paylaşmazsın, yetkiyi doğrudan eBay'e verirsin. Erişim token'ları veritabanında AES-256 ile şifreli saklanır ve dilediğin zaman eBay hesabından yetkiyi iptal edebilirsin.",
+  },
+  {
+    q: "İstediğim zaman iptal edebilir miyim?",
+    a: "Evet. Uzun süreli taahhüt yoktur; aboneliğini istediğin an iptal edebilirsin. İptal sonrası dönem sonuna kadar erişimin sürer, listelerin ve verilerin hesabında korunur.",
+  },
 ];

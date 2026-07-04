@@ -11,18 +11,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 1,
     },
-    {
-      url: `${SITE.url}/amazon`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.7,
-    },
-    {
-      url: `${SITE.url}/etsy`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.7,
-    },
+    // NOT: /amazon ve /etsy UYGULAMA sayfalarıdır (client dashboard, girişe
+    // yönlendirir) — sitemap'e KOYMA: bot'lara boş/redirect render olur, SEO'ya zarar.
     {
       url: `${SITE.url}/privacy`,
       lastModified: now,

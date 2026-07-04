@@ -19,11 +19,11 @@ Lean Automation, e-ticaret satıcılarının birden fazla pazar yerindeki işlem
 
 ## Önemli Sayfalar
 
-- Ana sayfa: /
-- AmazonBot: /amazon
-- EtsyBot: /etsy
+- Ana sayfa (özellikler, fiyatlandırma, SSS): /
 - Gizlilik Politikası: /privacy
 - Kullanım Şartları: /terms
+
+(AmazonBot ve EtsyBot panelleri uygulama içidir; giriş gerektirir.)
 
 ## İletişim
 
