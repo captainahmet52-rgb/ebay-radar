@@ -141,6 +141,59 @@ const AMAZON_DOMAINS: Record<string, { url: string; country: string }> = {
   TR: { url: "https://www.amazon.com.tr",  country: "tr" },
 };
 
+interface ExtractedProductFields {
+  price_apex?:      string | string[] | null;
+  price_buybox?:    string | string[] | null;
+  price_legacy?:    string | string[] | null;
+  availability?:    string | null;
+  title?:           string | null;
+  image?:           string | null;
+  buying_choices?:  string | null;
+  merchant?:        string | null;
+}
+
+/**
+ * Amazon ürün sayfası bot duvarına (captcha/robot check) takılmış mı?
+ * Bot sayfasında ürün seçicilerinin hiçbiri eşleşmez → başlık da stok metni de boş.
+ */
+export function looksBlockedExtract(data: ExtractedProductFields): boolean {
+  const noTitle = !data.title || data.title.trim() === "";
+  const noAvailability = !data.availability || data.availability.trim() === "";
+  return noTitle && noAvailability;
+}
+
+async function fetchExtractedFields(
+  apiKey: string,
+  targetUrl: string,
+  country: string,
+  extractRules: string,
+  renderJs: boolean
+): Promise<ExtractedProductFields> {
+  const params = new URLSearchParams({
+    api_key: apiKey,
+    url: targetUrl,
+    render_js: renderJs ? "true" : "false",
+    country_code: country,
+    extract_rules: extractRules,
+  });
+
+  const response = await fetch(`${SCRAPINGBEE_URL}?${params.toString()}`);
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    // 402 = kota/kredi bitti → özel hata (admin'e bildirilir)
+    if (response.status === 402) {
+      throw new ScraperOutOfCreditsError(errorBody.slice(0, 200));
+    }
+    // 429 = rate limit (retry edilebilir), diğerleri genel hata
+    throw new Error(
+      `ScrapingBee API hatası: ${response.status} ${response.statusText} — ${errorBody.slice(0, 200)}`
+    );
+  }
+
+  return (await response.json()) as ExtractedProductFields;
+}
+
 export async function fetchAmazonProduct(
   asin: string,
   market: string = "US"
@@ -166,38 +219,13 @@ export async function fetchAmazonProduct(
     merchant:         "#sellerProfileTriggerId, #merchant-info, #tabular-buybox .tabular-buybox-text",
   });
 
-  const params = new URLSearchParams({
-    api_key: apiKey,
-    url: targetUrl,
-    render_js: "true",
-    country_code: country,
-    extract_rules: extractRules,
-  });
-
-  const response = await fetch(`${SCRAPINGBEE_URL}?${params.toString()}`);
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => "");
-    // 402 = kota/kredi bitti → özel hata (admin'e bildirilir)
-    if (response.status === 402) {
-      throw new ScraperOutOfCreditsError(errorBody.slice(0, 200));
-    }
-    // 429 = rate limit (retry edilebilir), diğerleri genel hata
-    throw new Error(
-      `ScrapingBee API hatası: ${response.status} ${response.statusText} — ${errorBody.slice(0, 200)}`
-    );
+  // Amazon ürün sayfaları SSR — önce JS'siz dene (1 kredi, JS'li 5 kredi).
+  // Bot duvarına takılırsa bir kez JS render ile tekrarla (5 kredi).
+  let data = await fetchExtractedFields(apiKey, targetUrl, country, extractRules, false);
+  if (looksBlockedExtract(data)) {
+    console.warn(`[scraper] ASIN ${asin}: statik istek bot duvarına takıldı → JS render ile tekrar`);
+    data = await fetchExtractedFields(apiKey, targetUrl, country, extractRules, true);
   }
-
-  const data = (await response.json()) as {
-    price_apex?:      string | string[] | null;
-    price_buybox?:    string | string[] | null;
-    price_legacy?:    string | string[] | null;
-    availability?:    string | null;
-    title?:           string | null;
-    image?:           string | null;
-    buying_choices?:  string | null;
-    merchant?:        string | null;
-  };
 
   const price =
     parsePrice(data.price_apex) ??
