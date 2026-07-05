@@ -20,7 +20,9 @@ const IntakeProductSchema = z.object({
   soldCount: z.number().int().min(0).nullable().optional(), // talep kanıtı
   projectedProfit: z.number().nullable().optional(),
   projectedMarginPct: z.number().nullable().optional(),
-  sourceKeyword: z.string().nullable().optional(), // Radar'da kaynak mağaza etiketi taşınır
+  // sourceKeyword kabul edilir ama SAKLANMAZ: DepotProduct'taki kolon
+  // 20260705190000_remove_ebay_radar migration'ıyla düşürüldü.
+  sourceKeyword: z.string().nullable().optional(),
 });
 
 const IntakeBodySchema = z.object({
@@ -56,7 +58,6 @@ export const POST = requireCron(async (req) => {
       soldCount: p.soldCount ?? undefined,
       projectedProfit: p.projectedProfit ?? undefined,
       projectedMarginPct: p.projectedMarginPct ?? undefined,
-      sourceKeyword: p.sourceKeyword ?? undefined,
       rankScore,
     };
 
