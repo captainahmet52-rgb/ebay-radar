@@ -24,7 +24,6 @@ import {
   ebayAutoUploadQueue,
   retierProductsQueue,
   scraperUsageCheckQueue,
-  dispatchRadarQueue,
 } from "@/lib/queues";
 
 // AmazonBot radar — taranacak pazarlar
@@ -162,15 +161,6 @@ export async function setupScheduler(): Promise<void> {
     { repeat: { pattern: "0 4 * * *" } }
   );
   console.log("[scheduler] ebay-auto-upload kuruldu: her gün 04:00 UTC");
-
-  // ── dispatch-radar: her 30 dakika (OTO-PİLOT — taraması gelen mağazaları tarar) ──
-  await clearRepeatableJobs(dispatchRadarQueue, "dispatch-radar");
-  await dispatchRadarQueue.add(
-    "dispatch-radar",
-    {},
-    { repeat: { every: 30 * 60 * 1000 } } // 30 dakika
-  );
-  console.log("[scheduler] dispatch-radar kuruldu: her 30 dakika (oto-pilot)");
 }
 
 /**

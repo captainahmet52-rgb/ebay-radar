@@ -1,5 +1,5 @@
 // ebay-auto-upload worker — "bilmeyen adam" akışı.
-// Oto-yükleme açık kullanıcılara, radar'ın doldurduğu depodan (DepotProduct) filtrelerine
+// Oto-yükleme açık kullanıcılara, depodan (DepotProduct) filtrelerine
 // uyan ürünleri seçer, Listing oluşturur ve poll-product kuyruğuna atar. poll-product
 // güncel Amazon verisini çeker ve publish-listing ile eBay'e API'den YAYINLAR.
 // Limitler: mağaza productLimit (paket = mağaza) + günlük uploadDailyLimit + deneme mağazasında 50.

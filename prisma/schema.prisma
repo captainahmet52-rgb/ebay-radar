@@ -117,7 +117,7 @@ model EbayAccount {
   policiesCheckedAt     DateTime?
   // Mağaza otomasyon anahtarı. Bağlanınca 7 günlük deneme ile AKTİF gelir.
   // Süre (deneme veya paket) bitince freeze-stores worker'ı false yapar.
-  // Sadece isActive mağazalara ürün yüklenir / radar çalışır.
+  // Sadece isActive mağazalara ürün yüklenir / otomasyon çalışır.
   isActive              Boolean   @default(false)
   activatedAt           DateTime?
   // Mağaza başına 7 günlük ücretsiz deneme bitiş tarihi (bağlanınca set edilir).
@@ -355,21 +355,7 @@ model AutoUploadLog {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// ─── Takip Edilen eBay Mağazaları (admin tarafından eklenir) ──────────────────
-model TrackedStore {
-  id            String    @id @default(cuid())
-  ebayUsername  String    @unique
-  storeUrl      String
-  isActive      Boolean   @default(true)
-  // Oto-pilot (P7): bu kadar saatte bir otomatik taranır. 0 = oto-tarama kapalı (manuel).
-  scanIntervalHours Int   @default(12)
-  lastScannedAt DateTime?
-  createdAt     DateTime  @default(now())
-
-  depotProducts DepotProduct[]
-}
-
-// ─── Ortak Ürün Deposu (radar ile doldurulur) ────────────────────────────────
+// ─── Ortak Ürün Deposu ────────────────────────────────────────────────────────
 model DepotProduct {
   id                  String    @id @default(cuid())
   asin                String    @unique
@@ -383,19 +369,16 @@ model DepotProduct {
   amazonStockQty      Int?
   ebayFeeRate         Float     @default(0.136)
   calculatedEbayPrice Float?
-  // Radar "para motoru" (P5) — talep + kârlılık + rekabetçilik sinyalleri
+  // Talep + kârlılık + rekabetçilik sinyalleri
   soldCount           Int?      // rakip eBay mağazasının sattığı adet (talep kanıtı)
   competitorPrice     Float?    // rakibin eBay satış fiyatı (rekabetçilik için)
-  projectedProfit     Float?    // radar-anı net kâr (repricer)
-  projectedMarginPct  Float?    // radar-anı net marj
+  projectedProfit     Float?    // ekleme-anı net kâr (repricer)
+  projectedMarginPct  Float?    // ekleme-anı net marj
   rankScore           Float     @default(0) // dağıtım sırası: kâr × talep × rekabetçilik
-  sourceStoreId       String?
-  sourceKeyword       String?
   lastScrapedAt       DateTime?
   status              String    @default("active")
   createdAt           DateTime  @default(now())
 
-  sourceStore     TrackedStore?         @relation(fields: [sourceStoreId], references: [id])
   distributions   ProductDistribution[]
 
   @@index([status, rankScore])

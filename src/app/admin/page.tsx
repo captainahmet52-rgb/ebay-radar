@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { RadarTriggerButton } from "./_components/RadarTriggerButton";
 import { AdminCharts } from "./_components/AdminCharts";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +21,7 @@ export default async function AdminPage() {
     totalOrders, ordersThisMonth,
     revenueAgg, profitAgg,
     planGroups,
-    storeCount, depotCount, distributionCount,
+    depotCount, distributionCount,
     rawMonthlyUsers, rawMonthlyOrders,
   ] = await Promise.all([
     prisma.user.count(),
@@ -34,7 +33,6 @@ export default async function AdminPage() {
     prisma.order.aggregate({ _sum: { soldPrice: true } }),
     prisma.order.aggregate({ _sum: { netProfit: true } }),
     prisma.user.groupBy({ by: ["plan"], _count: { _all: true }, orderBy: { _count: { plan: "desc" } } }),
-    prisma.trackedStore.count(),
     prisma.depotProduct.count(),
     prisma.productDistribution.count(),
     prisma.$queryRaw<MonthRow[]>`
@@ -74,7 +72,7 @@ export default async function AdminPage() {
     { label: "Toplam Sipariş",      value: fmt(totalOrders),       sub: `${ordersThisMonth} bu ay`,      color: "#0891b2" },
     { label: "Tahmini Gelir",       value: `$${totalRevenue.toFixed(0)}`, sub: "Tüm zamanlar",           color: "#059669" },
     { label: "Tahmini Net Kâr",     value: `$${totalProfit.toFixed(0)}`,  sub: "Tüm zamanlar",           color: "#16a34a" },
-    { label: "Depodaki Ürün",       value: fmt(depotCount),        sub: `${storeCount} mağaza takipte`, color: "#d97706" },
+    { label: "Depodaki Ürün",       value: fmt(depotCount),        sub: `${distributionCount} dağıtım`, color: "#d97706" },
   ];
 
   return (
@@ -110,7 +108,6 @@ export default async function AdminPage() {
           <p style={{ color: "#8b949e", fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "1rem" }}>Sistem</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {[
-              { label: "Takip Edilen Mağaza", value: storeCount },
               { label: "Dağıtılan Ürün",     value: distributionCount },
               { label: "Toplam Listing",      value: activeListings + pausedListings },
               { label: "Aktif Kullanıcı",     value: totalUsers },
@@ -121,12 +118,6 @@ export default async function AdminPage() {
               </div>
             ))}
           </div>
-        </div>
-
-        {/* Hızlı işlemler */}
-        <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid #30363d", borderRadius: 12, padding: "1.25rem" }}>
-          <p style={{ color: "#8b949e", fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "1rem" }}>Hızlı İşlemler</p>
-          <RadarTriggerButton />
         </div>
 
       </div>

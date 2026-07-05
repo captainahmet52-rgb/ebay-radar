@@ -1,6 +1,6 @@
 // freeze-stores worker — süresi biten mağazaları otomatik dondurur.
 // Deneme (trialEndsAt) veya ücretli (paidUntil) süre dolmuş ve hâlâ aktif olan
-// mağazaları isActive=false yapar. Böylece otomasyon (yükleme/radar) durur ve
+// mağazaları isActive=false yapar. Böylece otomasyon (yükleme/tarama) durur ve
 // kullanıcıya "paket al" denir. Sadece dondurur — asla geri açmaz.
 import { Worker, Job } from "bullmq";
 import type { ConnectionOptions } from "bullmq";

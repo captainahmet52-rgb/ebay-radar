@@ -23,7 +23,9 @@ Kullanıcılar kendi eBay mağazalarını sisteme bağlar; sistem Amazon ürünl
 otomatik bulur, listeler ve fiyat/stok değişimlerini sürekli takip ederek günceller.
 Akış (boru hattı):
 
-Radar — satılabilir/kârlı ürünleri bulur, filtreden geçirir
+NOT: eBay ürün radarı (mağaza takibi + otomatik ürün bulma) 2026-07-05'te
+KALDIRILDI — proje sahibi kararı. Depo artık radar ile DEĞİL; toplu ASIN
+yükleme, ASIN Grabber eklentisi ve ilan içe aktarma ile doldurulur.
 Depo — ürünleri veritabanında biriktirir (ASIN bazlı)
 Veri kaynağı — Amazon fiyat + stok verisini çeker
 Fiyat + stok motoru (repricer) — eBay fiyatını hesaplar, otomatik ayarlar
@@ -34,7 +36,7 @@ Sipariş-anı kontrol — satış anında veriyi canlı doğrular
 2. Teknoloji yığını (stack)
 
 Stack, mevcut Claude Code agent'larına göre sabitlendi. Agent'lar
-(backend-doctor, builder, ui-agent) Next.js + Prisma + NextAuth varsayıyor;
+(back " 128Aend-doctor, builder, ui-agent) Next.js + Prisma + NextAuth varsayıyor;
 proje de bunu kullanır ki agent'lar kutudan çıktığı gibi çalışsın.
 
 KatmanSeçimNotTam yığınNext.js 15 (App Router) + TypeScriptWeb + API + panel tek projede. Yapı src/ altındaORM / DBPrisma + PostgreSQLŞema prisma/schema.prisma, client src/lib/prisma.tsKimlikNextAuthauthOptions her zaman @/lib/auth'tan. Roller: seller / adminAuth yardımcılarısrc/lib/api-helpers.tsrequireAuth, requireSeller, requireAdminİş kuyruğuRedis + BullMQTarama + repricer; ayrı worker process (Next.js dışında)FrontendReact 19 + Tailwind v4 + shadcn/uiMüşteri paneliReverse proxynginx veya Caddy + SSLAmazon verisiHazır e-ticaret scraper APIDIY scraper KURMA. Ucuz, erişilebilir API (örn. ScrapingBee)eBay entegrasyonueBay Sell / Inventory APIOAuth ile kullanıcı mağazası bağlamaBarındırmaTek VPS (Hetzner/DigitalOcean ~20–40$/ay)Next.js + worker + Redis + Postgres burada
@@ -91,8 +93,8 @@ yeniden hesaplanır (her iki yönde, kullanıcıya sormadan).
 Aşırı zıplama freni: Amazon fiyatı tek taramada %50'den fazla artarsa,
 güncelleme yapma — listeyi kısa süre otomatik duraklat, sonraki tarama
 fiyatı doğrularsa yeni fiyattan otomatik geri aç. (Kullanıcıya sorma.)
-Minimum ürün fiyatı: Çok ucuz ürünlerde sabit ücret marjı yer. Radar
-filtresine bir alt eşik koy (örn. 15$ altını alma).
+Minimum ürün fiyatı: Çok ucuz ürünlerde sabit ücret marjı yer. Ürün
+eklemede bir alt eşik uygula (örn. 15$ altını alma).
 
 
 4. Stok kuralları

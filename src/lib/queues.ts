@@ -135,24 +135,10 @@ export const pollOrdersQueue = createQueue<PollOrdersJobData, void, string>("pol
   },
 });
 
-// ─── Radar & Dağıtım Kuyrukları ────────────────────────────────────────────────
-export interface RadarScanJobData {
-  trackedStoreId: string;
-}
-
+// ─── Dağıtım Kuyruğu ───────────────────────────────────────────────────────────
 export interface DistributeProductsJobData {
   userId?: string; // undefined ise tüm kullanıcılara dağıt
 }
-
-export const radarScanQueue = createQueue<RadarScanJobData, void, string>("radar-scan", {
-  connection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: { type: "exponential", delay: 10000 },
-    removeOnComplete: { count: 100 },
-    removeOnFail: { count: 200 },
-  },
-});
 
 export const distributeProductsQueue = createQueue<DistributeProductsJobData, void, string>(
   "distribute-products",
@@ -163,23 +149,6 @@ export const distributeProductsQueue = createQueue<DistributeProductsJobData, vo
       backoff: { type: "fixed", delay: 5000 },
       removeOnComplete: { count: 100 },
       removeOnFail: { count: 200 },
-    },
-  }
-);
-
-// ── dispatch-radar: oto-pilot — taraması gelen mağazaları radar-scan'e atar ──
-export interface DispatchRadarJobData {
-  _trigger?: string;
-}
-
-export const dispatchRadarQueue = createQueue<DispatchRadarJobData, void, string>(
-  "dispatch-radar",
-  {
-    connection,
-    defaultJobOptions: {
-      attempts: 1,
-      removeOnComplete: { count: 20 },
-      removeOnFail: { count: 50 },
     },
   }
 );

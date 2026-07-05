@@ -7,7 +7,6 @@ import { PRO_PLUS_PLANS } from "@/lib/plans";
 // Pro+ kartında gösterilen özellikler (ana paketlerle aynı dürüst set; limit/yükleme dinamik).
 const PRO_PLUS_FEATURES = [
   "1 eBay mağazası",
-  "Radar — güncel ürün tarayıcı",
   "Toplu ASIN yükleme + ASIN Grabber (Chrome)",
   "15 dk'ya kadar stok & fiyat takibi",
   "Otomatik repricer (hep %20 kâr)",

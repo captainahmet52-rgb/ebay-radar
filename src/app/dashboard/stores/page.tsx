@@ -253,7 +253,7 @@ export default function StoresPage() {
         <AlertCircle className="h-4 w-4 text-slate-500 flex-shrink-0 mt-0.5" />
         <span>
           Sadece <span className="text-white font-medium">aktif</span> mağazalara ürün yüklenir ve otomatik
-          listeleme (radar) çalışır. Pasif mağazalar bağlı kalır ama otomasyona dahil olmaz. Daha fazla aktif
+          listeleme çalışır. Pasif mağazalar bağlı kalır ama otomasyona dahil olmaz. Daha fazla aktif
           mağaza için paketini yükselt.
         </span>
       </Card>

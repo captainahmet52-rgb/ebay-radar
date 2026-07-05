@@ -19,7 +19,6 @@ export const GET = requireAdmin(async (req) => {
       take: limit,
       orderBy: { createdAt: "desc" },
       include: {
-        sourceStore: { select: { ebayUsername: true } },
         _count: { select: { distributions: true } },
       },
     }),

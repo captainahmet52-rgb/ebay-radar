@@ -1,7 +1,7 @@
 // Müşteriye listelemeden ÖNCE yeniden doğrulama — depo kalıcı güvenli DEĞİL.
 //
 // Bir ASIN depoya girdikten sonra Amazon o ASIN'i farklı bir ürüne geri dönüştürebilir
-// (recycled ASIN) ya da radar baştan zayıf eşleşmiş olabilir. İlk YAYINDAN önce, o an
+// (recycled ASIN) ya da baştan zayıf eşleşmiş olabilir. İlk YAYINDAN önce, o an
 // canlı çekilen Amazon başlığı, deponun kaydettiği başlıkla hâlâ tutarlı mı kontrol
 // edilir. Tutarsızsa yayın ENGELLENİR (kullanıcının gerçek mağazasına yanlış ürün düşmesin).
 //

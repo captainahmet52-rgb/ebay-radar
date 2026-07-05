@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { revalidateListingTitle } from "@/lib/radar/revalidate";
+import { revalidateListingTitle } from "@/lib/ebay/revalidate";
 
 describe("revalidateListingTitle — ilk yayın kapısı", () => {
   test("tutarlı başlık → ok", () => {

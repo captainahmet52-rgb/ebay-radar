@@ -5,7 +5,7 @@ import type { ConnectionOptions } from "bullmq";
 import { prisma } from "@/lib/prisma";
 import { fetchAmazonProduct, ScraperOutOfCreditsError } from "@/lib/scraper";
 import { calculateEbayPriceForMarket, isPriceSpike, determineQty, isSignificantChange } from "@/lib/repricer";
-import { revalidateListingTitle } from "@/lib/radar/revalidate";
+import { revalidateListingTitle } from "@/lib/ebay/revalidate";
 import { notifyScraperOutOfCredits } from "@/lib/admin-notify";
 import { updateListingQueue, publishListingQueue, type PollProductJobData } from "@/lib/queues";
 

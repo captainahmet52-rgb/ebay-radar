@@ -49,7 +49,6 @@ export default async function PricingPage() {
           const features = [
             `${plan.productLimit.toLocaleString("tr-TR")} ürün yükleme limiti`,
             `Günlük ${plan.uploadDailyLimit.toLocaleString("tr-TR")} otomatik yükleme`,
-            "Radar — güncel ürün tarayıcı",
             "Toplu ASIN yükleme + ASIN Grabber (Chrome)",
             "15 dk'ya kadar stok & fiyat takibi",
             "Otomatik repricer (hep %20 kâr)",

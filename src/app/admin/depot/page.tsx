@@ -11,7 +11,6 @@ interface DepotProduct {
   calculatedEbayPrice: number | null;
   status: string;
   createdAt: string;
-  sourceStore: { ebayUsername: string } | null;
   _count: { distributions: number };
 }
 
@@ -85,7 +84,6 @@ export default function AdminDepotPage() {
                 <th className="text-left p-4">Gorsel</th>
                 <th className="text-left p-4">ASIN</th>
                 <th className="text-left p-4">Baslik</th>
-                <th className="text-left p-4">Kaynak Magaza</th>
                 <th className="text-right p-4">Amazon Fiyati</th>
                 <th className="text-right p-4">Hesaplanan eBay</th>
                 <th className="text-right p-4">Dagilim</th>
@@ -113,9 +111,6 @@ export default function AdminDepotPage() {
                   <td className="p-4 font-mono text-violet-300 text-xs">{product.asin}</td>
                   <td className="p-4 text-slate-300 max-w-xs truncate">
                     {product.title ?? "-"}
-                  </td>
-                  <td className="p-4 text-slate-400">
-                    {product.sourceStore?.ebayUsername ?? "-"}
                   </td>
                   <td className="p-4 text-right text-slate-300">
                     {product.amazonPrice != null ? `$${product.amazonPrice.toFixed(2)}` : "-"}

@@ -9,7 +9,7 @@ import { enqueueVerificationForAccount } from "@/lib/ebay/listing-import";
  * Mağaza aktifleştirme. PAKET = MAĞAZA: her eBay mağazası KENDİ aboneliğine sahiptir.
  * Aktivasyon yalnızca ödeme ile yapılır; aktif edilen mağazaya o paketin ürün limiti
  * yazılır. 1 abonelik = 1 mağaza — ek mağaza için ayrı abonelik gerekir.
- * Sadece aktif mağazalara ürün yüklenir / radar çalışır.
+ * Sadece aktif mağazalara ürün yüklenir / otomasyon çalışır.
  */
 export const POST = requireAuth(async (req, { userId, params }) => {
   try {

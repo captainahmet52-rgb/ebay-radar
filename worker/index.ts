@@ -9,7 +9,6 @@ import { createPollProductWorker } from "./jobs/poll-product";
 import { createVerifyOrderWorker } from "./jobs/verify-order";
 import { createPollOrdersWorker } from "./jobs/poll-orders";
 import { createUpdateListingWorker } from "./jobs/update-listing";
-import { createRadarScanWorker } from "./jobs/radar-scan";
 import { createAmazonRadarScanWorker } from "./jobs/amazon-radar-scan";
 import { createAmazonAutoUploadWorker } from "./jobs/amazon-auto-upload";
 import { createAmazonPollProductWorker } from "./jobs/amazon-poll-product";
@@ -22,7 +21,6 @@ import { createDistributeProductsWorker } from "./jobs/distribute-products";
 import { createRefreshTokensWorker } from "./jobs/refresh-tokens";
 import { createDispatchPollsWorker } from "./jobs/dispatch-polls";
 import { createDispatchPollOrdersWorker } from "./jobs/dispatch-poll-orders";
-import { createDispatchRadarWorker } from "./jobs/dispatch-radar";
 import { createFreezeStoresWorker } from "./jobs/freeze-stores";
 import { createPublishListingWorker } from "./jobs/publish-listing";
 import { createEbayAutoUploadWorker } from "./jobs/ebay-auto-upload";
@@ -40,7 +38,6 @@ const workers: Worker[] = [
   createVerifyOrderWorker(connection),
   createPollOrdersWorker(connection),
   createUpdateListingWorker(connection),
-  createRadarScanWorker(connection),
   createAmazonRadarScanWorker(connection),
   createAmazonAutoUploadWorker(connection),
   createAmazonPollProductWorker(connection),
@@ -53,7 +50,6 @@ const workers: Worker[] = [
   createRefreshTokensWorker(connection),
   createDispatchPollsWorker(connection),
   createDispatchPollOrdersWorker(connection),
-  createDispatchRadarWorker(connection),
   createFreezeStoresWorker(connection),
   createPublishListingWorker(connection),
   createEbayAutoUploadWorker(connection),
@@ -68,7 +64,6 @@ console.log("  → poll-product           (concurrency: 4)");
 console.log("  → verify-order           (concurrency: 4)");
 console.log("  → poll-orders            (concurrency: 2)");
 console.log("  → update-listing         (concurrency: 4)");
-console.log("  → radar-scan             (concurrency: 2)");
 console.log("  → amazon-radar-scan      (concurrency: 2)");
 console.log("  → amazon-auto-upload     (concurrency: 2)");
 console.log("  → amazon-poll-product    (concurrency: 4)");
