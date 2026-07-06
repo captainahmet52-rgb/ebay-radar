@@ -108,6 +108,11 @@ Scraper gereği: API'nin "az kaldı / Only N left" sinyalini ayrı parse et,
 sadece var/yok yetmez.
 
 5. Tarama (polling) — kademeli
+SADECE YÜKLENMİŞ ÜRÜN TARANIR (2026-07-06): dispatch-polls yalnız "takibe
+değer" listing'i olan ürünleri tarar (eBay'de yayınlanmış+kapatılmamış, yayın
+hattında aktif, ya da hatasız stok-duraklatmalı recovery adayı). Depoda boşta
+duran / yayına hiç çıkmamış / tüm listeleri kapatılmış ürüne ScrapingBee
+kredisi yakılmaz. Admin /admin/depot sayfasında "Yüklendi / Boşta" filtresi var.
 Hepsini sık taramak hem pahalı hem gereksiz. Risk grubuna göre ayır:
 GrupKapsamSıklıkSıcakaz stoklu / çok satan / pahalı15 dk (gerekirse 10 dk)Normalortalama ürünler1–3 saatÖlübol stok, satmıyor, ucuz12 saat
 Bir ürün az-stok bölgesine girince otomatik sıcak gruba taşınır.

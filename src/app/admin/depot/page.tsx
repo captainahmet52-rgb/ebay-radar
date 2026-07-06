@@ -11,21 +11,30 @@ interface DepotProduct {
   calculatedEbayPrice: number | null;
   status: string;
   createdAt: string;
+  uploadedListings: number;
   _count: { distributions: number };
 }
 
 interface DepotResponse {
   data: DepotProduct[];
-  meta: { page: number; limit: number; total: number; totalPages: number };
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    uploadedTotal: number;
+    grandTotal: number;
+  };
 }
 
 const fetcher = (url: string) => fetch(url).then(r => r.json()) as Promise<DepotResponse>;
 
 export default function AdminDepotPage() {
   const [page, setPage] = useState(1);
+  const [uploadedFilter, setUploadedFilter] = useState(""); // "" | "yes" | "no"
   const [clearing, setClearing] = useState(false);
   const { data, isLoading, mutate } = useSWR<DepotResponse>(
-    `/api/admin/depot?page=${page}&limit=50`,
+    `/api/admin/depot?page=${page}&limit=50${uploadedFilter ? `&uploaded=${uploadedFilter}` : ""}`,
     fetcher
   );
 
@@ -56,19 +65,38 @@ export default function AdminDepotPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Urun Deposu</h1>
-        <button
-          onClick={clearDepot}
-          disabled={clearing}
-          className="text-sm px-3 py-2 rounded-lg bg-red-500/15 text-red-300 border border-red-500/30 hover:bg-red-500/25 disabled:opacity-50"
-        >
-          {clearing ? "Siliniyor…" : "Depoyu Sıfırla"}
-        </button>
+        <div className="flex items-center gap-3">
+          <select
+            value={uploadedFilter}
+            onChange={(e) => {
+              setUploadedFilter(e.target.value);
+              setPage(1);
+            }}
+            className="text-sm px-3 py-2 rounded-lg bg-slate-800 border border-slate-700/50 text-slate-300"
+          >
+            <option value="">Tümü</option>
+            <option value="yes">📤 Yüklendi</option>
+            <option value="no">📦 Boşta</option>
+          </select>
+          <button
+            onClick={clearDepot}
+            disabled={clearing}
+            className="text-sm px-3 py-2 rounded-lg bg-red-500/15 text-red-300 border border-red-500/30 hover:bg-red-500/25 disabled:opacity-50"
+          >
+            {clearing ? "Siliniyor…" : "Depoyu Sıfırla"}
+          </button>
+        </div>
       </div>
 
       {/* Meta bilgi */}
       {data && (
         <div className="mb-4 text-slate-400 text-sm">
-          Toplam {data.meta.total} urun | Sayfa {data.meta.page} / {data.meta.totalPages}
+          Toplam {data.meta.grandTotal} urun | Yüklendi{" "}
+          <span className="text-emerald-400">{data.meta.uploadedTotal}</span> | Boşta{" "}
+          <span className="text-slate-300">
+            {Math.max(0, data.meta.grandTotal - data.meta.uploadedTotal)}
+          </span>{" "}
+          | Sayfa {data.meta.page} / {data.meta.totalPages}
         </div>
       )}
 
@@ -86,6 +114,7 @@ export default function AdminDepotPage() {
                 <th className="text-left p-4">Baslik</th>
                 <th className="text-right p-4">Amazon Fiyati</th>
                 <th className="text-right p-4">Hesaplanan eBay</th>
+                <th className="text-center p-4">Yükleme</th>
                 <th className="text-right p-4">Dagilim</th>
                 <th className="text-right p-4">Eklenme</th>
               </tr>
@@ -119,6 +148,17 @@ export default function AdminDepotPage() {
                     {product.calculatedEbayPrice != null
                       ? `$${product.calculatedEbayPrice.toFixed(2)}`
                       : "-"}
+                  </td>
+                  <td className="p-4 text-center">
+                    {product.uploadedListings > 0 ? (
+                      <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium text-emerald-300 bg-emerald-500/10 border border-emerald-500/30">
+                        Yüklendi · {product.uploadedListings}
+                      </span>
+                    ) : (
+                      <span className="inline-flex px-2 py-1 rounded-full text-xs text-slate-500 bg-slate-800/60 border border-slate-700/50">
+                        Boşta
+                      </span>
+                    )}
                   </td>
                   <td className="p-4 text-right text-slate-400">
                     {product._count.distributions}

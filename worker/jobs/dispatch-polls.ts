@@ -12,10 +12,26 @@
 
 import { Worker, Job } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { pollProductQueue, updateListingQueue } from "@/lib/queues";
 import { notifyScraperFailing } from "@/lib/admin-notify";
 import type { DispatchPollsJobData } from "@/lib/queues";
+
+// "Takibe değer" listing — stok kontrol SADECE yüklenmiş/yayın hattındaki
+// ürünler için çalışır. Hiç böyle listing'i olmayan ürün (yayına hiç çıkmamış,
+// tüm listeleri kapatılmış ya da hatayla bloke = boşta duran) taranmaz →
+// boşuna ScrapingBee kredisi yakılmaz.
+const TRACKABLE_LISTING: Prisma.ListingWhereInput = {
+  OR: [
+    // eBay'de yayınlanmış ve kapatılmamış → oversell riski var, durumu ne olursa olsun izle
+    { ebayListingId: { not: null }, status: { not: "ended" } },
+    // Yayın hattında (aktif) → ilk yayın / fiyat-stok güncellemesi bu taramayla olur
+    { status: "active" },
+    // Stok sebebiyle duraklatılmış, eBay hatası yok, mağazası aktif → auto-recovery adayı
+    { status: "paused", lastEbayError: null, ebayAccount: { isActive: true } },
+  ],
+};
 
 const TIER_THRESHOLDS_MS = {
   hot: 15 * 60 * 1000,        // 15 dakika
@@ -39,7 +55,13 @@ const RECOVERABLE_REASONS = ["out_of_stock", "low_stock", "price_spike", "floor"
 async function guardStaleProducts(now: Date): Promise<number> {
   const cutoff = new Date(now.getTime() - STALE_MS);
   const stale = await prisma.product.findMany({
-    where: { status: "active", lastScrapedAt: { lt: cutoff } },
+    // listings-şartı olmadan boşta duran (artık taranmayan) ürünler burada
+    // yanlış "tarama bozuk" alarmı üretirdi — onlar da kapsam dışı.
+    where: {
+      status: "active",
+      lastScrapedAt: { lt: cutoff },
+      listings: { some: TRACKABLE_LISTING },
+    },
     select: { id: true, asin: true },
     take: STALE_MAX_PER_RUN,
   });
@@ -97,6 +119,7 @@ async function dispatchActive(now: Date): Promise<number> {
         status: "active",
         pollTier: tier,
         OR: [{ lastScrapedAt: null }, { lastScrapedAt: { lt: cutoff } }],
+        listings: { some: TRACKABLE_LISTING },
       },
       select: { id: true },
       take: budget,
@@ -123,6 +146,7 @@ async function dispatchRecovery(now: Date): Promise<number> {
       status: "paused",
       pauseReason: { in: RECOVERABLE_REASONS },
       OR: [{ lastScrapedAt: null }, { lastScrapedAt: { lt: cutoff } }],
+      listings: { some: TRACKABLE_LISTING },
     },
     select: { id: true },
     take: RECOVERY_BUDGET,
