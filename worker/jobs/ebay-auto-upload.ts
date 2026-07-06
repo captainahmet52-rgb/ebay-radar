@@ -56,12 +56,15 @@ async function processForUser(userId: string): Promise<void> {
     return;
   }
 
-  // Kullanıcının zaten listelediği ASIN'ler (mükerrer önleme)
-  const existing = await prisma.listing.findMany({
-    where: { userId },
+  // MÜNHASIRLIK: bir ürün YALNIZ BİR mağazaya yüklenir. Herhangi bir
+  // kullanıcıda kapatılmamış listing'i olan ASIN havuzdan düşer — müşteriler
+  // aynı ürünle eBay'de birbiriyle rekabet etmez. (Listing "ended" olursa
+  // ASIN yeniden boşa çıkar ve başka mağazaya gidebilir.)
+  const taken = await prisma.listing.findMany({
+    where: { status: { not: "ended" } },
     select: { product: { select: { asin: true } } },
   });
-  const ownedAsins = new Set(existing.map((l) => l.product?.asin).filter(Boolean) as string[]);
+  const takenAsins = new Set(taken.map((l) => l.product?.asin).filter(Boolean) as string[]);
 
   // Filtrelere uyan depo ürünleri.
   // "Son X günde satılmış" (uploadSoldWithinDays): DepotProduct.lastSoldAt
@@ -87,7 +90,7 @@ async function processForUser(userId: string): Promise<void> {
   let i = 0;
   for (const depot of candidates) {
     if (uploaded >= remaining) break;
-    if (ownedAsins.has(depot.asin)) { skipped++; continue; }
+    if (takenAsins.has(depot.asin)) { skipped++; continue; }
 
     // Depo ürününü Product'a yansıt (publish pipeline Product kullanır)
     const product = await prisma.product.upsert({
@@ -106,9 +109,9 @@ async function processForUser(userId: string): Promise<void> {
       update: {},
     });
 
-    // Zaten listesi var mı? (yarış koruması)
+    // Zaten HERHANGİ BİR mağazada listesi var mı? (yarış koruması — münhasırlık)
     const dupe = await prisma.listing.findFirst({
-      where: { userId, productId: product.id },
+      where: { productId: product.id, status: { not: "ended" } },
       select: { id: true },
     });
     if (dupe) { skipped++; continue; }
@@ -133,6 +136,8 @@ async function processForUser(userId: string): Promise<void> {
       { delay: i * 1500, jobId: `auto-poll:${userId}:${product.id}:${Date.now()}` }
     );
 
+    // Aynı çalıştırmada sonraki kullanıcılar bu ASIN'i almasın (münhasırlık)
+    takenAsins.add(depot.asin);
     uploaded++;
     i++;
   }

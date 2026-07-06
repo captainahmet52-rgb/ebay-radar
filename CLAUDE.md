@@ -107,6 +107,11 @@ Asla eski fiyattan açma.
 Scraper gereği: API'nin "az kaldı / Only N left" sinyalini ayrı parse et,
 sadece var/yok yetmez.
 
+MÜNHASIRLIK (2026-07-06): Bir depo ürünü YALNIZ BİR mağazaya yüklenir/dağıtılır.
+ebay-auto-upload: herhangi bir kullanıcıda kapatılmamış (ended olmayan) listing'i
+olan ASIN havuzdan düşer; distribute-products: distributions none:{} (hiç
+dağıtılmamış). Listing "ended" olursa ASIN yeniden boşa çıkar.
+
 5. Tarama (polling) — kademeli
 SADECE YÜKLENMİŞ ÜRÜN TARANIR (2026-07-06): dispatch-polls yalnız "takibe
 değer" listing'i olan ürünleri tarar (eBay'de yayınlanmış+kapatılmamış, yayın
