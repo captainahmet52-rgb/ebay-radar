@@ -433,7 +433,6 @@ export default function AutoUploadPage() {
                   <option value="EBAY_US">🇺🇸 eBay US</option>
                   <option value="EBAY_GB">🇬🇧 eBay UK</option>
                   <option value="EBAY_DE">🇩🇪 eBay Almanya</option>
-                  <option value="EBAY_AU">🇦🇺 eBay Avustralya</option>
                 </select>
               </div>
             </div>

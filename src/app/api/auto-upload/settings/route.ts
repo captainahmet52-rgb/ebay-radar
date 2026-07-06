@@ -15,7 +15,7 @@ const settingsSchema = z.object({
   uploadPrimeOnly:       z.boolean(),
   uploadSoldWithinDays:  z.number().int().nullable(),
   uploadSourceMarket:    z.enum(["US","UK","DE"]),
-  uploadEbaySite:        z.enum(["EBAY_US","EBAY_GB","EBAY_DE","EBAY_AU"]),
+  uploadEbaySite:        z.enum(["EBAY_US","EBAY_GB","EBAY_DE"]),
   uploadProfitMarginPct: z.number().min(0).max(100),
   uploadQuantity:        z.number().int().min(1),
   uploadAutoPublish:     z.boolean(),
