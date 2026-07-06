@@ -18,6 +18,8 @@ const IntakeProductSchema = z.object({
   amazonPrice: z.number().positive().nullable().optional(),
   competitorPrice: z.number().positive().nullable().optional(), // rakibin eBay fiyatı
   soldCount: z.number().int().min(0).nullable().optional(), // talep kanıtı
+  // Rakipte en son gözlenen satış anı (ISO) — "son X günde satılmış" filtresi
+  lastSoldAt: z.coerce.date().nullable().optional(),
   projectedProfit: z.number().nullable().optional(),
   projectedMarginPct: z.number().nullable().optional(),
   // sourceKeyword kabul edilir ama SAKLANMAZ: DepotProduct'taki kolon
@@ -56,6 +58,7 @@ export const POST = requireCron(async (req) => {
       amazonPrice: p.amazonPrice ?? undefined,
       competitorPrice: p.competitorPrice ?? undefined,
       soldCount: p.soldCount ?? undefined,
+      lastSoldAt: p.lastSoldAt ?? undefined,
       projectedProfit: p.projectedProfit ?? undefined,
       projectedMarginPct: p.projectedMarginPct ?? undefined,
       rankScore,

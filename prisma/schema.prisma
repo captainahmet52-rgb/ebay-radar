@@ -371,6 +371,9 @@ model DepotProduct {
   calculatedEbayPrice Float?
   // Talep + kârlılık + rekabetçilik sinyalleri
   soldCount           Int?      // rakip eBay mağazasının sattığı adet (talep kanıtı)
+  // Rakipte EN SON gözlenen satış anı (Radar snapshot deltasından) — oto
+  // yüklemenin "son X günde satılmış" filtresi bunu kullanır (sıcak ürün).
+  lastSoldAt          DateTime?
   competitorPrice     Float?    // rakibin eBay satış fiyatı (rekabetçilik için)
   projectedProfit     Float?    // ekleme-anı net kâr (repricer)
   projectedMarginPct  Float?    // ekleme-anı net marj

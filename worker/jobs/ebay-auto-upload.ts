@@ -63,14 +63,22 @@ async function processForUser(userId: string): Promise<void> {
   });
   const ownedAsins = new Set(existing.map((l) => l.product?.asin).filter(Boolean) as string[]);
 
-  // Filtrelere uyan depo ürünleri
+  // Filtrelere uyan depo ürünleri.
+  // "Son X günde satılmış" (uploadSoldWithinDays): DepotProduct.lastSoldAt
+  // Radar'ın snapshot deltasından gelir — dün gerçekten satılan ürünü bugün
+  // listelemek sipariş olasılığını en çok artıran sinyaldir (sıcak ürün).
+  const soldCutoff = user.uploadSoldWithinDays
+    ? new Date(Date.now() - user.uploadSoldWithinDays * 24 * 3600 * 1000)
+    : null;
   const candidates = await prisma.depotProduct.findMany({
     where: {
       status: "active",
       amazonMarket: user.uploadSourceMarket,
       amazonPrice: { not: null, gte: user.uploadMinAmazonPrice, lte: user.uploadMaxAmazonPrice },
+      ...(soldCutoff ? { lastSoldAt: { gte: soldCutoff } } : {}),
     },
-    orderBy: { createdAt: "desc" },
+    // En iyi ürün önce: kâr × talep skoru (rankScore), eşitse en yeni eklenen.
+    orderBy: [{ rankScore: "desc" }, { createdAt: "desc" }],
     take: remaining * 3, // owned filtrelemesi için fazladan al
   });
 
