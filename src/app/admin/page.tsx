@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { AdminCharts } from "./_components/AdminCharts";
+import { AdminChartsLazy } from "./_components/AdminChartsLazy";
 
 export const dynamic = "force-dynamic";
 
@@ -97,7 +97,7 @@ export default async function AdminPage() {
 
       {/* Grafikler */}
       <div style={{ marginBottom: "1.25rem" }}>
-        <AdminCharts monthlyUsers={monthlyUsers} monthlyOrders={monthlyOrders} planCounts={planCounts} />
+        <AdminChartsLazy monthlyUsers={monthlyUsers} monthlyOrders={monthlyOrders} planCounts={planCounts} />
       </div>
 
       {/* Alt bilgi + hızlı işlemler */}

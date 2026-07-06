@@ -2,11 +2,23 @@
 
 import { motion } from "framer-motion";
 import useSWR from "swr";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { DollarSign, List, TrendingUp, Clock, Plus, Zap } from "lucide-react";
 import { StatsCard } from "@/components/dashboard/stats-card";
-import { ProfitChart } from "@/components/dashboard/profit-chart";
 import { RecentOrders } from "@/components/dashboard/recent-orders";
+
+// Grafik kütüphanesi (recharts) bundle'ın en ağır parçası — sayfa açılışını
+// bloklamasın diye tembel yüklenir; yüklenene dek aynı boyutta iskelet gösterilir.
+const ProfitChart = dynamic(
+  () => import("@/components/dashboard/profit-chart").then((m) => m.ProfitChart),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 h-[340px] animate-pulse" />
+    ),
+  }
+);
 import { OnboardingCard } from "@/components/dashboard/onboarding-card";
 import { Button } from "@/components/ui/button";
 

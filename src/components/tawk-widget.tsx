@@ -17,7 +17,9 @@ export function TawkWidget() {
   if (!tawkId) return null;
 
   return (
-    <Script id="tawk-to" strategy="afterInteractive">
+    // lazyOnload: sohbet balonu sayfanın kendi JS'iyle yarışmasın, tarayıcı
+    // boşa düşünce yüklensin — ilk açılış hızı için kritik.
+    <Script id="tawk-to" strategy="lazyOnload">
       {`
         var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
         (function(){

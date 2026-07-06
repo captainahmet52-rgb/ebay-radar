@@ -16,7 +16,7 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     // Büyük kütüphaneleri tree-shake et → daha küçük JS bundle
-    optimizePackageImports: ["lucide-react", "framer-motion"],
+    optimizePackageImports: ["lucide-react", "framer-motion", "recharts"],
   },
   // Prod'da console.log'ları üretim JS'inden çıkar (error/warn kalsın) — hız + temizlik
   compiler: {
