@@ -40,6 +40,18 @@ async function createIfNotDuplicate(params: {
   return true;
 }
 
+/**
+ * Döviz kuru API'si uzun süre erişilemez ve sistem bayat/statik kurla fiyatlama
+ * yapmak zorunda kaldığında admin'e uyarı — yanlış marjla satış riski.
+ */
+export async function notifyExchangeRateStale(detail: string): Promise<void> {
+  await createIfNotDuplicate({
+    type: "exchange_rate_stale",
+    title: "⚠️ Döviz kuru güncellenemiyor",
+    message: `Fiyat hesaplamaları güncel olmayan kurla yapılıyor. ${detail}`,
+  });
+}
+
 /** Bakiye yetersiz olduğu için bir işlem yapılamadı → admin paneline KRİTİK uyarı. */
 export async function notifyInsufficientBalance(
   userId: string,

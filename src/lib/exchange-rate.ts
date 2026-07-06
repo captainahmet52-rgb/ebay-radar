@@ -35,6 +35,19 @@ interface RateCache {
 
 let cache: RateCache | null = null;
 
+/** Bayat kur uyarısı — süreç başına bir kez admin'e bildir (spam olmasın). */
+let staleNotified = false;
+async function notifyStaleRatesOnce(detail: string): Promise<void> {
+  if (staleNotified) return;
+  staleNotified = true;
+  try {
+    const { notifyExchangeRateStale } = await import("@/lib/admin-notify");
+    await notifyExchangeRateStale(detail);
+  } catch {
+    // bildirim hatası kur akışını asla düşürmez
+  }
+}
+
 async function fetchRates(): Promise<Record<string, number>> {
   if (cache && Date.now() - cache.fetchedAt < CACHE_TTL_MS) {
     return cache.rates;
@@ -49,14 +62,25 @@ async function fetchRates(): Promise<Record<string, number>> {
       throw new Error("Exchange rate API: geçersiz yanıt");
     }
     cache = { rates: data.rates, fetchedAt: Date.now() };
+    staleNotified = false; // canlı kur döndü → bir sonraki kesintide yeniden uyarabil
     return data.rates;
   } catch (err) {
-    // Canlı kur alınamadı → statik yedeğe düş (yanlış fiyatlamadansa yaklaşık kur).
-    console.warn(
-      `[exchange-rate] Canlı kur alınamadı, statik yedek kullanılıyor: ${
-        err instanceof Error ? err.message : "bilinmeyen hata"
-      }`
-    );
+    const msg = err instanceof Error ? err.message : "bilinmeyen hata";
+
+    // 1. tercih: elde SÜRESİ GEÇMİŞ de olsa GERÇEK kur varsa onu kullan —
+    // birkaç saatlik bayat gerçek kur, aylar önce yazılmış statik tahminden iyidir.
+    if (cache) {
+      const ageHours = Math.round((Date.now() - cache.fetchedAt) / 3600000);
+      console.warn(`[exchange-rate] Canlı kur alınamadı (${msg}) → ${ageHours} saatlik önbellek kullanılıyor`);
+      if (ageHours >= 24) {
+        void notifyStaleRatesOnce(`Kur API'si ${ageHours} saattir erişilemiyor; ${ageHours} saatlik önbellek kullanılıyor.`);
+      }
+      return cache.rates;
+    }
+
+    // Son çare: statik yedek (yanlış fiyatlamadansa yaklaşık kur) + admin uyarısı.
+    console.warn(`[exchange-rate] Canlı kur alınamadı (${msg}) → STATİK yedek kullanılıyor`);
+    void notifyStaleRatesOnce(`Kur API'si erişilemiyor ve önbellek boş — statik yedek kurlar kullanılıyor: ${msg}`);
     return FALLBACK_RATES;
   }
 }
