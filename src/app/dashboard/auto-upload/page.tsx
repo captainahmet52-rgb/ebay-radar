@@ -423,6 +423,7 @@ export default function AutoUploadPage() {
                   onChange={(e) => set("uploadSourceMarket", e.target.value)}>
                   <option value="US">🇺🇸 Amazon US</option>
                   <option value="UK">🇬🇧 Amazon UK</option>
+                  <option value="DE">🇩🇪 Amazon Almanya</option>
                 </select>
               </div>
               <div>

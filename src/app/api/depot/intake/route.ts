@@ -13,8 +13,8 @@ const IntakeProductSchema = z.object({
   asin: z.string().min(5).max(20),
   title: z.string().nullable().optional(),
   imageUrl: z.string().url().nullable().optional(),
-  // Radar sourceMarket: AMAZON_US → US, AMAZON_UK → UK
-  amazonMarket: z.enum(["US", "UK"]).default("US"),
+  // Radar sourceMarket: AMAZON_US → US, AMAZON_UK → UK, AMAZON_DE → DE
+  amazonMarket: z.enum(["US", "UK", "DE"]).default("US"),
   amazonPrice: z.number().positive().nullable().optional(),
   competitorPrice: z.number().positive().nullable().optional(), // rakibin eBay fiyatı
   soldCount: z.number().int().min(0).nullable().optional(), // talep kanıtı
