@@ -107,6 +107,14 @@ export const POST = requireAuth(async (req, { userId }) => {
     effectiveRemaining = Math.min(remaining, storeRemaining);
   }
 
+  // Yeni ürünler kullanıcının Amazon kaynak pazarıyla etiketlenir — Alman
+  // müşteri amazon.de ASIN'i eklerse fiyat/stok amazon.de'den taransın.
+  // (Mevcut ürünün pazarı değiştirilmez: global ürün tek pazarlıdır.)
+  const userMarket = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { uploadSourceMarket: true },
+  });
+
   // Bu kullanıcının zaten listelediği ürünleri atla (mükerrer önleme)
   const targetAsins = asins.slice(0, effectiveRemaining);
   let added = 0;
@@ -117,7 +125,12 @@ export const POST = requireAuth(async (req, { userId }) => {
     // Depo ürününü oluştur/bul (fiyat/stok worker dolduracak)
     const product = await prisma.product.upsert({
       where: { asin },
-      create: { asin, status: "active", pollTier: "normal" },
+      create: {
+        asin,
+        status: "active",
+        pollTier: "normal",
+        amazonMarket: userMarket?.uploadSourceMarket ?? "US",
+      },
       update: {},
     });
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { fetchAmazonProduct } from "@/lib/scraper";
-import { calculateEbayPrice } from "@/lib/repricer";
+import { calculateEbayPriceForMarket } from "@/lib/repricer";
 
 const ASIN_REGEX = /^[A-Z0-9]{10}$/;
 const MIN_PRICE = 15;
@@ -78,7 +78,12 @@ export const POST = requireAuth(async (req, { userId }) => {
     // Kullanıcının ürün limitini kontrol et
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { productLimit: true, _count: { select: { productDistributions: true } } },
+      select: {
+        productLimit: true,
+        uploadSourceMarket: true,
+        uploadEbaySite: true,
+        _count: { select: { productDistributions: true } },
+      },
     });
     const usedCount = user?._count.productDistributions ?? 0;
     const productLimit = user?.productLimit ?? 100;
@@ -89,10 +94,18 @@ export const POST = requireAuth(async (req, { userId }) => {
       );
     }
 
+    // Amazon pazarı: ürün depoda zaten varsa ONUN pazarı (global ürün tek pazarlıdır,
+    // farklı pazardan fiyatla üzerine yazılmaz); yeni üründe kullanıcının kaynak pazarı.
+    const existingProduct = await prisma.product.findUnique({
+      where: { asin: normalizedAsin },
+      select: { amazonMarket: true },
+    });
+    const amazonMarket = existingProduct?.amazonMarket ?? user?.uploadSourceMarket ?? "US";
+
     // Amazon'dan veri çek
     let scraperResult;
     try {
-      scraperResult = await fetchAmazonProduct(normalizedAsin);
+      scraperResult = await fetchAmazonProduct(normalizedAsin, amazonMarket);
     } catch (err) {
       console.error("[products POST scrape]", err);
       return NextResponse.json(
@@ -116,8 +129,12 @@ export const POST = requireAuth(async (req, { userId }) => {
       );
     }
 
-    // Fiyat hesapla
-    const repricerResult = calculateEbayPrice(scraperResult.price);
+    // Fiyat hesapla — kullanıcının eBay pazarına göre (kur + KDV + komisyon)
+    const repricerResult = await calculateEbayPriceForMarket(
+      scraperResult.price,
+      amazonMarket,
+      user?.uploadEbaySite ?? "EBAY_US"
+    );
 
     // DB'ye yaz veya güncelle
     const product = await prisma.product.upsert({
@@ -126,6 +143,7 @@ export const POST = requireAuth(async (req, { userId }) => {
         asin: normalizedAsin,
         title: scraperResult.title || null,
         imageUrl: scraperResult.imageUrl,
+        amazonMarket,
         amazonPrice: scraperResult.price,
         amazonStockStatus: scraperResult.stockStatus,
         amazonStockQty: scraperResult.stockQty,
@@ -145,7 +163,17 @@ export const POST = requireAuth(async (req, { userId }) => {
       },
     });
 
-    return NextResponse.json(product, { status: 201 });
+    // Modal'ın beklediği önizleme alanları (ebayPrice/netProfit/marginPct) ürün
+    // kaydında yoktur — repricer sonucundan eklenir (marginPct yüzde olarak).
+    return NextResponse.json(
+      {
+        ...product,
+        ebayPrice: repricerResult.ebayPrice,
+        netProfit: repricerResult.netProfit,
+        marginPct: repricerResult.marginPct * 100,
+      },
+      { status: 201 }
+    );
   } catch (err) {
     console.error("[products POST]", err);
     return NextResponse.json({ error: "Sunucu hatası" }, { status: 500 });
