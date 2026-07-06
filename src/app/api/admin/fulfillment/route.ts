@@ -6,6 +6,24 @@ import { z } from "zod";
 /** Varsayılan markup (USD) — admin sipariş başına değiştirebilir. */
 const DEFAULT_MARKUP_USD = 5;
 
+// Ürünün kaynak pazarına göre doğru Amazon sitesi — scraper.ts AMAZON_DOMAINS ile uyumlu.
+const AMAZON_DOMAIN: Record<string, string> = {
+  US: "https://www.amazon.com",
+  UK: "https://www.amazon.co.uk",
+  DE: "https://www.amazon.de",
+  FR: "https://www.amazon.fr",
+  IT: "https://www.amazon.it",
+  ES: "https://www.amazon.es",
+  CA: "https://www.amazon.ca",
+  TR: "https://www.amazon.com.tr",
+};
+
+function amazonProductUrl(asin: string | null | undefined, market: string | null | undefined): string | null {
+  if (!asin) return null;
+  const domain = AMAZON_DOMAIN[market ?? "US"] ?? AMAZON_DOMAIN.US;
+  return `${domain}/dp/${asin}`;
+}
+
 /**
  * GET /api/admin/fulfillment
  * Managed fulfillment akışındaki siparişleri listeler (admin sipariş havuzu).
@@ -21,7 +39,7 @@ export const GET = requireAdmin(async () => {
       listing: {
         select: {
           ebaySite: true,
-          product: { select: { asin: true, title: true } },
+          product: { select: { asin: true, title: true, amazonMarket: true } },
           ebayAccount: { select: { ebayUserId: true } },
         },
       },
@@ -39,7 +57,7 @@ export const GET = requireAdmin(async () => {
     trackingNumber: o.trackingNumber,
     asin: o.listing?.product?.asin ?? null,
     title: o.listing?.product?.title ?? null,
-    amazonUrl: o.listing?.product?.asin ? `https://www.amazon.com/dp/${o.listing.product.asin}` : null,
+    amazonUrl: amazonProductUrl(o.listing?.product?.asin, o.listing?.product?.amazonMarket),
     store: o.listing?.ebayAccount?.ebayUserId ?? null,
     userEmail: o.user?.email ?? null,
     userBalance: o.user?.creditBalanceUsd ?? 0,
