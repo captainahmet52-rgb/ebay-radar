@@ -21,6 +21,11 @@ const settingsSchema = z.object({
   uploadAutoPublish:     z.boolean(),
   // eBay sipariş gelince otomatik takip al + eBay'e yükle (opsiyonel — geriye uyumlu)
   ebayAutoFulfill:       z.boolean().optional(),
+  // Uluslararası / çapraz pazar maliyetleri (src/lib/cross-market.ts)
+  ebayIntlFeePct:        z.number().min(0).max(10).optional(),
+  ebayFxFeePct:          z.number().min(0).max(10).optional(),
+  crossExtraPct:         z.number().min(0).max(20).optional(),
+  crossExtraFixed:       z.number().min(0).optional(),
 });
 
 export async function GET() {
@@ -46,6 +51,10 @@ export async function GET() {
       uploadQuantity:        true,
       uploadAutoPublish:     true,
       ebayAutoFulfill:       true,
+      ebayIntlFeePct:        true,
+      ebayFxFeePct:          true,
+      crossExtraPct:         true,
+      crossExtraFixed:       true,
     },
   });
 
@@ -83,6 +92,10 @@ export async function PATCH(req: NextRequest) {
       uploadQuantity:        true,
       uploadAutoPublish:     true,
       ebayAutoFulfill:       true,
+      ebayIntlFeePct:        true,
+      ebayFxFeePct:          true,
+      crossExtraPct:         true,
+      crossExtraFixed:       true,
     },
   });
 

@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { fetchAmazonProduct } from "@/lib/scraper";
 import { calculateEbayPriceForMarket, determineQty } from "@/lib/repricer";
+import { resolveExtraCosts } from "@/lib/cross-market";
 import { resumeListing } from "@/lib/ebay/inventory";
 import type { StockStatus } from "@/types";
 
@@ -15,7 +16,15 @@ export const PUT = requireAuth(async (req, { userId, params }) => {
       include: {
         ebayAccount: true,
         product: true,
-        user: { select: { uploadProfitMarginPct: true } },
+        user: {
+          select: {
+            uploadProfitMarginPct: true,
+            ebayIntlFeePct: true,
+            ebayFxFeePct: true,
+            crossExtraPct: true,
+            crossExtraFixed: true,
+          },
+        },
       },
     });
 
@@ -74,7 +83,8 @@ export const PUT = requireAuth(async (req, { userId, params }) => {
       listing.product.amazonMarket,
       listing.ebaySite,
       listing.product.ebayFeeRate,
-      margin
+      margin,
+      resolveExtraCosts(listing.user, listing.product.amazonMarket, listing.ebaySite)
     );
 
     // 3. eBay'de fiyat+qty güncelle — SKU (stok) + offerId (fiyat) gerektirir

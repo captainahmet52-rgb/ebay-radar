@@ -2,6 +2,7 @@
 import type { RepricerResult, StockStatus } from "@/types";
 import type { Product } from "@prisma/client";
 import { convertCurrency, MARKET_CURRENCY } from "@/lib/exchange-rate";
+import type { ExtraCosts } from "@/lib/cross-market";
 import {
   EBAY_MARKETPLACES,
   resolveEbayMarketplace,
@@ -11,21 +12,25 @@ import {
 /**
  * eBay satış fiyatı hesaplama — PAZAR BAŞINA (KDV + düzenleme ücreti + yerel sipariş ücreti).
  * Formül: eBay_fiyatı = (amazon_fiyatı + sabit_ücret) / (1 - etkinÜcret - margin)
- *   etkinÜcret = (FVF + düzenlemeÜcreti) × (1 + ücretKDV)
+ *   etkinÜcret = (FVF + düzenlemeÜcreti) × (1 + ücretKDV) + ekOran
  *   sabitÜcret = sipariş başına ücret (yerel para) × (1 + ücretKDV)
+ *   ekOran     = uluslararası işlem ücreti + kur çevrim ücreti + çapraz tampon
+ *                (cross-market.ts → resolveExtraCosts; satış toplamına oranlıdır)
  * amazonPriceInEbayCurrency: Amazon fiyatı zaten eBay para birimine çevrilmiş olmalı.
  */
 export function calculateEbayPrice(
   amazonPriceInEbayCurrency: number,
   commission: number = 0.136,
   margin: number = 0.20,
-  marketplace: EbayMarketplace = EBAY_MARKETPLACES.EBAY_US
+  marketplace: EbayMarketplace = EBAY_MARKETPLACES.EBAY_US,
+  extraRate: number = 0
 ): RepricerResult {
   const amazonPrice = amazonPriceInEbayCurrency;
   const fvf = commission > 0 ? commission : marketplace.defaultFvfRate;
 
-  // Etkin oran: (FVF + düzenleme ücreti) × (1 + ücret KDV)
-  const effectiveRate = (fvf + marketplace.regulatoryFeeRate) * (1 + marketplace.feeVatRate);
+  // Etkin oran: (FVF + düzenleme ücreti) × (1 + ücret KDV) + ek oran (intl/kur/çapraz)
+  const effectiveRate =
+    (fvf + marketplace.regulatoryFeeRate) * (1 + marketplace.feeVatRate) + extraRate;
 
   const divisor = 1 - effectiveRate - margin;
   if (divisor <= 0) {
@@ -59,20 +64,63 @@ export function calculateEbayPrice(
 
 /**
  * Cross-marketplace fiyat hesaplama.
- * Amazon fiyatını eBay pazarının para birimine çevirir, sonra pazar-bazlı formülü uygular.
+ * Kaynak maliyete çapraz sabit tamponu ekler (kaynak para biriminde), eBay
+ * pazarının para birimine çevirir, sonra pazar-bazlı formülü ek oranla uygular.
+ * extras: cross-market.ts → resolveExtraCosts çıktısı (verilmezse ek maliyet yok).
  */
 export async function calculateEbayPriceForMarket(
   amazonPrice: number,
   amazonMarket: string,
   ebaySite: string,
   commission = 0.136,
-  margin = 0.20
+  margin = 0.20,
+  extras?: ExtraCosts
 ): Promise<RepricerResult> {
   const marketplace = resolveEbayMarketplace(ebaySite);
+  const sourceCost = amazonPrice + (extras?.extraSourceFixed ?? 0);
+  const convertedPrice = await convertSourceToEbayCurrency(sourceCost, amazonMarket, ebaySite);
+  return calculateEbayPrice(convertedPrice, commission, margin, marketplace, extras?.extraRate ?? 0);
+}
+
+/** Kaynak (Amazon) para birimindeki tutarı eBay pazarının para birimine çevirir. */
+export async function convertSourceToEbayCurrency(
+  amount: number,
+  amazonMarket: string,
+  ebaySite: string
+): Promise<number> {
+  const marketplace = resolveEbayMarketplace(ebaySite);
   const fromCurrency = MARKET_CURRENCY[amazonMarket] ?? "USD";
-  const toCurrency = marketplace.currency;
-  const convertedPrice = await convertCurrency(amazonPrice, fromCurrency, toCurrency);
-  return calculateEbayPrice(convertedPrice, commission, margin, marketplace);
+  return convertCurrency(amount, fromCurrency, marketplace.currency);
+}
+
+/**
+ * Gerçekleşen SATIŞIN kâr kırılımı (sipariş-anı raporlama — verify-order).
+ * soldPrice: eBay pazar para biriminde satış fiyatı.
+ * costInEbayCurrency: kaynak maliyet (çapraz sabit tampon dahil) eBay para birimine ÇEVRİLMİŞ.
+ * extraRate: resolveExtraCosts().extraRate (intl + kur + çapraz yüzde).
+ */
+export function computeSaleProfit(
+  soldPrice: number,
+  costInEbayCurrency: number,
+  commission: number,
+  ebaySite: string,
+  extraRate: number
+): { ebayFee: number; netProfit: number } {
+  const marketplace = resolveEbayMarketplace(ebaySite);
+  const fvf = commission > 0 ? commission : marketplace.defaultFvfRate;
+  const effectiveRate =
+    (fvf + marketplace.regulatoryFeeRate) * (1 + marketplace.feeVatRate) + extraRate;
+  const fixedBase =
+    soldPrice >= marketplace.perOrderThreshold
+      ? marketplace.perOrderFeeHigh
+      : marketplace.perOrderFeeLow;
+  const fixedFee = fixedBase * (1 + marketplace.feeVatRate);
+  const ebayFee = soldPrice * effectiveRate + fixedFee;
+  const netProfit = soldPrice - costInEbayCurrency - ebayFee;
+  return {
+    ebayFee: Math.round(ebayFee * 100) / 100,
+    netProfit: Math.round(netProfit * 100) / 100,
+  };
 }
 
 /**

@@ -5,6 +5,8 @@ import { Worker, Job } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
 import { prisma } from "@/lib/prisma";
 import { fetchAmazonProduct, ScraperOutOfCreditsError } from "@/lib/scraper";
+import { convertSourceToEbayCurrency, computeSaleProfit } from "@/lib/repricer";
+import { resolveExtraCosts } from "@/lib/cross-market";
 import { cancelOrder } from "@/lib/ebay/fulfillment";
 import { fulfillEbayOrder } from "@/lib/ebay/fulfill-order";
 import { notifyScraperOutOfCredits } from "@/lib/admin-notify";
@@ -23,6 +25,14 @@ async function processVerifyOrder(
       listing: {
         include: {
           product: true,
+          user: {
+            select: {
+              ebayIntlFeePct: true,
+              ebayFxFeePct: true,
+              crossExtraPct: true,
+              crossExtraFixed: true,
+            },
+          },
         },
       },
     },
@@ -109,16 +119,31 @@ async function processVerifyOrder(
     }
   }
 
-  // 3b. Fiyat kontrolü: Canlı Amazon fiyatı satış fiyatının %20'sinden fazla üstündeyse → iptal
-  // Formül: satışta kazanılan margin = (soldPrice - amazon_cost) / soldPrice
-  // Eğer amazon maliyeti arttıysa margin erimişse iptal et
-  if (cancelCode === null && liveAmazonPrice !== null) {
-    // Satışta varsayılan komisyon + target margin ile kırılım noktası
-    // Kırılım: liveAmazonPrice > soldPrice'ın %20 üstü = zarar guarantee
+  // Uluslararası/çapraz maliyetler + kaynak maliyetin eBay para birimine çevrimi.
+  // soldPrice eBay pazar para birimindedir; liveAmazonPrice KAYNAK para birimindedir
+  // (ör. UK ürünü £). Karşılaştırma/kâr hesabı öncesi çevirmek ŞART — yoksa çapraz
+  // pazarda para birimleri karışır ve hem iptal eşiği hem netProfit yanlış olur.
+  const extras = resolveExtraCosts(
+    listing.user,
+    product.amazonMarket,
+    listing.ebaySite
+  );
+  const liveCostInEbayCurrency =
+    liveAmazonPrice !== null
+      ? await convertSourceToEbayCurrency(
+          liveAmazonPrice + extras.extraSourceFixed,
+          product.amazonMarket ?? "US",
+          listing.ebaySite ?? "EBAY_US"
+        )
+      : null;
+
+  // 3b. Fiyat kontrolü: Canlı maliyet (eBay parasına çevrilmiş) satış fiyatının
+  // %20'sinden fazla üstündeyse → iptal (marj erimiş, zarar garantili)
+  if (cancelCode === null && liveCostInEbayCurrency !== null) {
     const priceThreshold = soldPrice * 1.2; // soldPrice'ın %20 üstü
-    if (liveAmazonPrice > priceThreshold) {
+    if (liveCostInEbayCurrency > priceThreshold) {
       cancelCode = "price_spike";
-      cancelDetail = `Amazon fiyatı çok yükseldi: $${liveAmazonPrice.toFixed(2)} > eşik $${priceThreshold.toFixed(2)}`;
+      cancelDetail = `Amazon maliyeti çok yükseldi: ${liveCostInEbayCurrency.toFixed(2)} > eşik ${priceThreshold.toFixed(2)} (eBay para birimi)`;
     }
   }
 
@@ -203,14 +228,18 @@ async function processVerifyOrder(
         fulfillmentStatus: "verified",
         verifiedAt: now,
         amazonPriceAtSale: liveAmazonPrice,
-        // Net kâr = soldPrice - amazon_cost - ebay_fee - fixedFee
-        ...(liveAmazonPrice !== null
+        // Net kâr — TAM maliyet modeli: kaynak maliyet eBay parasına çevrilir;
+        // FVF + düzenleme + ücret KDV'si + uluslararası işlem + kur çevrim +
+        // çapraz tamponlar dahil (computeSaleProfit, cross-market.ts).
+        ...(liveCostInEbayCurrency !== null
           ? {
-              netProfit:
-                soldPrice -
-                liveAmazonPrice -
-                soldPrice * product.ebayFeeRate -
-                (soldPrice >= 10 ? 0.4 : 0.3),
+              netProfit: computeSaleProfit(
+                soldPrice,
+                liveCostInEbayCurrency,
+                product.ebayFeeRate,
+                listing.ebaySite ?? "EBAY_US",
+                extras.extraRate
+              ).netProfit,
             }
           : {}),
       },

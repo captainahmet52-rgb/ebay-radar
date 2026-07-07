@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { fetchAmazonProduct } from "@/lib/scraper";
 import { calculateEbayPriceForMarket } from "@/lib/repricer";
+import { resolveExtraCosts } from "@/lib/cross-market";
 
 const ASIN_REGEX = /^[A-Z0-9]{10}$/;
 const MIN_PRICE = 15;
@@ -82,6 +83,11 @@ export const POST = requireAuth(async (req, { userId }) => {
         productLimit: true,
         uploadSourceMarket: true,
         uploadEbaySite: true,
+        uploadProfitMarginPct: true,
+        ebayIntlFeePct: true,
+        ebayFxFeePct: true,
+        crossExtraPct: true,
+        crossExtraFixed: true,
         _count: { select: { productDistributions: true } },
       },
     });
@@ -130,10 +136,19 @@ export const POST = requireAuth(async (req, { userId }) => {
     }
 
     // Fiyat hesapla — kullanıcının eBay pazarına göre (kur + KDV + komisyon)
+    // + kullanıcı marjı + uluslararası/çapraz maliyetler (yayındaki fiyatla tutarlı önizleme)
+    const previewEbaySite = user?.uploadEbaySite ?? "EBAY_US";
+    const previewMargin =
+      user?.uploadProfitMarginPct != null && user.uploadProfitMarginPct > 0
+        ? user.uploadProfitMarginPct / 100
+        : 0.20;
     const repricerResult = await calculateEbayPriceForMarket(
       scraperResult.price,
       amazonMarket,
-      user?.uploadEbaySite ?? "EBAY_US"
+      previewEbaySite,
+      0.136,
+      previewMargin,
+      resolveExtraCosts(user, amazonMarket, previewEbaySite)
     );
 
     // DB'ye yaz veya güncelle

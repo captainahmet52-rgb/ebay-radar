@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { createOrUpdateListing } from "@/lib/ebay-listings";
 import { calculateEbayPriceForMarket, determineQty } from "@/lib/repricer";
+import { resolveExtraCosts } from "@/lib/cross-market";
 import type { StockStatus } from "@/types";
 
 export const GET = requireAuth(async (req, { userId }) => {
@@ -112,20 +113,28 @@ export const POST = requireAuth(async (req, { userId }) => {
     // Kullanıcının kâr marjı ayarı (yüzde) — yoksa ürün varsayılanına düş
     const settings = await prisma.user.findUnique({
       where: { id: userId },
-      select: { uploadProfitMarginPct: true },
+      select: {
+        uploadProfitMarginPct: true,
+        ebayIntlFeePct: true,
+        ebayFxFeePct: true,
+        crossExtraPct: true,
+        crossExtraFixed: true,
+      },
     });
     const margin =
       settings?.uploadProfitMarginPct != null && settings.uploadProfitMarginPct > 0
         ? settings.uploadProfitMarginPct / 100
         : product.targetMargin;
 
-    // Fiyat + qty hesapla — mağazanın pazarına göre (KDV/komisyon/kur) + kullanıcının marjıyla
+    // Fiyat + qty hesapla — mağazanın pazarına göre (KDV/komisyon/kur) + kullanıcının
+    // marjı + uluslararası/çapraz maliyetler (intl fee, kur çevrim, tamponlar)
     const repricerResult = await calculateEbayPriceForMarket(
       product.amazonPrice,
       product.amazonMarket,
       ebayAccount.marketplace,
       product.ebayFeeRate,
-      margin
+      margin,
+      resolveExtraCosts(settings, product.amazonMarket, ebayAccount.marketplace)
     );
     const qty = determineQty(
       product.amazonStockStatus as StockStatus,

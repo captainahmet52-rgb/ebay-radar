@@ -71,6 +71,16 @@ model User {
   // eBay sipariş gelince otomatik takip al (TrackCaptain) + eBay'e yükle (cüzdandan $0.43)
   ebayAutoFulfill       Boolean  @default(false)
 
+  // ─── Uluslararası / çapraz pazar maliyetleri (src/lib/cross-market.ts) ─────
+  // eBay uluslararası işlem ücreti % — kayıt ülkesine göre (TR "Rest of World" %1.55)
+  ebayIntlFeePct        Float    @default(1.55)
+  // eBay kur çevrim ücreti % — payout USD değilse USD-dışı pazarlarda uygulanır (TR %3)
+  ebayFxFeePct          Float    @default(3.0)
+  // Çapraz kaynak yüzde tamponu % (gümrük/import) — Amazon pazarı ≠ eBay pazarı iken
+  crossExtraPct         Float    @default(0)
+  // Çapraz kaynak sabit tamponu (KAYNAK pazar para biriminde — uluslararası kargo)
+  crossExtraFixed       Float    @default(0)
+
   // Trial
   trialEndsAt DateTime?
 

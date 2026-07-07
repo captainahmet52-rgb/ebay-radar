@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { fetchAmazonProduct } from "@/lib/scraper";
 import { calculateEbayPriceForMarket, isPriceSpike, determineQty } from "@/lib/repricer";
+import { resolveExtraCosts } from "@/lib/cross-market";
 
 export const POST = requireAuth(async (req, { userId, params }) => {
   try {
@@ -23,6 +24,17 @@ export const POST = requireAuth(async (req, { userId, params }) => {
     if (!product) {
       return NextResponse.json({ error: "Ürün bulunamadı" }, { status: 404 });
     }
+
+    // Uluslararası/çapraz maliyet ayarları (fiyat, yayındaki hesapla tutarlı olsun)
+    const userFees = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        ebayIntlFeePct: true,
+        ebayFxFeePct: true,
+        crossExtraPct: true,
+        crossExtraFixed: true,
+      },
+    });
 
     let scraperResult;
     try {
@@ -50,7 +62,8 @@ export const POST = requireAuth(async (req, { userId, params }) => {
             product.amazonMarket,
             listing.ebaySite,
             product.ebayFeeRate,
-            product.targetMargin
+            product.targetMargin,
+            resolveExtraCosts(userFees, product.amazonMarket, listing.ebaySite)
           )
         ).ebayPrice
       : null;

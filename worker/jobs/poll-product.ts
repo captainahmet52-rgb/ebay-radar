@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { fetchAmazonProduct, ScraperOutOfCreditsError } from "@/lib/scraper";
 import { calculateEbayPriceForMarket, isPriceSpike, determineQty, isSignificantChange } from "@/lib/repricer";
 import { revalidateListingTitle } from "@/lib/ebay/revalidate";
+import { resolveExtraCosts } from "@/lib/cross-market";
 import { notifyScraperOutOfCredits } from "@/lib/admin-notify";
 import { updateListingQueue, publishListingQueue, type PollProductJobData } from "@/lib/queues";
 
@@ -61,7 +62,15 @@ async function processPollProduct(job: Job<PollProductJobData>): Promise<void> {
           currentQty: true,
           lastEbayError: true,
           ebayAccount: { select: { isActive: true } },
-          user: { select: { uploadProfitMarginPct: true } },
+          user: {
+            select: {
+              uploadProfitMarginPct: true,
+              ebayIntlFeePct: true,
+              ebayFxFeePct: true,
+              crossExtraPct: true,
+              crossExtraFixed: true,
+            },
+          },
         },
       },
     },
@@ -144,7 +153,8 @@ async function processPollProduct(job: Job<PollProductJobData>): Promise<void> {
         product.amazonMarket ?? "US",
         ebaySite,
         product.ebayFeeRate,
-        product.targetMargin
+        product.targetMargin,
+        resolveExtraCosts(product.listings[0]?.user, product.amazonMarket, ebaySite)
       );
       newEbayPrice = calc.ebayPrice;
       if (product.floorPrice !== null && newEbayPrice < product.floorPrice) {
@@ -233,7 +243,8 @@ async function processPollProduct(job: Job<PollProductJobData>): Promise<void> {
         product.amazonMarket ?? "US",
         listing.ebaySite ?? "EBAY_US",
         product.ebayFeeRate,
-        margin
+        margin,
+        resolveExtraCosts(listing.user, product.amazonMarket, listing.ebaySite)
       );
 
       const wasPaused = listing.status === "paused";

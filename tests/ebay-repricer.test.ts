@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { calculateEbayPrice, determineQty } from "@/lib/repricer";
+import { calculateEbayPrice, determineQty, computeSaleProfit } from "@/lib/repricer";
 import { EBAY_MARKETPLACES } from "@/lib/ebay-markets";
 
 describe("calculateEbayPrice — pazar başına ücret/KDV", () => {
@@ -18,6 +18,29 @@ describe("calculateEbayPrice — pazar başına ücret/KDV", () => {
 
   test("komisyon+marj 1'i geçerse hata", () => {
     expect(() => calculateEbayPrice(100, 0.9, 0.2, EBAY_MARKETPLACES.EBAY_US)).toThrow();
+  });
+
+  test("extraRate verilince fiyatı yukarı çeker ve NET marj yine hedeflenen olur", () => {
+    const noExtra = calculateEbayPrice(100, 0.136, 0.2, EBAY_MARKETPLACES.EBAY_US, 0);
+    const withExtra = calculateEbayPrice(100, 0.136, 0.2, EBAY_MARKETPLACES.EBAY_US, 0.0455);
+    expect(withExtra.ebayPrice).toBeGreaterThan(noExtra.ebayPrice);
+    // marginPct her zaman istenen %20 — extraRate marjı YEMEZ, fiyata yansır
+    expect(withExtra.marginPct).toBeCloseTo(0.2, 3);
+  });
+});
+
+describe("computeSaleProfit — gerçekleşen satış kâr kırılımı (verify-order)", () => {
+  test("extraRate=0 iken temel ücret modeliyle tutarlı", () => {
+    const { netProfit } = computeSaleProfit(151.2, 100, 0.136, "EBAY_US", 0);
+    // 151.2 - 100 - (151.2*0.136) - 0.40 ≈ 30.24
+    expect(netProfit).toBeGreaterThan(29);
+    expect(netProfit).toBeLessThan(31);
+  });
+
+  test("extraRate arttıkça net kâr düşer (uluslararası/kur ücreti gerçek zarar)", () => {
+    const base = computeSaleProfit(151.2, 100, 0.136, "EBAY_US", 0);
+    const withIntl = computeSaleProfit(151.2, 100, 0.136, "EBAY_US", 0.0155);
+    expect(withIntl.netProfit).toBeLessThan(base.netProfit);
   });
 });
 
