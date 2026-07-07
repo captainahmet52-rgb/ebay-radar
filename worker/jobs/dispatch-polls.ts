@@ -16,7 +16,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { pollProductQueue, updateListingQueue } from "@/lib/queues";
 import { notifyScraperFailing } from "@/lib/admin-notify";
-import type { DispatchPollsJobData } from "@/lib/queues";
+import { chunk, QUEUE_CHUNK } from "@/lib/batch";
+import type { DispatchPollsJobData, PollProductJobData } from "@/lib/queues";
 
 // "Takibe değer" listing — stok kontrol SADECE yüklenmiş/yayın hattındaki
 // ürünler için çalışır. Hiç böyle listing'i olmayan ürün (yayına hiç çıkmamış,
@@ -80,17 +81,16 @@ async function guardStaleProducts(now: Date): Promise<number> {
   // kalır → sonraki tarama tekrar bu koruyu çalıştırır (jobId stable → idempotent).
   // Ters sırada (önce DB paused) çökersek eBay'de ürün satılabilir kalır VE re-run
   // status:active filtresine takılmaz = KALICI OVERSELL.
-  await Promise.all(
-    listings
-      .filter((l) => l.ebayListingId)
-      .map((l) =>
-        updateListingQueue.add(
-          "update-listing",
-          { listingId: l.id, price: l.currentPrice ?? 0, qty: 0 },
-          { jobId: `pause-listing:${l.id}` }
-        )
-      )
-  );
+  const pauseJobs = listings
+    .filter((l) => l.ebayListingId)
+    .map((l) => ({
+      name: "update-listing" as const,
+      data: { listingId: l.id, price: l.currentPrice ?? 0, qty: 0 },
+      opts: { jobId: `pause-listing:${l.id}` },
+    }));
+  for (const part of chunk(pauseJobs, QUEUE_CHUNK)) {
+    await updateListingQueue.addBulk(part);
+  }
 
   await prisma.product.updateMany({
     where: { id: { in: ids } },
@@ -109,7 +109,7 @@ async function guardStaleProducts(now: Date): Promise<number> {
 
 // ── 2) Normal tarama (tier'a göre) ──────────────────────────────────────────
 async function dispatchActive(now: Date): Promise<number> {
-  let queued = 0;
+  const jobs: { name: "poll-product"; data: PollProductJobData; opts: { jobId: string } }[] = [];
   for (const [tier, thresholdMs] of Object.entries(TIER_THRESHOLDS_MS)) {
     const budget = TIER_BUDGET[tier as keyof typeof TIER_BUDGET];
     const cutoff = new Date(now.getTime() - thresholdMs);
@@ -127,15 +127,15 @@ async function dispatchActive(now: Date): Promise<number> {
     });
 
     for (const p of products) {
-      await pollProductQueue.add(
-        "poll-product",
-        { productId: p.id },
-        { jobId: `poll-product:${p.id}` }
-      );
-      queued++;
+      // jobId stable → aynı ürün zaten kuyruktaysa tekrar eklenmez (idempotent).
+      jobs.push({ name: "poll-product", data: { productId: p.id }, opts: { jobId: `poll-product:${p.id}` } });
     }
   }
-  return queued;
+  // Sıralı .add() yerine parçalı addBulk — bütçe büyütülse bile Redis'e tek tur.
+  for (const part of chunk(jobs, QUEUE_CHUNK)) {
+    await pollProductQueue.addBulk(part);
+  }
+  return jobs.length;
 }
 
 // ── 3) Auto-recovery (duraklatılmış stok/fiyat ürünleri) ────────────────────
@@ -153,16 +153,15 @@ async function dispatchRecovery(now: Date): Promise<number> {
     orderBy: { lastScrapedAt: { sort: "asc", nulls: "first" } },
   });
 
-  let queued = 0;
-  for (const p of products) {
-    await pollProductQueue.add(
-      "poll-product",
-      { productId: p.id, recovery: true },
-      { jobId: `poll-product:${p.id}` }
-    );
-    queued++;
+  const jobs = products.map((p) => ({
+    name: "poll-product" as const,
+    data: { productId: p.id, recovery: true } as PollProductJobData,
+    opts: { jobId: `poll-product:${p.id}` },
+  }));
+  for (const part of chunk(jobs, QUEUE_CHUNK)) {
+    await pollProductQueue.addBulk(part);
   }
-  return queued;
+  return jobs.length;
 }
 
 async function processDispatchPolls(job: Job<DispatchPollsJobData>): Promise<void> {

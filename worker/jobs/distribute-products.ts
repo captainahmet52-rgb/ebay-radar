@@ -2,6 +2,7 @@
 import { Worker, Job } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
 import { prisma } from "@/lib/prisma";
+import { chunk, DB_CHUNK } from "@/lib/batch";
 import type { DistributeProductsJobData } from "@/lib/queues";
 
 async function processDistributeProducts(
@@ -51,12 +52,14 @@ async function processDistributeProducts(
       continue;
     }
 
-    for (const product of availableProducts) {
-      await prisma.productDistribution.create({
-        data: {
-          userId: user.id,
-          depotProductId: product.id,
-        },
+    // Tek tek create (N round-trip + biri unique çakışırsa TÜM job düşer) yerine
+    // parçalı createMany. @@unique([userId,depotProductId]) + skipDuplicates →
+    // concurrency>1 yarışında aynı ürün iki kullanıcıya yazılmaya kalkarsa çökmez,
+    // sessizce atlanır (münhasırlık korunur).
+    for (const part of chunk(availableProducts, DB_CHUNK)) {
+      await prisma.productDistribution.createMany({
+        data: part.map((product) => ({ userId: user.id, depotProductId: product.id })),
+        skipDuplicates: true,
       });
     }
 

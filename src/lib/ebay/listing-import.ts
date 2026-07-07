@@ -19,6 +19,7 @@ import { extractAsinFromSku, decideMatch } from "@/lib/ebay/asin-matcher";
 import { fetchAmazonProduct } from "@/lib/scraper";
 import { pollProductQueue, verifyImportMatchQueue } from "@/lib/queues";
 import { hasStoreAccess } from "@/lib/store-access";
+import { chunk, runBatched, DB_CONCURRENCY, QUEUE_CHUNK } from "@/lib/batch";
 import type { ParsedEbayListing } from "@/lib/ebay/trading-parser";
 
 // eBay marketplace → Amazon kaynak pazarı (en iyi tahmin; satıcı sonra değiştirebilir)
@@ -123,9 +124,12 @@ export async function runDiscovery(importId: string): Promise<void> {
 
       totalPages = result.totalPages ?? totalPages;
 
-      for (const listing of result.listings) {
+      // Sayfa içi upsert'ler SINIRLI eş zamanlı (sıralı 200 round-trip yerine) —
+      // her ilan farklı ebayItemId (çakışmaz). 100K ilanda süreyi ~onlarca kat kısaltır;
+      // resume güvenliği korunur (imleç yalnız TÜM sayfa yazıldıktan sonra ilerler).
+      await runBatched(result.listings, DB_CONCURRENCY, (listing) => {
         const cls = classifyDiscovered(listing);
-        await prisma.importedListing.upsert({
+        return prisma.importedListing.upsert({
           where: {
             ebayAccountId_ebayItemId: {
               ebayAccountId: imp.ebayAccountId,
@@ -159,8 +163,8 @@ export async function runDiscovery(importId: string): Promise<void> {
             imageUrl: listing.imageUrl,
           },
         });
-        processed += 1;
-      }
+      });
+      processed += result.listings.length;
 
       // İlerleme + imleç kaydet (yarıda kesilirse buradan devam)
       page += 1;
@@ -297,15 +301,17 @@ export async function enqueueVerificationForAccount(
     take: cap,
   });
 
-  await Promise.all(
-    pending.map((p) =>
-      verifyImportMatchQueue.add(
-        "verify-import-match",
-        { importedListingId: p.id },
-        { jobId: `verify-import-match:${p.id}` }
-      )
-    )
-  );
+  // Sınırsız Promise.all(.add) yerine parçalı addBulk — cap (plan kotası) büyük
+  // olsa da Redis'e tek tur/parça. jobId stable → idempotent (tekrar tetiklenirse
+  // aynı ilan iki kez doğrulanmaz).
+  const jobs = pending.map((p) => ({
+    name: "verify-import-match" as const,
+    data: { importedListingId: p.id },
+    opts: { jobId: `verify-import-match:${p.id}` },
+  }));
+  for (const part of chunk(jobs, QUEUE_CHUNK)) {
+    await verifyImportMatchQueue.addBulk(part);
+  }
   return pending.length;
 }
 

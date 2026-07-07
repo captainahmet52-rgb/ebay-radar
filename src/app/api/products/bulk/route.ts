@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { pollProductQueue } from "@/lib/queues";
 import { storeAccessState, STORE_TRIAL_PRODUCT_LIMIT } from "@/lib/store-access";
 import { rateLimit } from "@/lib/rate-limit";
+import { chunk, DB_CHUNK, QUEUE_CHUNK } from "@/lib/batch";
 import { z } from "zod";
 
 const schema = z.object({
@@ -124,23 +125,28 @@ export const POST = requireAuth(async (req, { userId }) => {
     effectiveRemaining = Math.min(remaining, storeRemaining);
   }
 
-  // ── Mevcut ürünleri TEK sorguda çek (ASIN sayısı kadar sorgu DEĞİL) ───────
-  const existingProducts = await prisma.product.findMany({
-    where: { asin: { in: asins } },
-    select: { id: true, asin: true },
-  });
+  // ── Mevcut ürünleri parçalı çek (ASIN sayısı kadar sorgu DEĞİL; tek dev IN de
+  //    DEĞİL — parça parça, parametre sınırına asla takılmaz) ─────────────────
+  const existingProducts: { id: string; asin: string }[] = [];
+  for (const part of chunk(asins, DB_CHUNK)) {
+    const rows = await prisma.product.findMany({
+      where: { asin: { in: part } },
+      select: { id: true, asin: true },
+    });
+    existingProducts.push(...rows);
+  }
   const productIdByAsin = new Map(existingProducts.map((p) => [p.asin, p.id]));
 
-  // ── Bu kullanıcının bu ürünlerde zaten listesi var mı — TEK sorguda ───────
+  // ── Bu kullanıcının bu ürünlerde zaten listesi var mı — parçalı ───────────
   const existingProductIds = existingProducts.map((p) => p.id);
-  const ownedListings =
-    existingProductIds.length > 0
-      ? await prisma.listing.findMany({
-          where: { userId, productId: { in: existingProductIds } },
-          select: { productId: true },
-        })
-      : [];
-  const ownedProductIds = new Set(ownedListings.map((l) => l.productId));
+  const ownedProductIds = new Set<string>();
+  for (const part of chunk(existingProductIds, DB_CHUNK)) {
+    const rows = await prisma.listing.findMany({
+      where: { userId, productId: { in: part } },
+      select: { productId: true },
+    });
+    for (const l of rows) ownedProductIds.add(l.productId);
+  }
 
   // ── TÜM ASIN'ler önce dupe elenir, SONRA bütçeye göre sıralanır — dupe'lerin
   //    açtığı boşluk arkadaki geçerli ASIN'lerce doldurulur (eski koddaki kaçak yok).
@@ -181,49 +187,58 @@ export const POST = requireAuth(async (req, { userId }) => {
       where: { id: userId },
       select: { uploadSourceMarket: true },
     });
-    await prisma.product.createMany({
-      data: brandNewAsins.map((asin) => ({
-        asin,
-        status: "active",
-        pollTier: "normal",
-        amazonMarket: userMarket?.uploadSourceMarket ?? "US",
-      })),
-      skipDuplicates: true, // yarış durumunda (aynı ASIN başka istekte oluştu) sessizce atla
-    });
-    // createMany id döndürmez — ASIN unique index'i üzerinden ucuza geri al
-    const created = await prisma.product.findMany({
-      where: { asin: { in: brandNewAsins } },
-      select: { id: true, asin: true },
-    });
-    for (const p of created) productIdByAsin.set(p.asin, p.id);
+    // Parçalı createMany — parti büyüse de Postgres parametre sınırına takılmaz.
+    for (const part of chunk(brandNewAsins, DB_CHUNK)) {
+      await prisma.product.createMany({
+        data: part.map((asin) => ({
+          asin,
+          status: "active",
+          pollTier: "normal",
+          amazonMarket: userMarket?.uploadSourceMarket ?? "US",
+        })),
+        skipDuplicates: true, // yarış durumunda (aynı ASIN başka istekte oluştu) sessizce atla
+      });
+    }
+    // createMany id döndürmez — ASIN unique index'i üzerinden parçalı geri al
+    for (const part of chunk(brandNewAsins, DB_CHUNK)) {
+      const rows = await prisma.product.findMany({
+        where: { asin: { in: part } },
+        select: { id: true, asin: true },
+      });
+      for (const p of rows) productIdByAsin.set(p.asin, p.id);
+    }
   }
 
-  // ── Listing'leri TEK createMany'de yarat ──────────────────────────────────
-  await prisma.listing.createMany({
-    data: addedAsins.map((asin) => ({
-      userId,
-      productId: productIdByAsin.get(asin)!,
-      ebayAccountId: account.id,
-      ebaySite: account.marketplace,
-      marginPct: profitMarginPct,
-      currentQty: stockQty,
-      status: mode === "auto" ? "active" : "draft",
-      publishStage: mode === "auto" ? "pending_publish" : "draft",
-    })),
-  });
+  // ── Listing'leri parçalı createMany'de yarat ──────────────────────────────
+  for (const part of chunk(addedAsins, DB_CHUNK)) {
+    await prisma.listing.createMany({
+      data: part.map((asin) => ({
+        userId,
+        productId: productIdByAsin.get(asin)!,
+        ebayAccountId: account.id,
+        ebaySite: account.marketplace,
+        marginPct: profitMarginPct,
+        currentQty: stockQty,
+        status: mode === "auto" ? "active" : "draft",
+        publishStage: mode === "auto" ? "pending_publish" : "draft",
+      })),
+    });
+  }
 
-  // ── Fiyat/stok çekimini TEK addBulk çağrısıyla kuyruğa yolla (staggered —
-  //    İşlem Aralığı). 1000 ayrı .add() çağrısı yerine tek Redis round-trip.
-  await pollProductQueue.addBulk(
-    addedAsins.map((asin, i) => {
-      const productId = productIdByAsin.get(asin)!;
-      return {
-        name: "poll-product",
-        data: { productId },
-        opts: { delay: i * intervalSec * 1000, jobId: `bulk-poll:${productId}:${Date.now()}:${i}` },
-      };
-    })
-  );
+  // ── Fiyat/stok çekimini parçalı addBulk ile kuyruğa yolla (staggered — İşlem
+  //    Aralığı). Ayrı .add() çağrıları yerine parça başına tek Redis round-trip.
+  //    delay için global index (i) korunur → sıralama bozulmaz.
+  const pollJobs = addedAsins.map((asin, i) => {
+    const productId = productIdByAsin.get(asin)!;
+    return {
+      name: "poll-product" as const,
+      data: { productId },
+      opts: { delay: i * intervalSec * 1000, jobId: `bulk-poll:${productId}:${Date.now()}:${i}` },
+    };
+  });
+  for (const part of chunk(pollJobs, QUEUE_CHUNK)) {
+    await pollProductQueue.addBulk(part);
+  }
 
   return NextResponse.json({
     ok: true,

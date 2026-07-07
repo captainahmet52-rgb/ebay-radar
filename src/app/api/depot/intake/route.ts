@@ -8,6 +8,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireCron } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
+import { chunk, runBatched, DB_CHUNK, DB_CONCURRENCY } from "@/lib/batch";
 
 const IntakeProductSchema = z.object({
   asin: z.string().min(5).max(20),
@@ -28,7 +29,7 @@ const IntakeProductSchema = z.object({
 });
 
 const IntakeBodySchema = z.object({
-  products: z.array(IntakeProductSchema).min(1).max(200),
+  products: z.array(IntakeProductSchema).min(1).max(500),
 });
 
 type IntakeProduct = z.infer<typeof IntakeProductSchema>;
@@ -65,30 +66,29 @@ export const POST = requireCron(async (req) => {
 
   const products = parsed.data.products;
 
-  // Hangi ASIN'ler zaten depoda — TEK sorguda (200 kez findUnique DEĞİL).
-  const existing = await prisma.depotProduct.findMany({
-    where: { asin: { in: products.map((p) => p.asin) } },
-    select: { asin: true },
-  });
-  const existingAsins = new Set(existing.map((e) => e.asin));
+  // Hangi ASIN'ler zaten depoda — findUnique döngüsü DEĞİL. IN(...) parçalanır ki
+  // parti büyüse bile Postgres parametre sınırına (~65535) takılmasın.
+  const existingAsins = new Set<string>();
+  for (const part of chunk(products.map((p) => p.asin), DB_CHUNK)) {
+    const rows = await prisma.depotProduct.findMany({ where: { asin: { in: part } }, select: { asin: true } });
+    for (const r of rows) existingAsins.add(r.asin);
+  }
   const newProducts = products.filter((p) => !existingAsins.has(p.asin));
   const updateProducts = products.filter((p) => existingAsins.has(p.asin));
 
-  // Yeni ürünler TEK createMany'de (N kez create DEĞİL).
-  if (newProducts.length > 0) {
+  // Yeni ürünler parçalı createMany (N kez create DEĞİL; tek dev insert de DEĞİL).
+  for (const part of chunk(newProducts, DB_CHUNK)) {
     await prisma.depotProduct.createMany({
-      data: newProducts.map((p) => ({ asin: p.asin, ...buildDepotData(p) })),
+      data: part.map((p) => ({ asin: p.asin, ...buildDepotData(p) })),
       skipDuplicates: true, // yarış durumunda (aynı ASIN başka push'ta oluştu) sessizce atla
     });
   }
 
-  // Güncellemeler updateMany ile YAPILAMAZ (her satıra farklı veri yazılıyor) —
-  // ama sıralı değil, EŞ ZAMANLI (Promise.all) işlenir.
+  // Güncellemeler updateMany ile YAPILAMAZ (her satıra farklı veri) — sınırsız
+  // Promise.all yerine SINIRLI eş zamanlılık (bağlantı havuzunu boğmaz).
   if (updateProducts.length > 0) {
-    await Promise.all(
-      updateProducts.map((p) =>
-        prisma.depotProduct.update({ where: { asin: p.asin }, data: buildDepotData(p) })
-      )
+    await runBatched(updateProducts, DB_CONCURRENCY, (p) =>
+      prisma.depotProduct.update({ where: { asin: p.asin }, data: buildDepotData(p) })
     );
   }
 
