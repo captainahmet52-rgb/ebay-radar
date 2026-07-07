@@ -11,7 +11,7 @@ import type { FulfillmentStatus } from "@/types";
 function marketLabel(m?: string): string {
   if (!m) return "—";
   const map: Record<string, string> = {
-    EBAY_US: "🇺🇸 US", EBAY_GB: "🇬🇧 UK", EBAY_DE: "🇩🇪 DE", EBAY_AU: "🇦🇺 AU",
+    EBAY_US: "🇺🇸 US", EBAY_GB: "🇬🇧 UK", EBAY_DE: "🇩🇪 DE",
   };
   return map[m] ?? m.replace("EBAY_", "");
 }

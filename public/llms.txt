@@ -12,7 +12,7 @@ Lean Automation, e-ticaret satıcılarının birden fazla pazar yerindeki işlem
 
 - Ücretsiz deneme: Her mağaza bağlandığında 7 gün / 50 ürün ücretsiz, kredi kartı gerekmez. Süre bitince mağaza otomatik dondurulur, paket alınınca tekrar açılır.
 - Fiyatlandırma: Aylık 29,90$ – 249,90$ arası 5 paket (Starter, Basic, Growth, Pro, Enterprise). Paketler ürün limiti, günlük yükleme ve aktif mağaza sayısına göre değişir.
-- Çoklu mağaza: Bir kullanıcı birden fazla eBay mağazası bağlayabilir; her mağaza kendi pazarına (ABD/İngiltere/Almanya/Avustralya) göre fiyatlanır.
+- Çoklu mağaza: Bir kullanıcı birden fazla eBay mağazası bağlayabilir; her mağaza kendi pazarına (ABD/İngiltere/Almanya) göre fiyatlanır.
 - Davet programı: Arkadaşını davet et, ikiniz de 7 gün bedava kazanın.
 - Fiyat/stok takibi: Ürünler risk grubuna göre kademeli taranır (sık / saatlik / günlük).
 - Dil: Türkçe arayüz.

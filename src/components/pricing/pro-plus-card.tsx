@@ -14,7 +14,7 @@ const PRO_PLUS_FEATURES = [
   "Oversell (fazla satış) koruması",
   "Sınırsız takip kodu",
   "Sipariş + ürün yöneticisi",
-  "US + UK pazarları",
+  "US + UK + Almanya pazarları",
   "Canlı destek",
 ] as const;
 

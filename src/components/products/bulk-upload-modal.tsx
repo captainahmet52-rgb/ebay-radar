@@ -37,7 +37,6 @@ function marketLabel(marketplace: string): string {
     EBAY_US: "🇺🇸 US",
     EBAY_GB: "🇬🇧 UK",
     EBAY_DE: "🇩🇪 DE",
-    EBAY_AU: "🇦🇺 AU",
   };
   return map[marketplace] ?? marketplace.replace("EBAY_", "");
 }

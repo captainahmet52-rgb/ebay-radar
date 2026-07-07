@@ -17,7 +17,7 @@ const fetcher = (url: string) =>
 
 function marketLabel(m: string): string {
   const map: Record<string, string> = {
-    EBAY_US: "🇺🇸 US", EBAY_GB: "🇬🇧 UK", EBAY_DE: "🇩🇪 DE", EBAY_AU: "🇦🇺 AU",
+    EBAY_US: "🇺🇸 US", EBAY_GB: "🇬🇧 UK", EBAY_DE: "🇩🇪 DE",
   };
   return map[m] ?? m.replace("EBAY_", "");
 }

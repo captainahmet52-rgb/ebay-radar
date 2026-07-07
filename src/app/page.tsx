@@ -545,7 +545,7 @@ export default function LandingPage() {
               "Oversell (fazla satış) koruması",
               "Sınırsız takip kodu",
               "Sipariş + ürün yöneticisi",
-              "US + UK pazarları",
+              "US + UK + Almanya pazarları",
               "Canlı destek",
             ];
             return (

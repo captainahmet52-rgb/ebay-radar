@@ -21,7 +21,6 @@ const EBAY_MARKET_LABELS: Record<string, string> = {
   EBAY_US: "🇺🇸 eBay US",
   EBAY_GB: "🇬🇧 eBay UK",
   EBAY_DE: "🇩🇪 eBay DE",
-  EBAY_AU: "🇦🇺 eBay AU",
 };
 
 const fadeUp = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 } };

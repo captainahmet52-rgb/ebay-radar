@@ -38,7 +38,7 @@ interface AccountsResponse {
 
 function marketLabel(marketplace: string): string {
   const map: Record<string, string> = {
-    EBAY_US: "🇺🇸 ABD", EBAY_GB: "🇬🇧 İngiltere", EBAY_DE: "🇩🇪 Almanya", EBAY_AU: "🇦🇺 Avustralya",
+    EBAY_US: "🇺🇸 ABD", EBAY_GB: "🇬🇧 İngiltere", EBAY_DE: "🇩🇪 Almanya",
   };
   return map[marketplace] ?? marketplace.replace("EBAY_", "");
 }

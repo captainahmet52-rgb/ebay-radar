@@ -56,7 +56,7 @@ export default async function PricingPage() {
             "Oversell (fazla satış) koruması",
             "Sınırsız takip kodu",
             "Sipariş + ürün yöneticisi",
-            "US + UK pazarları",
+            "US + UK + Almanya pazarları",
             "Canlı destek",
           ];
 
