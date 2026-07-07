@@ -12,6 +12,8 @@ interface BulkResult {
   added: number;
   skippedDupe: number;
   skippedLimit: number;
+  skippedDupeAsins?: string[];
+  skippedLimitAsins?: string[];
   remaining: number;
   productLimit: number;
 }
@@ -105,6 +107,33 @@ export function BulkUploadModal({ open, onClose, onSuccess }: BulkUploadModalPro
               <div className="bg-slate-800/60 rounded-lg p-3"><p className="text-slate-400 text-xs">Zaten ekli (atlandı)</p><p className="text-slate-300 font-bold">{result.skippedDupe}</p></div>
               <div className="bg-slate-800/60 rounded-lg p-3"><p className="text-slate-400 text-xs">Limit aşımı (atlandı)</p><p className="text-amber-400 font-bold">{result.skippedLimit}</p></div>
             </div>
+
+            {/* Şeffaflık: hangi ASIN neden atlandı — 1000'lik partide 3-5 elenense bile nedeni belli olsun */}
+            {((result.skippedDupeAsins?.length ?? 0) > 0 || (result.skippedLimitAsins?.length ?? 0) > 0) && (
+              <div className="space-y-2 text-xs">
+                {(result.skippedDupeAsins?.length ?? 0) > 0 && (
+                  <details className="bg-slate-800/40 rounded-lg p-2.5">
+                    <summary className="cursor-pointer text-slate-400">
+                      Zaten ekli olduğu için atlanan ({result.skippedDupeAsins!.length})
+                    </summary>
+                    <p className="mt-2 font-mono text-slate-500 break-all leading-relaxed">
+                      {result.skippedDupeAsins!.join(", ")}
+                    </p>
+                  </details>
+                )}
+                {(result.skippedLimitAsins?.length ?? 0) > 0 && (
+                  <details className="bg-slate-800/40 rounded-lg p-2.5">
+                    <summary className="cursor-pointer text-amber-400">
+                      Ürün limiti dolduğu için atlanan ({result.skippedLimitAsins!.length})
+                    </summary>
+                    <p className="mt-2 font-mono text-slate-500 break-all leading-relaxed">
+                      {result.skippedLimitAsins!.join(", ")}
+                    </p>
+                  </details>
+                )}
+              </div>
+            )}
+
             <Button onClick={close} className="w-full">Kapat</Button>
           </motion.div>
         ) : (
