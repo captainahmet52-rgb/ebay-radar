@@ -290,6 +290,12 @@ export default function AutoUploadPage() {
                   Aktif olduğunda zamanlanmış yükleme çalışır
                 </div>
               </div>
+              {/* Tek tetikleyici: checkbox'ın kendi onChange'i. Görsel <span> artık
+                  onClick TAŞIMIYOR — <label> zaten içindeki tek forma her tıklamayı
+                  otomatik yönlendirir; span'da da ayrı bir onClick olması aynı tıklamada
+                  İKİ toggle'a (onClick + label'ın yönlendirdiği native change) yol açıyordu,
+                  tarayıcıya göre biri diğerini geri alıp anahtarı hiç açılmıyormuş gibi
+                  gösterebiliyordu. */}
               <label style={{ position: "relative", display: "inline-block", width: 52, height: 26, flexShrink: 0 }}>
                 <input
                   type="checkbox"
@@ -298,7 +304,6 @@ export default function AutoUploadPage() {
                   style={{ opacity: 0, width: 0, height: 0 }}
                 />
                 <span
-                  onClick={() => set("autoUploadEnabled", !settings.autoUploadEnabled)}
                   style={{
                     position: "absolute", cursor: "pointer", inset: 0, borderRadius: 26,
                     background: settings.autoUploadEnabled ? C.accent : C.border,
