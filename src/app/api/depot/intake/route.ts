@@ -31,6 +31,29 @@ const IntakeBodySchema = z.object({
   products: z.array(IntakeProductSchema).min(1).max(200),
 });
 
+type IntakeProduct = z.infer<typeof IntakeProductSchema>;
+
+/** Dağıtım sırası skoru: kâr × talep (rankScore) — distribute-products job'ı en
+ * yüksek skordan dağıtır. Veri eksikse 0 (sona düşer). */
+function buildDepotData(p: IntakeProduct) {
+  const rankScore =
+    (p.projectedProfit ?? 0) > 0 && (p.soldCount ?? 0) > 0
+      ? (p.projectedProfit ?? 0) * Math.log2(1 + (p.soldCount ?? 0))
+      : 0;
+  return {
+    title: p.title ?? undefined,
+    imageUrl: p.imageUrl ?? undefined,
+    amazonMarket: p.amazonMarket,
+    amazonPrice: p.amazonPrice ?? undefined,
+    competitorPrice: p.competitorPrice ?? undefined,
+    soldCount: p.soldCount ?? undefined,
+    lastSoldAt: p.lastSoldAt ?? undefined,
+    projectedProfit: p.projectedProfit ?? undefined,
+    projectedMarginPct: p.projectedMarginPct ?? undefined,
+    rankScore,
+  };
+}
+
 export const POST = requireCron(async (req) => {
   const parsed = IntakeBodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
@@ -40,39 +63,34 @@ export const POST = requireCron(async (req) => {
     );
   }
 
-  let created = 0;
-  let updated = 0;
+  const products = parsed.data.products;
 
-  for (const p of parsed.data.products) {
-    // Dağıtım sırası skoru: kâr × talep (rankScore) — distribute-products
-    // job'ı en yüksek skordan dağıtır. Veri eksikse 0 (sona düşer).
-    const rankScore =
-      (p.projectedProfit ?? 0) > 0 && (p.soldCount ?? 0) > 0
-        ? (p.projectedProfit ?? 0) * Math.log2(1 + (p.soldCount ?? 0))
-        : 0;
+  // Hangi ASIN'ler zaten depoda — TEK sorguda (200 kez findUnique DEĞİL).
+  const existing = await prisma.depotProduct.findMany({
+    where: { asin: { in: products.map((p) => p.asin) } },
+    select: { asin: true },
+  });
+  const existingAsins = new Set(existing.map((e) => e.asin));
+  const newProducts = products.filter((p) => !existingAsins.has(p.asin));
+  const updateProducts = products.filter((p) => existingAsins.has(p.asin));
 
-    const data = {
-      title: p.title ?? undefined,
-      imageUrl: p.imageUrl ?? undefined,
-      amazonMarket: p.amazonMarket,
-      amazonPrice: p.amazonPrice ?? undefined,
-      competitorPrice: p.competitorPrice ?? undefined,
-      soldCount: p.soldCount ?? undefined,
-      lastSoldAt: p.lastSoldAt ?? undefined,
-      projectedProfit: p.projectedProfit ?? undefined,
-      projectedMarginPct: p.projectedMarginPct ?? undefined,
-      rankScore,
-    };
-
-    const existing = await prisma.depotProduct.findUnique({ where: { asin: p.asin } });
-    if (existing) {
-      await prisma.depotProduct.update({ where: { asin: p.asin }, data });
-      updated++;
-    } else {
-      await prisma.depotProduct.create({ data: { asin: p.asin, ...data } });
-      created++;
-    }
+  // Yeni ürünler TEK createMany'de (N kez create DEĞİL).
+  if (newProducts.length > 0) {
+    await prisma.depotProduct.createMany({
+      data: newProducts.map((p) => ({ asin: p.asin, ...buildDepotData(p) })),
+      skipDuplicates: true, // yarış durumunda (aynı ASIN başka push'ta oluştu) sessizce atla
+    });
   }
 
-  return NextResponse.json({ ok: true, created, updated });
+  // Güncellemeler updateMany ile YAPILAMAZ (her satıra farklı veri yazılıyor) —
+  // ama sıralı değil, EŞ ZAMANLI (Promise.all) işlenir.
+  if (updateProducts.length > 0) {
+    await Promise.all(
+      updateProducts.map((p) =>
+        prisma.depotProduct.update({ where: { asin: p.asin }, data: buildDepotData(p) })
+      )
+    );
+  }
+
+  return NextResponse.json({ ok: true, created: newProducts.length, updated: updateProducts.length });
 });

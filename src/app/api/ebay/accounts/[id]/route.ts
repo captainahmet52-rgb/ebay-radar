@@ -26,28 +26,45 @@ export const DELETE = requireAuth(async (_req, { userId, params }) => {
     }
 
     // ÖNEMLİ: DB'den silmeden ÖNCE eBay'deki canlı ilanları sonlandır/durdur.
-    // Yoksa eBay'de takipsiz canlı ilan kalır → satılırsa kayıt/karşılama yok = risk.
-    // Best-effort: her ilanı dene, hata olsa bile silmeye devam et (kullanıcı ayrılıyor).
+    // Hesap silme CASCADE ile Listing'leri VE Order geçmişini de siler (schema);
+    // bir ilan sonlandırılamadan hesap silinirse o ilan eBay'de TAKİPSİZ canlı
+    // kalır (stok/fiyat senkronu, oversell koruması biter) VE geçmiş siparişleri
+    // kalıcı kaybolur. Bu yüzden products/[id] DELETE ile AYNI kural: biri
+    // başarısız olursa hiçbir şey silinmez (yarım "best-effort" silme YOK).
+    // Eş zamanlı denenir (yüzlerce/binlerce ilanda sıralı denemek dakikalar sürer
+    // ve eBay'i hız sınırına çarptırabilir).
     const liveListings = account.listings.filter((l) => l.status !== "ended" && l.ebayListingId);
     if (liveListings.length > 0) {
-      let token: string | null = null;
-      for (const l of liveListings) {
-        try {
+      const token = liveListings.some((l) => l.isLegacy) ? await getValidToken(id) : null;
+      const results = await Promise.allSettled(
+        liveListings.map((l) => {
           if (l.isLegacy && l.ebayListingId) {
             // Legacy ilan: Trading API ile qty 0 (satışı durdur)
-            token = token ?? (await getValidToken(id));
-            await reviseInventoryStatus(token, account.marketplace, l.ebayListingId, null, 0);
-          } else if (l.ebaySku || l.ebayOfferId) {
-            // Managed ilan: Inventory API ile sonlandır (qty 0 + offer withdraw)
-            await endListing(id, l.ebaySku, l.ebayOfferId);
+            return reviseInventoryStatus(token!, account.marketplace, l.ebayListingId, null, 0);
           }
-        } catch (e) {
-          console.warn(`[ebay/accounts DELETE] ilan sonlandırılamadı: ${l.id} — ${e instanceof Error ? e.message : String(e)}`);
+          if (l.ebaySku || l.ebayOfferId) {
+            // Managed ilan: Inventory API ile sonlandır (qty 0 + offer withdraw)
+            return endListing(id, l.ebaySku, l.ebayOfferId);
+          }
+          return Promise.resolve();
+        })
+      );
+      const failures = results.filter((r) => r.status === "rejected");
+      if (failures.length > 0) {
+        for (const f of failures) {
+          console.error("[ebay/accounts DELETE] ilan sonlandırılamadı:", (f as PromiseRejectedResult).reason);
         }
+        return NextResponse.json(
+          {
+            error: `${failures.length}/${liveListings.length} ilan eBay'de sonlandırılamadı — oversell riski nedeniyle hesap silme iptal edildi. Lütfen tekrar deneyin.`,
+          },
+          { status: 502 }
+        );
       }
     }
 
-    // Cascade ile bağlı listing'ler de silinir (schema'da onDelete: Cascade)
+    // Tüm canlı ilanlar güvenle sonlandırıldı — CASCADE ile bağlı listing'ler
+    // ve sipariş geçmişi de silinir (schema'da onDelete: Cascade).
     await prisma.ebayAccount.delete({ where: { id } });
 
     return NextResponse.json({ success: true });
