@@ -93,6 +93,22 @@ yeniden hesaplanır (her iki yönde, kullanıcıya sormadan).
 Aşırı zıplama freni: Amazon fiyatı tek taramada %50'den fazla artarsa,
 güncelleme yapma — listeyi kısa süre otomatik duraklat, sonraki tarama
 fiyatı doğrularsa yeni fiyattan otomatik geri aç. (Kullanıcıya sorma.)
+
+Uluslararası / çapraz pazar maliyetleri (2026-07-07, src/lib/cross-market.ts):
+Kullanıcının yazdığı kâr marjı HER ZAMAN tüm maliyetler düşüldükten sonraki
+NET kârdır — çapraz pazarda (Amazon UK/DE → eBay US gibi) gizli maliyet
+unutulursa gerçek marj yazılandan düşük çıkar, bu KABUL EDİLEMEZ.
+Formüle 3 ek maliyet eklendi (User tablosunda kullanıcı bazlı ayarlanabilir):
+- eBay uluslararası işlem ücreti: alıcı ülkesi satıcı kayıt ülkesinden
+  farklıysa satış toplamının %'si. Varsayılan %1.55 (TR kayıt → "Rest of
+  World"). Her satışta uygulanır (TR satıcı çoğunlukla yabancıya satıyor).
+- eBay kur çevrim ücreti: ilan para birimi ≠ payout (USD) ise +%3 (TR).
+  Sadece USD-dışı eBay pazarında (UK/DE) uygulanır, US'te yok.
+  Kaynak: ebay.com/help "International fees for eBay global sellers" (2026-07 doğrulandı).
+- Çapraz kaynak tamponu: Amazon pazarı ≠ eBay pazarı ülkesi iken devreye
+  girer — kullanıcı ayarlanabilir yüzde (gümrük/ithalat) + sabit tutar
+  (Amazon uluslararası kargo, kaynak para biriminde). Varsayılan 0 — kullanıcı
+  kendi gerçek masrafına göre panelden (Oto-Yükleme → Uluslararası Maliyetler) girer.
 Minimum ürün fiyatı: Çok ucuz ürünlerde sabit ücret marjı yer. Ürün
 eklemede bir alt eşik uygula (örn. 15$ altını alma).
 

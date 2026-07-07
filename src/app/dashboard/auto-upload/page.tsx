@@ -217,8 +217,9 @@ export default function AutoUploadPage() {
 
   // Amazon pazarı ile eBay pazarının ülkesi farklı mı? (US/UK/DE karşılaştırması)
   const EBAY_SITE_COUNTRY: Record<string, string> = { EBAY_US: "US", EBAY_GB: "UK", EBAY_DE: "DE" };
+  const SOURCE_CURRENCY_SYMBOL: Record<string, string> = { US: "$", UK: "£", DE: "€" };
   const isCrossMarket = settings.uploadSourceMarket !== (EBAY_SITE_COUNTRY[settings.uploadEbaySite] ?? "US");
-  const isNonUsdEbay = settings.uploadEbaySite !== "EBAY_US";
+  const sourceCurrencySymbol = SOURCE_CURRENCY_SYMBOL[settings.uploadSourceMarket] ?? "$";
 
   return (
     <div style={{ color: C.text, minHeight: "100vh" }}>
@@ -502,55 +503,35 @@ export default function AutoUploadPage() {
           {/* Uluslararası / Çapraz Pazar Maliyetleri */}
           <div style={{ ...cardStyle, marginTop: "0.75rem", marginBottom: 0 }}>
             <SectionTitle icon={<Globe />} text="Uluslararası Maliyetler" />
-            <Hint>
-              Bu maliyetler kâr marjı hesaplanmadan ÖNCE düşülür — yazdığın kâr marjı
-              her zaman bunlar düşüldükten sonraki NET kârdır.
-            </Hint>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10, marginBottom: isCrossMarket ? 10 : 0 }}>
-              <div>
-                <FieldLabel>eBay Uluslararası Ücret (%)</FieldLabel>
-                <input type="number" style={inputStyle}
-                  value={settings.ebayIntlFeePct} min={0} max={10} step={0.05}
-                  onChange={(e) => set("ebayIntlFeePct", parseFloat(e.target.value) || 0)}
-                />
-                <Hint>Alıcı ülkesi kayıt ülkenden farklıysa eBay&apos;in kestiği oran. TR kayıt: %1.55.</Hint>
-              </div>
-              <div>
-                <FieldLabel>eBay Kur Çevrim Ücreti (%)</FieldLabel>
-                <input type="number" style={inputStyle}
-                  value={settings.ebayFxFeePct} min={0} max={10} step={0.05}
-                  onChange={(e) => set("ebayFxFeePct", parseFloat(e.target.value) || 0)}
-                  disabled={!isNonUsdEbay}
-                />
-                <Hint>{isNonUsdEbay ? "Sadece USD-dışı eBay pazarında (UK/DE) uygulanır. TR kayıt: %3." : "eBay US USD ödediği için uygulanmaz."}</Hint>
-              </div>
-            </div>
-
-            {isCrossMarket && (
-              <div style={{ padding: "10px 12px", borderRadius: 8, background: "rgba(88,166,255,0.08)", border: "1px solid rgba(88,166,255,0.25)" }}>
-                <div style={{ fontSize: "0.8rem", color: C.accent2, fontWeight: 600, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-                  <Globe /> Çapraz Pazar Tespit Edildi ({settings.uploadSourceMarket} → {settings.uploadEbaySite.replace("EBAY_", "")})
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                  <div>
-                    <FieldLabel>Ek Maliyet Oranı (%)</FieldLabel>
-                    <input type="number" style={inputStyle}
-                      value={settings.crossExtraPct} min={0} max={20} step={0.5}
-                      onChange={(e) => set("crossExtraPct", parseFloat(e.target.value) || 0)}
-                    />
-                    <Hint>Gümrük/ithalat payı — satış fiyatına oranlı.</Hint>
-                  </div>
-                  <div>
-                    <FieldLabel>Ek Kargo (kaynak para birimi)</FieldLabel>
-                    <input type="number" style={inputStyle}
-                      value={settings.crossExtraFixed} min={0} step={0.5}
-                      onChange={(e) => set("crossExtraFixed", parseFloat(e.target.value) || 0)}
-                    />
-                    <Hint>Amazon {settings.uploadSourceMarket} uluslararası kargo sabit tutarı.</Hint>
+            {!isCrossMarket ? (
+              <Hint>
+                Şu an aynı ülkeden alıp satıyorsun (Amazon {settings.uploadSourceMarket} → eBay{" "}
+                {settings.uploadEbaySite.replace("EBAY_", "")}) — ekstra bir maliyet yok, bir şey
+                yapmana gerek yok.
+              </Hint>
+            ) : (
+              <>
+                <div style={{ padding: "10px 12px", borderRadius: 8, background: "rgba(88,166,255,0.08)", border: "1px solid rgba(88,166,255,0.25)", marginBottom: 10 }}>
+                  <div style={{ fontSize: "0.82rem", color: C.text, lineHeight: 1.5 }}>
+                    <strong style={{ color: C.accent2 }}>Farklı ülkeden alıp satıyorsun</strong> (Amazon{" "}
+                    {settings.uploadSourceMarket} → eBay {settings.uploadEbaySite.replace("EBAY_", "")}).
+                    eBay&apos;in bu tür satışlarda kestiği gizli ücretleri sistem otomatik hesaba
+                    katıyor — kâr marjın her zaman senin yazdığın gibi net kalır, ekstradan
+                    hiçbir şey yapmana gerek yok.
                   </div>
                 </div>
-              </div>
+                <FieldLabel>Ek Kargo/Gümrük Payı (ürün başına, {sourceCurrencySymbol})</FieldLabel>
+                <input type="number" style={inputStyle}
+                  value={settings.crossExtraFixed} min={0} step={0.5}
+                  onChange={(e) => set("crossExtraFixed", parseFloat(e.target.value) || 0)}
+                />
+                <Hint>
+                  Amazon {settings.uploadSourceMarket}&apos;den alışverişte gördüğün ekstra
+                  uluslararası kargo ücreti varsa buraya yaz. Bilmiyorsan 0 bırak — sorun değil,
+                  sadece bu tek kalemi kaçırmış oluruz, gerisi otomatik.
+                </Hint>
+              </>
             )}
           </div>
         </div>
