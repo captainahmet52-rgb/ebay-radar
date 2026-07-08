@@ -71,26 +71,11 @@ export default function StoresPage() {
     }
   }
 
-  async function activate(id: string) {
-    setBusyId(id);
-    try {
-      const res = await fetch(`/api/ebay/accounts/${id}/activate`, { method: "POST" });
-      const j = await res.json();
-      if (res.ok) {
-        mutate();
-      } else if (j.needUpgrade) {
-        // Limit dolu / paket yok → paketler sayfasına yönlendir
-        if (confirm(`${j.error}\n\nPaketler sayfasına gidilsin mi?`)) {
-          router.push("/dashboard/pricing");
-        }
-      } else {
-        alert(j.error ?? "Aktifleştirilemedi.");
-      }
-    } catch {
-      alert("Bir hata oluştu.");
-    } finally {
-      setBusyId(null);
-    }
+  // PAKET = MAĞAZA: her mağaza kendi aboneliğini alır. "Paket Al" → o mağaza
+  // bağlamıyla (?store=) paketler sayfasına gider; seçilen paket Lemon Squeezy
+  // ödeme sayfasını açar, ödeme gelince webhook mağazayı aktive eder.
+  function goToCheckout(id: string) {
+    router.push(`/dashboard/pricing?store=${id}`);
   }
 
   async function deactivate(id: string) {
@@ -219,7 +204,7 @@ export default function StoresPage() {
 
                       <div className="flex flex-wrap gap-2 pt-1">
                         {state === "frozen" ? (
-                          <Button size="sm" onClick={() => activate(a.id)} loading={busyId === a.id}>
+                          <Button size="sm" onClick={() => goToCheckout(a.id)}>
                             <Crown className="h-3.5 w-3.5" /> Paket Al
                           </Button>
                         ) : (

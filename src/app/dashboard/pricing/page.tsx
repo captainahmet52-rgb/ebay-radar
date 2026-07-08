@@ -2,11 +2,17 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PLAN_LIST, isOnTrial, trialDaysLeft } from "@/lib/plans";
 import { ProPlusCard } from "@/components/pricing/pro-plus-card";
+import { PlanCheckoutButton } from "@/components/pricing/plan-checkout-button";
 import { Check, Zap } from "lucide-react";
 
 export const metadata = { title: "Paketler — Lean Automation" };
 
-export default async function PricingPage() {
+export default async function PricingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ store?: string }>;
+}) {
+  const { store: storeId } = await searchParams;
   const session = await auth();
   const user = session?.user?.id
     ? await prisma.user.findUnique({
@@ -100,18 +106,16 @@ export default async function PricingPage() {
 
               {/* CTA */}
               <div className="space-y-1.5">
-                <button
-                  disabled
-                  className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all cursor-not-allowed ${
-                    isCurrentPlan
-                      ? "bg-slate-700/80 text-slate-400"
-                      : isPopular
-                      ? "bg-violet-600/70 text-white/70"
-                      : "bg-slate-700/50 text-slate-400/80"
+                <PlanCheckoutButton
+                  plan={plan.id}
+                  storeId={storeId}
+                  label="Satın Al"
+                  className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-60 ${
+                    isPopular
+                      ? "bg-violet-600 hover:bg-violet-500 text-white"
+                      : "bg-slate-700 hover:bg-slate-600 text-white"
                   }`}
-                >
-                  {isCurrentPlan ? "Mevcut Planınız" : "Yakında Aktif"}
-                </button>
+                />
                 {isCurrentPlan && (
                   <p className="text-center text-[10px] text-slate-500">
                     Şu anki planınız
@@ -124,7 +128,7 @@ export default async function PricingPage() {
       </div>
 
       {/* Pro+ yüksek hacim — ayrı kart (dropdown ile 15K / 20K) */}
-      <ProPlusCard />
+      <ProPlusCard storeId={storeId} />
 
       {/* Trial info */}
       <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-6 text-center space-y-2">
@@ -138,8 +142,8 @@ export default async function PricingPage() {
 
       {/* Ödeme sistemi notu */}
       <p className="text-center text-slate-600 text-xs">
-        Ödeme sistemi (Paddle) entegrasyonu yakında aktif edilecek. Sorular için
-        destek ekibiyle iletişime geçin.
+        Ödemeler Lemon Squeezy üzerinden güvenle alınır (kart bilgin bize ulaşmaz).
+        Her paket tek bir eBay mağazası içindir; istediğin zaman iptal edebilirsin.
       </p>
     </div>
   );

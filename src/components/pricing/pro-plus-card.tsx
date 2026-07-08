@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check } from "lucide-react";
 import { PRO_PLUS_PLANS } from "@/lib/plans";
+import { PlanCheckoutButton } from "@/components/pricing/plan-checkout-button";
 
 // Pro+ kartında gösterilen özellikler (ana paketlerle aynı dürüst set; limit/yükleme dinamik).
 const PRO_PLUS_FEATURES = [
@@ -23,7 +24,7 @@ const PRO_PLUS_FEATURES = [
  * Dropdown ile 15K / 20K limit seçilir; fiyat + günlük yükleme seçime göre güncellenir.
  * Buton şimdilik "Yakında Aktif" (Paddle entegrasyonu gelince checkout'a bağlanır).
  */
-export function ProPlusCard() {
+export function ProPlusCard({ storeId }: { storeId?: string }) {
   const [idx, setIdx] = useState(0);
   const plan = PRO_PLUS_PLANS[idx];
 
@@ -64,12 +65,12 @@ export function ProPlusCard() {
             <span className="text-slate-400 text-sm pb-1">/ay</span>
           </div>
 
-          <button
-            disabled
-            className="w-full py-2.5 rounded-xl text-sm font-semibold bg-violet-600/70 text-white/70 cursor-not-allowed"
-          >
-            Yakında Aktif
-          </button>
+          <PlanCheckoutButton
+            plan={plan.id}
+            storeId={storeId}
+            label="Satın Al"
+            className="w-full py-2.5 rounded-xl text-sm font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-all disabled:opacity-60"
+          />
         </div>
 
         {/* Sağ: özellik listesi */}
