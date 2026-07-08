@@ -84,12 +84,8 @@ export function getPlan(planId: string) {
   return PLANS[planId as PlanId] ?? null;
 }
 
-// Paddle'dan gelen plan ID → bizim plan ID eşlemesi (Paddle entegrasyonunda doldurulacak)
-export const PADDLE_PRICE_TO_PLAN: Record<string, PlanId> = {
-  // "pri_xxx": "starter",
-  // "pri_yyy": "basic",
-  // ...
-};
+// Lemon Squeezy varyant ID → paket eşlemesi src/lib/lemonsqueezy.ts'te FİYATA göre
+// otomatik çözülür (getVariantIdForPlan) — burada elle tutulan bir harita yok.
 
 // ─── Trial Sistemi ────────────────────────────────────────────────────────────
 

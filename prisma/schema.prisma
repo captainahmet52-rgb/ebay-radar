@@ -137,7 +137,7 @@ model EbayAccount {
   paidUntil             DateTime?
   // PAKET = MAĞAZA: her mağaza KENDİ aboneliğine sahiptir. Bu mağazanın paketi ve
   // o pakete ait ürün limiti burada tutulur (kullanıcı-başına değil, mağaza-başına).
-  // Aktivasyonda (Paddle checkout / admin comp) set edilir.
+  // Aktivasyonda (Lemon Squeezy checkout / admin comp) set edilir.
   plan                  String    @default("starter")
   productLimit          Int       @default(300)
   createdAt             DateTime  @default(now())

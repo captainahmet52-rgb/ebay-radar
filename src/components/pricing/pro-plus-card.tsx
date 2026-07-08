@@ -22,7 +22,7 @@ const PRO_PLUS_FEATURES = [
 /**
  * Yüksek hacimli satıcılar için "eBay Pro+" kartı. Ana 5 paketin ALTINDA, ayrı tek kart.
  * Dropdown ile 15K / 20K limit seçilir; fiyat + günlük yükleme seçime göre güncellenir.
- * Buton şimdilik "Yakında Aktif" (Paddle entegrasyonu gelince checkout'a bağlanır).
+ * Buton Lemon Squeezy checkout'una bağlıdır (PlanCheckoutButton).
  */
 export function ProPlusCard({ storeId }: { storeId?: string }) {
   const [idx, setIdx] = useState(0);

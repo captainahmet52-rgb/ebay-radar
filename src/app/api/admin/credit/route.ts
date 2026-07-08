@@ -12,7 +12,7 @@ const schema = z.object({
 /**
  * POST /api/admin/credit
  * Bir kullanıcının cüzdanına kredi ekler/çıkarır (manuel yükleme / düzeltme).
- * Self-servis Paddle yüklemesi ödeme entegrasyonuyla (Adım 8) gelecek.
+ * Self-servis yükleme zaten var: /api/amazon/wallet/topup (Stripe, tek seferlik ödeme).
  */
 export const POST = requireAdmin(async (req) => {
   const body = await req.json().catch(() => null);
