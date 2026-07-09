@@ -153,23 +153,8 @@ export const distributeProductsQueue = createQueue<DistributeProductsJobData, vo
   }
 );
 
-// ─── AmazonBot Radar Kuyruğu (AliExpress → Amazon depo) ───────────────────────
-export interface AmazonRadarScanJobData {
-  market: string; // us | uk | ae | sa
-}
-
-export const amazonRadarScanQueue = createQueue<AmazonRadarScanJobData, void, string>(
-  "amazon-radar-scan",
-  {
-    connection,
-    defaultJobOptions: {
-      attempts: 3,
-      backoff: { type: "exponential", delay: 10000 },
-      removeOnComplete: { count: 100 },
-      removeOnFail: { count: 200 },
-    },
-  }
-);
+// NOT: AmazonBot RADAR kuyruğu (amazon-radar-scan) KALDIRILDI — keşif/skorlama
+// Radar projesine (urun-radari) taşındı; kazananlar /api/amazon-depot/intake ile gelir.
 
 // ─── AmazonBot Oto-Yükleme Kuyruğu ─────────────────────────────────────────────
 export interface AmazonAutoUploadJobData {
@@ -260,22 +245,8 @@ export const amazonTrackingSyncQueue = createQueue<AmazonTrackingSyncJobData, vo
   }
 );
 
-// ─── AmazonBot Depo Bekçisi (eşik altına düşünce radarı tetikler) ──────────────
-export interface AmazonDepotWatchdogJobData {
-  _trigger?: string;
-}
-
-export const amazonDepotWatchdogQueue = createQueue<AmazonDepotWatchdogJobData, void, string>(
-  "amazon-depot-watchdog",
-  {
-    connection,
-    defaultJobOptions: {
-      attempts: 1,
-      removeOnComplete: { count: 20 },
-      removeOnFail: { count: 50 },
-    },
-  }
-);
+// NOT: AmazonBot Depo Bekçisi (amazon-depot-watchdog) KALDIRILDI — depo doldurma
+// artık Radar projesinin zamanlanmış taramasıyla olur (yerelden radar tetiklenmez).
 
 // ─── AmazonBot Sipariş Çekme Kuyruğu (SP-API getOrders) ────────────────────────
 export interface AmazonPollOrdersJobData {

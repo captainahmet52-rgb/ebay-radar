@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader, Card, InfoCard, AMZ_ACCENT } from "@/components/amazon/shared";
-import { DEFAULT_RADAR_CONFIG } from "@/lib/amazon-radar";
 import { AMAZON_MARKETS } from "@/lib/amazon-repricer";
 
 const MARKETS = Object.values(AMAZON_MARKETS);
@@ -25,13 +24,15 @@ const MARGIN_FIELD: Record<string, keyof AmazonSettings> = {
   us: "amazonMarginUsPct", uk: "amazonMarginUkPct", ae: "amazonMarginAePct", sa: "amazonMarginSaPct",
 };
 
+// Radar eşikleri — SADECE bilgilendirme gösterimi. Gerçek radar mantığı/eşikleri
+// artık Radar projesinde (urun-radari); burada kullanıcıya özet gösterilir.
 const RADAR_ROWS: Array<{ label: string; value: string }> = [
-  { label: "Asgari kabul marjı", value: `%${DEFAULT_RADAR_CONFIG.minMarginPct}` },
-  { label: "Maks. BSR (talep eşiği)", value: DEFAULT_RADAR_CONFIG.maxBsr.toLocaleString("tr-TR") },
-  { label: "Aylık min. satış", value: String(DEFAULT_RADAR_CONFIG.minSalesEst) },
-  { label: "Maks. satıcı (rekabet)", value: String(DEFAULT_RADAR_CONFIG.maxSellers) },
-  { label: "AliExpress min. sipariş", value: String(DEFAULT_RADAR_CONFIG.minAliOrders) },
-  { label: "AliExpress min. puan", value: String(DEFAULT_RADAR_CONFIG.minAliRating) },
+  { label: "Asgari kabul marjı", value: "%15" },
+  { label: "Maks. BSR (talep eşiği)", value: (50000).toLocaleString("tr-TR") },
+  { label: "Aylık min. satış", value: "30" },
+  { label: "Maks. satıcı (rekabet)", value: "15" },
+  { label: "AliExpress min. sipariş", value: "50" },
+  { label: "AliExpress min. puan", value: "4.5" },
 ];
 
 const inputCls =

@@ -4,7 +4,6 @@ import { Worker, Job } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
 import { prisma } from "@/lib/prisma";
 import { fetchAliExpressProduct } from "@/lib/aliexpress";
-import { triggerRadarIfLow } from "@/lib/amazon-depot";
 import {
   AMAZON_MARKETS,
   getReferralRate,
@@ -85,8 +84,7 @@ async function processAmazonPollProduct(job: Job<AmazonPollProductJobData>): Pro
   if (shouldPause) {
     await pauseAllListings(depotProductId);
     await job.log(`Stok yetersiz (${ali.stockStatus}) — duraklatıldı: ${product.aliId}`);
-    // Ürün "bitti" → depo azaldıysa radarı hemen tetikle
-    await triggerRadarIfLow(`stok bitti: ${product.aliId}`);
+    // Depo doldurma artık Radar projesinin zamanlanmış taramasında (yerel tetikleme yok).
     return;
   }
 

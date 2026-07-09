@@ -1,30 +1,18 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
-import { amazonRadarScanQueue } from "@/lib/queues";
-import { AMAZON_MARKETS } from "@/lib/amazon-repricer";
-
-const MARKETS = Object.keys(AMAZON_MARKETS); // us | uk | ae | sa
 
 /**
  * POST /api/admin/amazon/radar
- * Tüm pazarlar için AmazonBot radarını elle tetikler (worker kuyruğuna ekler).
- * Worker radarı çalıştırıp kazananları depoya (AmazonDepotProduct) yazar.
+ * NOT: AmazonBot radarı (keşif/skorlama) artık Radar projesinde (urun-radari) kendi
+ * takviminde otomatik çalışıp kazananları /api/amazon-depot/intake'e yolluyor —
+ * bu projeden elle tetiklenmez. (İleride Radar'a bir "şimdi tara" ucu eklenebilir.)
  */
 export const POST = requireAdmin(async () => {
-  await Promise.all(
-    MARKETS.map((market) =>
-      amazonRadarScanQueue.add(
-        "amazon-radar-scan",
-        { market },
-        { jobId: `amazon-radar:manual:${market}:${Date.now()}` }
-      )
-    )
-  );
-
   return NextResponse.json({
     success: true,
-    message: `${MARKETS.length} pazar için Amazon radar tarama kuyruğa eklendi`,
+    message:
+      "AmazonBot radarı artık Radar projesinde otomatik çalışıyor; ürünler depoya otomatik düşer.",
   });
 });
 

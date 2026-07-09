@@ -1,92 +1,63 @@
 /**
- * AmazonBot depo repository — radar sonuçlarını kalıcı AmazonDepotProduct'a yazar.
- * Sadece radardan GEÇEN (marka/yasak/kâr/talep filtrelerini aşan) ürünler depoya girer.
- * Marka-güvensiz / yasaklı ürünler ASLA depoya yazılmaz.
+ * AmazonBot depo repository — Radar projesinden (urun-radari) POST edilen KAZANAN
+ * ürünleri kalıcı AmazonDepotProduct'a yazar.
+ *
+ * MİMARİ: Keşif + skorlama (AliExpress'ten ürün bulma) artık RADAR projesinde
+ * (eBay radarındaki gibi). Bu proje SADECE alım + yükleme + işletme yapar; burası
+ * eBay tarafındaki src/app/api/depot/intake'in Amazon ikizidir — sadece kalıcılaştırma.
  */
 
 import { prisma } from "@/lib/prisma";
-import { amazonRadarScanQueue } from "@/lib/queues";
-import { AMAZON_MARKETS } from "@/lib/amazon-repricer";
-import type { AmazonCandidate, RadarVerdict } from "@/lib/amazon-radar";
+import { runBatched, DB_CONCURRENCY } from "@/lib/batch";
 
-/** Depodaki taze (aktif + marka-güvenli) ürün bu sayının altına düşerse radar HEMEN çalışır. */
-export const AMAZON_DEPOT_MIN_ACTIVE = Number(process.env.AMAZON_DEPOT_MIN_ACTIVE ?? 20);
-
-export interface RadarResult {
-  candidate: AmazonCandidate;
-  verdict: RadarVerdict;
+/** Radar'ın gönderdiği kazanan ürün (skorlanmış, marka-güvenli). */
+export interface AmazonDepotIntakeItem {
+  aliId: string;
+  title: string;
+  category?: string | null;
+  brand?: string | null;
+  aliCostUsd: number;
+  aliShippingUsd: number;
+  aliOrders: number;
+  aliRating: number;
+  // Amazon tarafı sinyalleri (Keepa bağlıysa gelir; yoksa null)
+  amazonBsr?: number | null;
+  amazonSalesEst?: number | null;
+  amazonSellerCount?: number | null;
+  amazonSoldByAmazon?: boolean;
+  radarScore: number;
 }
 
 /**
- * Radardan geçen adayları depoya upsert eder (aliId bazlı).
- * Var olan ürünün sinyalleri + skoru tazelenir; yenisi "active" olarak eklenir.
+ * Radar'dan gelen kazananları depoya upsert eder (aliId bazlı). Var olanın sinyalleri
+ * + skoru tazelenir; yenisi "active" eklenir. Ölçek: sınırlı eş zamanlı partiler
+ * (100K standardı — bağlantı havuzunu boğmaz).
  */
-export async function saveRadarWinnersToDepot(
-  results: RadarResult[]
-): Promise<{ saved: number; skipped: number }> {
-  let saved = 0;
-  let skipped = 0;
-
-  for (const { candidate, verdict } of results) {
-    if (!verdict.pass) {
-      skipped++;
-      continue;
-    }
-
+export async function upsertAmazonDepotProducts(
+  items: AmazonDepotIntakeItem[]
+): Promise<{ saved: number }> {
+  await runBatched(items, DB_CONCURRENCY, async (it) => {
     const data = {
-      title: candidate.title,
-      category: candidate.category ?? null,
-      brand: candidate.brand ?? null,
-      brandSafe: true, // geçtiyse marka/yasak filtresini aşmıştır
-      aliCostUsd: candidate.aliCost,
-      aliShippingUsd: candidate.aliShipping,
-      aliOrders: candidate.aliOrders,
-      aliRating: candidate.aliRating,
-      amazonBsr: candidate.amazonBsr ?? null,
-      amazonSalesEst: candidate.amazonSalesEst ?? null,
-      amazonSellerCount: candidate.amazonSellerCount ?? null,
-      amazonSoldByAmazon: candidate.amazonSoldByAmazon ?? false,
-      radarScore: verdict.score,
+      title: it.title,
+      category: it.category ?? null,
+      brand: it.brand ?? null,
+      brandSafe: true, // Radar yalnız marka-güvenli/filtreyi geçen ürünleri yollar
+      aliCostUsd: it.aliCostUsd,
+      aliShippingUsd: it.aliShippingUsd,
+      aliOrders: it.aliOrders,
+      aliRating: it.aliRating,
+      amazonBsr: it.amazonBsr ?? null,
+      amazonSalesEst: it.amazonSalesEst ?? null,
+      amazonSellerCount: it.amazonSellerCount ?? null,
+      amazonSoldByAmazon: it.amazonSoldByAmazon ?? false,
+      radarScore: it.radarScore,
       lastScrapedAt: new Date(),
     };
-
     await prisma.amazonDepotProduct.upsert({
-      where: { aliId: candidate.aliId },
-      create: { aliId: candidate.aliId, status: "active", ...data },
+      where: { aliId: it.aliId },
+      create: { aliId: it.aliId, status: "active", ...data },
       update: data, // status'a dokunma — duraklatılmışsa kullanıcı/worker yönetir
     });
-    saved++;
-  }
-
-  return { saved, skipped };
-}
-
-/** Depodaki taze ürün sayısı (radar bekçisi için). */
-export async function countActiveDepot(): Promise<number> {
-  return prisma.amazonDepotProduct.count({ where: { status: "active", brandSafe: true } });
-}
-
-/**
- * Depo eşik altındaysa tüm pazarlar için radarı HEMEN tetikler.
- * 10 dakikalık kova ile dedupe: aynı pencerede tekrar tekrar tetiklenmez.
- * Ürün bittiğinde / yüklendiğinde / bekçi turunda çağrılır.
- */
-export async function triggerRadarIfLow(
-  reason: string
-): Promise<{ triggered: boolean; count: number }> {
-  const count = await countActiveDepot();
-  if (count >= AMAZON_DEPOT_MIN_ACTIVE) return { triggered: false, count };
-
-  const bucket = Math.floor(Date.now() / (10 * 60 * 1000)); // 10 dk pencere
-  await Promise.all(
-    Object.keys(AMAZON_MARKETS).map((market) =>
-      amazonRadarScanQueue.add(
-        "amazon-radar-scan",
-        { market },
-        { jobId: `amazon-radar:auto:${market}:${bucket}` }
-      )
-    )
-  );
-  console.log(`[depot] Eşik altı (${count}/${AMAZON_DEPOT_MIN_ACTIVE}) — radar tetiklendi: ${reason}`);
-  return { triggered: true, count };
+  });
+  return { saved: items.length };
 }

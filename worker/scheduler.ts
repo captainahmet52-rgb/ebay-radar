@@ -15,19 +15,14 @@ import {
   dispatchPollOrdersQueue,
   refreshTokensQueue,
   distributeProductsQueue,
-  amazonRadarScanQueue,
   amazonAutoUploadQueue,
   amazonPollOrdersQueue,
-  amazonDepotWatchdogQueue,
   amazonTrackingSyncQueue,
   freezeStoresQueue,
   ebayAutoUploadQueue,
   retierProductsQueue,
   scraperUsageCheckQueue,
 } from "@/lib/queues";
-
-// AmazonBot radar — taranacak pazarlar
-const AMAZON_RADAR_MARKETS = ["us", "uk", "ae", "sa"] as const;
 
 export async function setupScheduler(): Promise<void> {
   // ── dispatch-polls: her 5 dakika ────────────────────────────────────────────
@@ -74,21 +69,8 @@ export async function setupScheduler(): Promise<void> {
   );
   console.log("[scheduler] distribute-products kuruldu: her gün 02:00 UTC");
 
-  // ── amazon-radar-scan: her pazar için 6 saatte bir ──────────────────────────
-  await clearRepeatableJobs(amazonRadarScanQueue, "amazon-radar-scan");
-  for (const market of AMAZON_RADAR_MARKETS) {
-    await amazonRadarScanQueue.add(
-      "amazon-radar-scan",
-      { market },
-      {
-        repeat: { every: 6 * 60 * 60 * 1000 }, // 6 saat (ms)
-        jobId: `amazon-radar:${market}`, // pazar başına tek repeatable
-      }
-    );
-  }
-  console.log(
-    `[scheduler] amazon-radar-scan kuruldu: ${AMAZON_RADAR_MARKETS.length} pazar, her 6 saat`
-  );
+  // NOT: amazon-radar-scan zamanlaması KALDIRILDI — AmazonBot radarı artık Radar
+  // projesinde (urun-radari) kendi takviminde çalışıp /api/amazon-depot/intake'e yollar.
 
   // ── amazon-auto-upload: her gün 03:00 UTC (oto-yükleme açık tüm kullanıcılar) ──
   await clearRepeatableJobs(amazonAutoUploadQueue, "amazon-auto-upload");
@@ -108,14 +90,8 @@ export async function setupScheduler(): Promise<void> {
   );
   console.log("[scheduler] amazon-poll-orders kuruldu: her 30 dakika");
 
-  // ── amazon-depot-watchdog: her 15 dakika (depo azalınca radarı hemen tetikler) ──
-  await clearRepeatableJobs(amazonDepotWatchdogQueue, "amazon-depot-watchdog");
-  await amazonDepotWatchdogQueue.add(
-    "amazon-depot-watchdog",
-    {},
-    { repeat: { every: 15 * 60 * 1000 } }
-  );
-  console.log("[scheduler] amazon-depot-watchdog kuruldu: her 15 dakika");
+  // NOT: amazon-depot-watchdog KALDIRILDI — depo doldurma Radar'ın zamanlanmış
+  // taramasıyla olur (yerelden radar tetiklemesi yok).
 
   // ── amazon-tracking-sync: her 2 saat (AliExpress sipariş → kargo no) ─────────
   await clearRepeatableJobs(amazonTrackingSyncQueue, "amazon-tracking-sync");

@@ -9,11 +9,10 @@ import { createPollProductWorker } from "./jobs/poll-product";
 import { createVerifyOrderWorker } from "./jobs/verify-order";
 import { createPollOrdersWorker } from "./jobs/poll-orders";
 import { createUpdateListingWorker } from "./jobs/update-listing";
-import { createAmazonRadarScanWorker } from "./jobs/amazon-radar-scan";
+// amazon-radar-scan + amazon-depot-watchdog KALDIRILDI — keşif Radar projesine taşındı.
 import { createAmazonAutoUploadWorker } from "./jobs/amazon-auto-upload";
 import { createAmazonPollProductWorker } from "./jobs/amazon-poll-product";
 import { createAmazonPollOrdersWorker } from "./jobs/amazon-poll-orders";
-import { createAmazonDepotWatchdogWorker } from "./jobs/amazon-depot-watchdog";
 import { createAmazonVerifyOrderWorker } from "./jobs/amazon-verify-order";
 import { createAmazonFulfillOrderWorker } from "./jobs/amazon-fulfill-order";
 import { createAmazonTrackingSyncWorker } from "./jobs/amazon-tracking-sync";
@@ -38,11 +37,9 @@ const workers: Worker[] = [
   createVerifyOrderWorker(connection),
   createPollOrdersWorker(connection),
   createUpdateListingWorker(connection),
-  createAmazonRadarScanWorker(connection),
   createAmazonAutoUploadWorker(connection),
   createAmazonPollProductWorker(connection),
   createAmazonPollOrdersWorker(connection),
-  createAmazonDepotWatchdogWorker(connection),
   createAmazonVerifyOrderWorker(connection),
   createAmazonFulfillOrderWorker(connection),
   createAmazonTrackingSyncWorker(connection),
@@ -64,11 +61,9 @@ console.log("  → poll-product           (concurrency: 4)");
 console.log("  → verify-order           (concurrency: 4)");
 console.log("  → poll-orders            (concurrency: 2)");
 console.log("  → update-listing         (concurrency: 4)");
-console.log("  → amazon-radar-scan      (concurrency: 2)");
 console.log("  → amazon-auto-upload     (concurrency: 2)");
 console.log("  → amazon-poll-product    (concurrency: 4)");
 console.log("  → amazon-poll-orders     (concurrency: 2)");
-console.log("  → amazon-depot-watchdog  (concurrency: 1)");
 console.log("  → amazon-verify-order    (concurrency: 4)");
 console.log("  → amazon-fulfill-order   (concurrency: 2)");
 console.log("  → amazon-tracking-sync   (concurrency: 1)");
