@@ -25,6 +25,13 @@ const M_PRODUCT = "aliexpress.ds.product.get";
 const M_TRACKING = "aliexpress.ds.order.tracking.get";
 const M_PLACE_ORDER = "aliexpress.trade.buy.placeorder";
 const M_TOKEN_REFRESH = "/auth/token/refresh";
+// Ürün KEŞİF metodu (radar aday havuzu). Hesabın onaylı iznine göre değişebildiği
+// için ENV ile override edilebilir (kod değişmeden): ör. aliexpress.ds.text.search
+// veya aliexpress.affiliate.hotproduct.query.
+const M_DISCOVER = process.env.ALIEXPRESS_DISCOVERY_METHOD ?? "aliexpress.ds.recommend.feed.get";
+
+// Keşifte kargo alanı gelmezse kullanılacak temkinli varsayılan (marj abartılmasın).
+const DEFAULT_SHIPPING_USD = Number(process.env.ALIEXPRESS_DEFAULT_SHIPPING_USD ?? 2);
 
 export interface AliProductData {
   costUsd: number;
@@ -137,6 +144,111 @@ export async function fetchAliExpressProduct(aliId: string): Promise<AliProductD
   }
 
   return { costUsd, shippingUsd, stockStatus: stock.status, stockQty: stock.qty, title };
+}
+
+// ─── Ürün keşif (radar aday kaynağı) ─────────────────────────────────────────
+
+export interface AliDiscoveredProduct {
+  aliId: string;
+  title: string;
+  costUsd: number;
+  shippingUsd: number;
+  orders: number;             // AliExpress satış/sipariş hacmi (talep sinyali)
+  rating: number | null;      // ham değerlendirme (ölçek belirsiz: 0-5 puan VEYA 0-100 %)
+  category: string | null;
+}
+
+/** "12.5", "USD 12.50", 12.5 → 12.5; çözülemezse NaN. */
+function parseNum(v: unknown): number {
+  if (typeof v === "number") return v;
+  if (typeof v === "string") return Number(v.replace(/[^0-9.]/g, ""));
+  return NaN;
+}
+
+function looksLikeProduct(o: unknown): boolean {
+  if (!o || typeof o !== "object") return false;
+  const r = o as Record<string, unknown>;
+  return "product_id" in r || "productId" in r || "item_id" in r || "product_title" in r;
+}
+
+/**
+ * AliExpress yanıtları sürüme/metoda göre farklı iç içe sarmalanır
+ * (ör. <method>_response.resp_result.result.products.product). Ürün dizisini
+ * şemadan bağımsız, özyinelemeli ve SAVUNMACI bulur.
+ */
+function extractProductArray(resp: unknown, depth = 0): Record<string, unknown>[] {
+  if (depth > 6 || resp == null || typeof resp !== "object") return [];
+  if (Array.isArray(resp)) {
+    const products = resp.filter(looksLikeProduct) as Record<string, unknown>[];
+    return products; // ürün gibi görünmeyen dizinin içine girme (yanlış eşleşme riski)
+  }
+  for (const val of Object.values(resp as Record<string, unknown>)) {
+    const found = extractProductArray(val, depth + 1);
+    if (found.length > 0) return found;
+  }
+  return [];
+}
+
+function mapDiscovered(raw: Record<string, unknown>): AliDiscoveredProduct | null {
+  const aliId = String(raw["product_id"] ?? raw["productId"] ?? raw["item_id"] ?? "");
+  const title = String(raw["product_title"] ?? raw["subject"] ?? raw["title"] ?? "");
+  const costUsd = parseNum(
+    raw["target_sale_price"] ?? raw["sale_price"] ?? raw["app_sale_price"] ?? raw["min_price"]
+  );
+  if (!aliId || !title || !Number.isFinite(costUsd) || costUsd <= 0) return null;
+
+  const shipRaw = parseNum(raw["ship_cost"] ?? raw["freight_amount"]);
+  const shippingUsd = Number.isFinite(shipRaw) ? shipRaw : DEFAULT_SHIPPING_USD;
+  const orders = Math.max(
+    0,
+    Math.round(parseNum(raw["lastest_volume"] ?? raw["latest_volume"] ?? raw["orders"] ?? raw["trade_count"]) || 0)
+  );
+  const ratingRaw = parseNum(raw["evaluate_rate"] ?? raw["evaluation_rate"] ?? raw["avg_evaluation_rating"]);
+  const category =
+    (raw["first_level_category_name"] ?? raw["second_level_category_name"] ?? raw["category_name"] ?? null) as
+      | string
+      | null;
+
+  return {
+    aliId,
+    title,
+    costUsd,
+    shippingUsd,
+    orders,
+    rating: Number.isFinite(ratingRaw) ? ratingRaw : null,
+    category,
+  };
+}
+
+/**
+ * AliExpress'ten radar için aday ürün havuzu çeker (keşif fazı — scraper YOK,
+ * resmi API). Yanıt şeması hesabın onaylı metoduna göre değişebileceğinden
+ * SAVUNMACI parse edilir. Bağlı değilse [] döner (çağıran demo listeye düşer).
+ */
+export async function discoverAliExpressProducts(opts?: {
+  keyword?: string;
+  shipTo?: string;
+  pageSize?: number;
+  page?: number;
+}): Promise<AliDiscoveredProduct[]> {
+  if (!isAliExpressConfigured()) return [];
+
+  const biz: Record<string, string> = {
+    target_currency: "USD",
+    target_language: "en",
+    ship_to_country: opts?.shipTo ?? process.env.ALIEXPRESS_SHIP_TO ?? "US",
+    page_size: String(opts?.pageSize ?? 50),
+    page_no: String(opts?.page ?? 1),
+  };
+  if (opts?.keyword) biz.keywords = opts.keyword;
+  // Hesaba göre gerekebilen alanlar — sadece ENV'de tanımlıysa gönder.
+  if (process.env.ALIEXPRESS_TRACKING_ID) biz.tracking_id = process.env.ALIEXPRESS_TRACKING_ID;
+  if (process.env.ALIEXPRESS_FEED_NAME) biz.feed_name = process.env.ALIEXPRESS_FEED_NAME;
+
+  const resp = await callAli<Record<string, unknown>>(M_DISCOVER, biz);
+  return extractProductArray(resp)
+    .map(mapDiscovered)
+    .filter((p): p is AliDiscoveredProduct => p !== null);
 }
 
 /** Access token'ı refresh token ile yeniler (cron/worker tarafından kullanılır). */

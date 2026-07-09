@@ -1,10 +1,10 @@
 // AmazonBot radar worker — bir pazar için radarı çalıştırıp KAZANANLARI depoya yazar.
-// Veri kaynağı şu an DEMO örnek adaylar; AliExpress Open Platform API bağlanınca
-// SAMPLE_CANDIDATES yerine canlı çekilen adaylar verilecek (karar mantığı aynı kalır).
+// Adaylar AliExpress'ten CANLI keşfedilir (bağlı değilse otomatik demo listeye düşer);
+// karar/skorlama mantığı (marj/talep/rekabet + marka/yasak filtre) aynı beyinde kalır.
 import { Worker, Job } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
 import { runRadar, buildRadarConfig } from "@/lib/amazon-radar";
-import { SAMPLE_CANDIDATES } from "@/lib/amazon-radar-samples";
+import { fetchRadarCandidates } from "@/lib/amazon-radar-source";
 import { saveRadarWinnersToDepot } from "@/lib/amazon-depot";
 import { AMAZON_MARKETS } from "@/lib/amazon-repricer";
 import type { AmazonRadarScanJobData } from "@/lib/queues";
@@ -17,15 +17,15 @@ async function processAmazonRadarScan(job: Job<AmazonRadarScanJobData>): Promise
     return;
   }
 
-  // 1. Adayları getir (şimdilik demo; AliExpress API gelince burası değişir)
-  const candidates = SAMPLE_CANDIDATES;
+  // 1. Adayları getir — AliExpress canlı keşif (bağlı değilse demo'ya düşer)
+  const { candidates, source } = await fetchRadarCandidates(market);
 
   // 2. Pazar-bazlı radar (marj/KDV/gümrük/kur + marka/yasak SERT filtre)
   const config = buildRadarConfig(market);
   const results = runRadar(candidates, config);
   const passed = results.filter((r) => r.verdict.pass).length;
 
-  await job.log(`${market.toUpperCase()} radar: ${results.length} aday, ${passed} kazanan`);
+  await job.log(`${market.toUpperCase()} radar [${source}]: ${results.length} aday, ${passed} kazanan`);
 
   // 3. Kazananları depoya yaz (marka-güvensiz/yasaklı ASLA girmez)
   const { saved, skipped } = await saveRadarWinnersToDepot(results);
