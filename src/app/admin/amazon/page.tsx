@@ -28,7 +28,7 @@ export default function AdminAmazonPage() {
   const [uploaded, setUploaded] = useState<UploadedListing[]>([]);
   const [tab, setTab] = useState<"depot" | "uploaded">("depot");
   const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   async function load() {
@@ -39,13 +39,14 @@ export default function AdminAmazonPage() {
   }
   useEffect(() => { void load(); }, []);
 
-  async function runRadar() {
-    setRunning(true); setMsg(null);
-    const r = await fetch("/api/admin/amazon/radar", { method: "POST" });
+  async function clearDepot() {
+    if (!confirm("Depodaki tüm ürünler silinecek (test/örnek verisi). Emin misin?")) return;
+    setClearing(true); setMsg(null);
+    const r = await fetch("/api/admin/amazon/radar", { method: "DELETE" });
     const j = await r.json();
-    setMsg(r.ok ? j.message : (j.error ?? "Hata"));
-    setRunning(false);
-    setTimeout(load, 2000); // worker yazınca tazele
+    setMsg(r.ok ? `${j.deleted} ürün silindi.` : (j.error ?? "Hata"));
+    setClearing(false);
+    void load();
   }
 
   const STAT_CARDS: Array<{ label: string; value: number; color: string }> = stats ? [
@@ -63,11 +64,11 @@ export default function AdminAmazonPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", gap: 12, flexWrap: "wrap" }}>
         <h1 style={{ fontSize: "1.5rem", fontWeight: 700, margin: 0 }}>AmazonBot Yönetimi</h1>
         <button
-          onClick={runRadar}
-          disabled={running}
-          style={{ background: "#10b981", color: "#000", fontWeight: 700, fontSize: "0.85rem", border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer", opacity: running ? 0.6 : 1 }}
+          onClick={clearDepot}
+          disabled={clearing || products.length === 0}
+          style={{ background: "transparent", color: "#f85149", fontWeight: 600, fontSize: "0.82rem", border: "1px solid #f8514955", borderRadius: 8, padding: "8px 16px", cursor: products.length === 0 ? "not-allowed" : "pointer", opacity: clearing || products.length === 0 ? 0.5 : 1 }}
         >
-          {running ? "Tetikleniyor..." : "Radarı Çalıştır (tüm pazarlar)"}
+          {clearing ? "Siliniyor..." : "Depoyu Temizle"}
         </button>
       </div>
       {msg && <p style={{ color: "#8b949e", fontSize: "0.85rem", marginBottom: "1rem" }}>{msg}</p>}
@@ -101,7 +102,7 @@ export default function AdminAmazonPage() {
         /* Radarın depoya yazdığı ürünler */
         products.length === 0 ? (
           <div style={{ ...card, color: "#8b949e", fontSize: "0.85rem" }}>
-            Depo boş. AliExpress API bağlanınca radar otomatik doldurur; yukarıdan elle de tetikleyebilirsin.
+            Depo boş. Radar (Radar projesinde) çalışınca kazanan ürünleri buraya otomatik gönderir.
           </div>
         ) : (
           <div style={{ ...card, padding: 0 }}>

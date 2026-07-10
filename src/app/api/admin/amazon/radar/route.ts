@@ -17,6 +17,16 @@ export const POST = requireAdmin(async () => {
 });
 
 /**
+ * DELETE /api/admin/amazon/radar
+ * Depoyu tamamen temizler (test/örnek verisini siler). Bağlı listelemeler
+ * şema cascade'i ile birlikte silinir. Radar canlıya geçince depo tekrar dolar.
+ */
+export const DELETE = requireAdmin(async () => {
+  const { count } = await prisma.amazonDepotProduct.deleteMany({});
+  return NextResponse.json({ success: true, deleted: count });
+});
+
+/**
  * GET /api/admin/amazon/radar
  * Depodaki (kalıcı) Amazon ürünleri + tüm sistemin Amazon istatistikleri.
  */
