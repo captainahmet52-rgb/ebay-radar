@@ -14,6 +14,7 @@ const ItemSchema = z.object({
   title: z.string().min(1),
   category: z.string().nullable().optional(),
   brand: z.string().nullable().optional(),
+  imageUrl: z.string().nullable().optional(),
   aliCostUsd: z.number().positive(),
   aliShippingUsd: z.number().min(0),
   aliOrders: z.number().int().min(0),

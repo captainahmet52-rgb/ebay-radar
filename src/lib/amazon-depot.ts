@@ -16,6 +16,7 @@ export interface AmazonDepotIntakeItem {
   title: string;
   category?: string | null;
   brand?: string | null;
+  imageUrl?: string | null;
   aliCostUsd: number;
   aliShippingUsd: number;
   aliOrders: number;
@@ -41,6 +42,7 @@ export async function upsertAmazonDepotProducts(
       title: it.title,
       category: it.category ?? null,
       brand: it.brand ?? null,
+      imageUrl: it.imageUrl ?? null,
       brandSafe: true, // Radar yalnız marka-güvenli/filtreyi geçen ürünleri yollar
       aliCostUsd: it.aliCostUsd,
       aliShippingUsd: it.aliShippingUsd,

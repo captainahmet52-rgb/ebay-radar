@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 interface DepotProduct {
   id: string; aliId: string; title: string | null; category: string | null; brand: string | null;
+  imageUrl: string | null;
   radarScore: number | null; aliCostUsd: number; aliOrders: number; aliRating: number;
   amazonBsr: number | null; aliStockStatus: string; status: string;
 }
@@ -107,9 +108,22 @@ export default function AdminAmazonPage() {
         ) : (
           <div style={{ ...card, padding: 0 }}>
             {products.map((p, i) => (
-              <div key={p.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "10px 14px", borderBottom: i < products.length - 1 ? "1px solid #21262d" : undefined }}>
-                <div style={{ minWidth: 0 }}>
-                  <p style={{ fontSize: "0.85rem", margin: 0 }}>{p.title ?? p.aliId}</p>
+              <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 14px", borderBottom: i < products.length - 1 ? "1px solid #21262d" : undefined }}>
+                {p.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.imageUrl} alt="" style={{ width: 40, height: 40, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />
+                ) : (
+                  <div style={{ width: 40, height: 40, borderRadius: 6, background: "#21262d", flexShrink: 0 }} />
+                )}
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <a
+                    href={`https://www.aliexpress.com/item/${p.aliId}.html`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontSize: "0.85rem", color: "#f0f6fc", textDecoration: "none" }}
+                  >
+                    {p.title ?? p.aliId} ↗
+                  </a>
                   <p style={{ fontSize: "0.72rem", color: "#8b949e", margin: "3px 0 0" }}>
                     ${p.aliCostUsd.toFixed(2)} · {p.category ?? "-"} · {p.aliOrders} sipariş · ⭐{p.aliRating}
                     {p.amazonBsr ? ` · BSR ${p.amazonBsr}` : ""} · stok {p.aliStockStatus}
