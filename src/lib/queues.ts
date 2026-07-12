@@ -186,7 +186,30 @@ export const amazonPollProductQueue = createQueue<AmazonPollProductJobData, void
     defaultJobOptions: {
       attempts: 3,
       backoff: { type: "exponential", delay: 5000 },
-      removeOnComplete: { count: 100 },
+      // Stable jobId (amazon-poll-product:<id>) kullanılıyor; tamamlanan job HEMEN
+      // silinmeli ki bir sonraki tarama turunda aynı ürün tekrar kuyruğa eklenebilsin
+      // (poll-product'taki (eBay) aynı desen — bkz. o kuyruğun yorumu).
+      removeOnComplete: true,
+      removeOnFail: { count: 500 },
+    },
+  }
+);
+
+// ─── AmazonBot Listing Güncelleme Kuyruğu (SP-API putListingsItem — fiyat/stok) ──
+export interface AmazonUpdateListingJobData {
+  listingId: string;
+  price: number;
+  qty: number;
+}
+
+export const amazonUpdateListingQueue = createQueue<AmazonUpdateListingJobData, void, string>(
+  "amazon-update-listing",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 4,
+      backoff: { type: "exponential", delay: 2000 },
+      removeOnComplete: { count: 200 },
       removeOnFail: { count: 500 },
     },
   }
@@ -308,6 +331,23 @@ export interface DispatchPollOrdersJobData {
 
 export const dispatchPollOrdersQueue = createQueue<DispatchPollOrdersJobData, void, string>(
   "dispatch-poll-orders",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 1,
+      removeOnComplete: { count: 10 },
+      removeOnFail: { count: 20 },
+    },
+  }
+);
+
+// ── dispatch-amazon-polls: eBay'deki dispatch-polls'ün Amazon karşılığı ────────
+export interface DispatchAmazonPollsJobData {
+  _trigger?: string;
+}
+
+export const dispatchAmazonPollsQueue = createQueue<DispatchAmazonPollsJobData, void, string>(
+  "dispatch-amazon-polls",
   {
     connection,
     defaultJobOptions: {

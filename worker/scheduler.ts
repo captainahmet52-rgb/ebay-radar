@@ -3,6 +3,7 @@
 //
 // Kurulan repeatable job'lar:
 //   dispatch-polls        → her 5 dakikada bir
+//   dispatch-amazon-polls → her 5 dakikada bir (Amazon karşılığı)
 //   dispatch-poll-orders  → her 30 dakikada bir
 //   refresh-tokens        → her 30 dakikada bir (tüm hesaplar)
 //   distribute-products   → her gün 02:00 UTC (cron)
@@ -18,6 +19,7 @@ import {
   amazonAutoUploadQueue,
   amazonPollOrdersQueue,
   amazonTrackingSyncQueue,
+  dispatchAmazonPollsQueue,
   freezeStoresQueue,
   freezeAmazonAccountsQueue,
   ebayAutoUploadQueue,
@@ -72,6 +74,17 @@ export async function setupScheduler(): Promise<void> {
 
   // NOT: amazon-radar-scan zamanlaması KALDIRILDI — AmazonBot radarı artık Radar
   // projesinde (urun-radari) kendi takviminde çalışıp /api/amazon-depot/intake'e yollar.
+
+  // ── dispatch-amazon-polls: her 5 dakika (eBay'deki dispatch-polls'ün karşılığı) ──
+  // Yüklenmiş Amazon ürünlerinin fiyat/stok takibinin kalbi — bu olmadan bir ürün
+  // Amazon'a yüklendikten sonra asla güncellenmez (eski fiyat/stokla sonsuza kalır).
+  await clearRepeatableJobs(dispatchAmazonPollsQueue, "dispatch-amazon-polls");
+  await dispatchAmazonPollsQueue.add(
+    "dispatch-amazon-polls",
+    {},
+    { repeat: { every: 5 * 60 * 1000 } } // 5 dakika (ms)
+  );
+  console.log("[scheduler] dispatch-amazon-polls kuruldu: her 5 dakika");
 
   // ── amazon-auto-upload: SAATTE BİR tetiklenir (oto-yükleme açık tüm kullanıcılar) ──
   // Worker her tetiklenmede kullanıcının KENDİ amazonUploadSchedule/Hour tercihine

@@ -12,6 +12,8 @@ import { createUpdateListingWorker } from "./jobs/update-listing";
 // amazon-radar-scan + amazon-depot-watchdog KALDIRILDI — keşif Radar projesine taşındı.
 import { createAmazonAutoUploadWorker } from "./jobs/amazon-auto-upload";
 import { createAmazonPollProductWorker } from "./jobs/amazon-poll-product";
+import { createAmazonUpdateListingWorker } from "./jobs/amazon-update-listing";
+import { createDispatchAmazonPollsWorker } from "./jobs/amazon-dispatch-polls";
 import { createAmazonPollOrdersWorker } from "./jobs/amazon-poll-orders";
 import { createAmazonVerifyOrderWorker } from "./jobs/amazon-verify-order";
 import { createAmazonFulfillOrderWorker } from "./jobs/amazon-fulfill-order";
@@ -40,6 +42,8 @@ const workers: Worker[] = [
   createUpdateListingWorker(connection),
   createAmazonAutoUploadWorker(connection),
   createAmazonPollProductWorker(connection),
+  createAmazonUpdateListingWorker(connection),
+  createDispatchAmazonPollsWorker(connection),
   createAmazonPollOrdersWorker(connection),
   createAmazonVerifyOrderWorker(connection),
   createAmazonFulfillOrderWorker(connection),
@@ -65,6 +69,8 @@ console.log("  → poll-orders            (concurrency: 2)");
 console.log("  → update-listing         (concurrency: 4)");
 console.log("  → amazon-auto-upload     (concurrency: 2)");
 console.log("  → amazon-poll-product    (concurrency: 4)");
+console.log("  → amazon-update-listing  (concurrency: 4)");
+console.log("  → dispatch-amazon-polls  (concurrency: 1)");
 console.log("  → amazon-poll-orders     (concurrency: 2)");
 console.log("  → amazon-verify-order    (concurrency: 4)");
 console.log("  → amazon-fulfill-order   (concurrency: 2)");
