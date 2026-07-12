@@ -8,6 +8,8 @@ const marginPct = z.number().min(0).max(90).nullable();
 
 const settingsSchema = z.object({
   amazonAutoUploadEnabled: z.boolean(),
+  amazonUploadSchedule:    z.enum(["every_2h", "every_4h", "every_6h", "every_12h", "daily", "weekly", "manual"]),
+  amazonUploadScheduleHour: z.number().int().min(0).max(23),
   amazonUploadDailyLimit:  z.number().int().min(1).max(500),
   amazonUploadMinCostUsd:  z.number().min(0),
   amazonUploadMaxCostUsd:  z.number().min(0),
@@ -22,6 +24,8 @@ const settingsSchema = z.object({
 
 const SELECT = {
   amazonAutoUploadEnabled: true,
+  amazonUploadSchedule:    true,
+  amazonUploadScheduleHour: true,
   amazonUploadDailyLimit:  true,
   amazonUploadMinCostUsd:  true,
   amazonUploadMaxCostUsd:  true,

@@ -26,7 +26,7 @@ const INTEGRATIONS: Integration[] = [
       "ROLLER (kritik): Product Listing + Inventory + Orders + 'Direct-to-Consumer Shipping (Restricted)' — sonuncusu sipariş PII'si ve kargo bildirimi için ŞART.",
       "LWA credentials → Client ID & Client Secret kopyala.",
       "App ID'yi kopyala; Redirect URI olarak /api/amazon/callback ekle.",
-      "Kendi mağazan için 'Authorize app' (self-authorize) ya da kullanıcılar /amazon/settings → 'Mağaza bağla' ile OAuth yapar. Pazar otomatik tespit edilir.",
+      "Kendi mağazan için 'Authorize app' (self-authorize) ya da kullanıcılar /amazon/stores → 'Mağaza bağla' ile OAuth yapar. Pazar otomatik tespit edilir.",
     ],
     vars: [
       { name: "AMAZON_LWA_CLIENT_ID", required: true },

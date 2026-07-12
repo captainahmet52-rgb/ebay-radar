@@ -32,6 +32,7 @@ model User {
   amazonAccounts       AmazonAccount[]
   amazonListings       AmazonListing[]
   amazonOrders         AmazonOrder[]
+  amazonAutoUploadLogs AmazonAutoUploadLog[]
   creditTransactions   CreditTransaction[]
 
   // Ön ödemeli kredi cüzdanı (takip kodu çevirme vb. mikro-ücretler buradan düşer)
@@ -39,6 +40,11 @@ model User {
 
   // AmazonBot oto-yükleme + müşteri kuralları (eBay auto-upload'ın Amazon karşılığı)
   amazonAutoUploadEnabled  Boolean @default(false)
+  // Eskiden sabit 03:00 UTC cron TÜM kullanıcılar için çalışırdı — artık eBay
+  // tarafındaki gerçek zamanlama mantığıyla (lib/auto-upload-schedule.ts) aynı
+  // desen: worker saatte bir "nabız" alır, kullanıcı burada seçtiği sıklıkta çalışır.
+  amazonUploadSchedule     String  @default("daily")
+  amazonUploadScheduleHour Int     @default(3)
   amazonUploadDailyLimit   Int     @default(10)
   amazonUploadMinCostUsd   Float   @default(8)   // AliExpress kaynak maliyeti alt sınırı
   amazonUploadMaxCostUsd   Float   @default(100) // üst sınır
@@ -400,6 +406,21 @@ model DepotProduct {
 // ═══════════════════════════════════════════════════════════════════════════════
 // AmazonBot (AliExpress → Amazon dropshipping) — eBay tarafından BAĞIMSIZ kendi dünyası
 // ═══════════════════════════════════════════════════════════════════════════════
+
+// AutoUploadLog'un (eBay) Amazon karşılığı — /amazon/auto-upload sayfasındaki
+// "Yükleme Geçmişi" tablosu bunu okur.
+model AmazonAutoUploadLog {
+  id               String   @id @default(cuid())
+  userId           String
+  status           String   // success | partial | failed
+  productsUploaded Int      @default(0)
+  productsSkipped  Int      @default(0)
+  productsChecked  Int      @default(0)
+  errorMessage     String?
+  ranAt            DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
 
 // ─── Bağlı Amazon satıcı hesapları ────────────────────────────────────────────
 model AmazonAccount {

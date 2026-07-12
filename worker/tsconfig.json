@@ -21,6 +21,7 @@
     "../src/lib/crypto.ts",
     "../src/lib/scraper.ts",
     "../src/lib/repricer.ts",
+    "../src/lib/auto-upload-schedule.ts",
     "../src/types/index.ts"
   ]
 }

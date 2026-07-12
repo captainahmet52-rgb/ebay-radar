@@ -72,14 +72,16 @@ export async function setupScheduler(): Promise<void> {
   // NOT: amazon-radar-scan zamanlaması KALDIRILDI — AmazonBot radarı artık Radar
   // projesinde (urun-radari) kendi takviminde çalışıp /api/amazon-depot/intake'e yollar.
 
-  // ── amazon-auto-upload: her gün 03:00 UTC (oto-yükleme açık tüm kullanıcılar) ──
+  // ── amazon-auto-upload: SAATTE BİR tetiklenir (oto-yükleme açık tüm kullanıcılar) ──
+  // Worker her tetiklenmede kullanıcının KENDİ amazonUploadSchedule/Hour tercihine
+  // göre "şu an sırası mı?" diye eler (bkz. ebay-auto-upload'daki aynı desen).
   await clearRepeatableJobs(amazonAutoUploadQueue, "amazon-auto-upload");
   await amazonAutoUploadQueue.add(
     "amazon-auto-upload",
-    {}, // userId undefined → tüm açık kullanıcılar
-    { repeat: { pattern: "0 3 * * *" } }
+    {}, // userId undefined → tüm açık kullanıcılar (her biri kendi zamanlamasına göre elenir)
+    { repeat: { pattern: "0 * * * *" } }
   );
-  console.log("[scheduler] amazon-auto-upload kuruldu: her gün 03:00 UTC");
+  console.log("[scheduler] amazon-auto-upload kuruldu: saatte bir nabız (kullanıcı zamanlamasına göre elenir)");
 
   // ── amazon-poll-orders: her 30 dakika (SP-API getOrders → Siparişlerim) ──────
   await clearRepeatableJobs(amazonPollOrdersQueue, "amazon-poll-orders");
@@ -129,14 +131,18 @@ export async function setupScheduler(): Promise<void> {
   );
   console.log("[scheduler] scraper-usage-check kuruldu: her 3 saat");
 
-  // ── ebay-auto-upload: her gün 04:00 UTC (oto-yükleme açık tüm kullanıcılar) ──
+  // ── ebay-auto-upload: SAATTE BİR tetiklenir (oto-yükleme açık tüm kullanıcılar) ──
+  // Worker her tetiklenmede kullanıcının KENDİ uploadSchedule/uploadScheduleHour
+  // tercihine göre "şu an sırası mı?" diye eler (lib/auto-upload-schedule.ts) —
+  // saatlik tetikleme sadece bu kontrolü mümkün kılan bir "nabız", her kullanıcı
+  // gerçekten sadece kendi seçtiği sıklıkta çalışır.
   await clearRepeatableJobs(ebayAutoUploadQueue, "ebay-auto-upload");
   await ebayAutoUploadQueue.add(
     "ebay-auto-upload",
-    {}, // userId yok → tüm açık kullanıcılar
-    { repeat: { pattern: "0 4 * * *" } }
+    {}, // userId yok → tüm açık kullanıcılar (her biri kendi zamanlamasına göre elenir)
+    { repeat: { pattern: "0 * * * *" } }
   );
-  console.log("[scheduler] ebay-auto-upload kuruldu: her gün 04:00 UTC");
+  console.log("[scheduler] ebay-auto-upload kuruldu: saatte bir nabız (kullanıcı zamanlamasına göre elenir)");
 }
 
 /**

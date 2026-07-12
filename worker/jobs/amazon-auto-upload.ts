@@ -14,17 +14,26 @@ import {
 import { createOrUpdateAmazonListing } from "@/lib/amazon-listings";
 import { isSpapiConfigured } from "@/lib/amazon-spapi";
 import type { AmazonAutoUploadJobData } from "@/lib/queues";
+import { shouldRunScheduledUpload, type AutoUploadSchedule } from "@/lib/auto-upload-schedule";
 
-async function uploadForUser(userId: string, log: (m: string) => void): Promise<void> {
+interface UploadCounts {
+  uploaded: number;
+  skipped: number;
+  checked: number;
+}
+
+async function uploadForUser(userId: string, log: (m: string) => void): Promise<UploadCounts | null> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: { amazonAccounts: true },
   });
-  if (!user || !user.amazonAutoUploadEnabled) return;
+  if (!user || !user.amazonAutoUploadEnabled) return null;
   if (user.amazonAccounts.length === 0) {
     log(`Kullanıcı ${userId}: Amazon hesabı yok — atlanıyor`);
-    return;
+    return { uploaded: 0, skipped: 0, checked: 0 };
   }
+
+  const totals: UploadCounts = { uploaded: 0, skipped: 0, checked: 0 };
 
   for (const account of user.amazonAccounts) {
     const market = account.market;
@@ -46,6 +55,7 @@ async function uploadForUser(userId: string, log: (m: string) => void): Promise<
     });
 
     log(`Hesap ${account.id} (${market}): ${products.length} aday yüklenecek`);
+    totals.checked += products.length;
 
     for (const product of products) {
       const referralRate = getReferralRate(product.category);
@@ -76,10 +86,12 @@ async function uploadForUser(userId: string, log: (m: string) => void): Promise<
         });
       } catch (err) {
         if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+          totals.skipped++;
           continue; // zaten listelenmiş — atla
         }
         throw err;
       }
+      totals.uploaded++;
 
       // Otomatik yayın açıksa ve SP-API hazırsa Amazon'a gönder
       if (user.amazonUploadAutoPublish && isSpapiConfigured()) {
@@ -102,24 +114,81 @@ async function uploadForUser(userId: string, log: (m: string) => void): Promise<
       }
     }
   }
+
+  return totals;
+}
+
+/** Çalıştırma sonucunu AmazonAutoUploadLog'a yazar — /amazon/auto-upload'daki geçmiş tablosu bunu okur. */
+async function logRun(userId: string, counts: UploadCounts | null, errorMessage?: string): Promise<void> {
+  await prisma.amazonAutoUploadLog
+    .create({
+      data: errorMessage
+        ? { userId, status: "failed", errorMessage }
+        : {
+            userId,
+            status: (counts?.uploaded ?? 0) > 0 ? "success" : "partial",
+            productsUploaded: counts?.uploaded ?? 0,
+            productsSkipped: counts?.skipped ?? 0,
+            productsChecked: counts?.checked ?? 0,
+          },
+    })
+    .catch(() => {});
+}
+
+async function runForUserWithLog(userId: string, log: (m: string) => void): Promise<void> {
+  try {
+    const counts = await uploadForUser(userId, log);
+    if (counts) await logRun(userId, counts);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[amazon-auto-upload] kullanıcı ${userId} hata: ${msg}`);
+    await logRun(userId, null, msg);
+  }
+}
+
+/**
+ * Kullanıcının KENDİ amazonUploadSchedule/amazonUploadScheduleHour tercihine
+ * göre şu an sırası mı? (bkz. lib/auto-upload-schedule.ts — eBay ile aynı
+ * desen, eskiden sabit 03:00 UTC TÜM kullanıcılar için çalışırdı.)
+ */
+async function dueForScheduledRun(
+  userId: string,
+  schedule: string,
+  scheduleHour: number
+): Promise<boolean> {
+  const lastLog = await prisma.amazonAutoUploadLog.findFirst({
+    where: { userId },
+    orderBy: { ranAt: "desc" },
+    select: { ranAt: true },
+  });
+  return shouldRunScheduledUpload(
+    schedule as AutoUploadSchedule,
+    scheduleHour,
+    lastLog?.ranAt ?? null,
+    new Date()
+  );
 }
 
 async function processAmazonAutoUpload(job: Job<AmazonAutoUploadJobData>): Promise<void> {
   const log = (m: string) => { void job.log(m).catch(() => {}); };
 
   if (job.data.userId) {
-    await uploadForUser(job.data.userId, log);
+    await runForUserWithLog(job.data.userId, log);
     return;
   }
 
-  // Toplu: oto-yükleme açık tüm kullanıcılar
-  const users = await prisma.user.findMany({
+  // Toplu: oto-yükleme açık kullanıcılardan sadece zamanlaması gelenler.
+  const candidates = await prisma.user.findMany({
     where: { amazonAutoUploadEnabled: true },
-    select: { id: true },
+    select: { id: true, amazonUploadSchedule: true, amazonUploadScheduleHour: true },
   });
-  log(`Toplu oto-yükleme: ${users.length} kullanıcı`);
-  for (const u of users) {
-    await uploadForUser(u.id, log);
+  const due: string[] = [];
+  for (const u of candidates) {
+    if (await dueForScheduledRun(u.id, u.amazonUploadSchedule, u.amazonUploadScheduleHour)) due.push(u.id);
+  }
+  log(`${candidates.length} kullanıcıdan ${due.length}'i zamanlamasına göre çalışacak`);
+  for (const id of due) {
+    await runForUserWithLog(id, log);
   }
   // Depo doldurma artık Radar projesinin zamanlanmış taramasında (yerel tetikleme yok).
 }

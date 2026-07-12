@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LayoutDashboard, Store, Package, ShoppingCart, Settings,
+  LayoutDashboard, Store, Package, ShoppingCart, Upload,
   ChevronLeft, LogOut, Home, ShieldCheck,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
@@ -20,7 +20,7 @@ const navItems = [
   { href: "/amazon/stores",   label: "Mağazalarım", icon: Store },
   { href: "/amazon/products", label: "Ürünler",     icon: Package },
   { href: "/amazon/orders",   label: "Siparişler",  icon: ShoppingCart },
-  { href: "/amazon/settings", label: "Ayarlar",     icon: Settings },
+  { href: "/amazon/auto-upload", label: "Oto Yükleme", icon: Upload },
 ];
 
 export function AmazonSidebar() {

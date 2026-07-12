@@ -8,6 +8,7 @@ import type { ConnectionOptions } from "bullmq";
 import { prisma } from "@/lib/prisma";
 import { pollProductQueue, type EbayAutoUploadJobData } from "@/lib/queues";
 import { storeAccessState, STORE_TRIAL_PRODUCT_LIMIT } from "@/lib/store-access";
+import { shouldRunScheduledUpload, type AutoUploadSchedule } from "@/lib/auto-upload-schedule";
 
 function startOfToday(): Date {
   const d = new Date();
@@ -153,26 +154,59 @@ async function processForUser(userId: string): Promise<void> {
   });
 }
 
+/**
+ * "Şimdi Çalıştır" (userId verilir) HER ZAMAN çalışır — zamanlama kontrolü
+ * SADECE toplu (tüm kullanıcılar) modda uygulanır. Kullanıcının kendi
+ * uploadSchedule/uploadScheduleHour tercihi + AutoUploadLog'daki en son
+ * çalıştırma zamanı karşılaştırılır (bkz. lib/auto-upload-schedule.ts —
+ * bu ayar daha önce sadece kaydediliyordu, hiç okunmuyordu).
+ */
+async function dueForScheduledRun(
+  userId: string,
+  schedule: string,
+  scheduleHour: number
+): Promise<boolean> {
+  const lastLog = await prisma.autoUploadLog.findFirst({
+    where: { userId },
+    orderBy: { ranAt: "desc" },
+    select: { ranAt: true },
+  });
+  return shouldRunScheduledUpload(
+    schedule as AutoUploadSchedule,
+    scheduleHour,
+    lastLog?.ranAt ?? null,
+    new Date()
+  );
+}
+
 async function processEbayAutoUpload(job: Job<EbayAutoUploadJobData>): Promise<void> {
   const { userId } = job.data;
 
-  const users = userId
-    ? [{ id: userId }]
-    : await prisma.user.findMany({
-        where: { autoUploadEnabled: true },
-        select: { id: true },
-      });
+  if (userId) {
+    await processForUser(userId);
+    return;
+  }
 
-  await job.log(`${users.length} kullanıcı için oto-yükleme çalışıyor`);
+  const candidates = await prisma.user.findMany({
+    where: { autoUploadEnabled: true },
+    select: { id: true, uploadSchedule: true, uploadScheduleHour: true },
+  });
 
-  for (const u of users) {
+  const due: string[] = [];
+  for (const u of candidates) {
+    if (await dueForScheduledRun(u.id, u.uploadSchedule, u.uploadScheduleHour)) due.push(u.id);
+  }
+
+  await job.log(`${candidates.length} kullanıcıdan ${due.length}'i zamanlamasına göre çalışacak`);
+
+  for (const id of due) {
     try {
-      await processForUser(u.id);
+      await processForUser(id);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[ebay-auto-upload] kullanıcı ${u.id} hata: ${msg}`);
+      console.error(`[ebay-auto-upload] kullanıcı ${id} hata: ${msg}`);
       await prisma.autoUploadLog
-        .create({ data: { userId: u.id, status: "failed", errorMessage: msg } })
+        .create({ data: { userId: id, status: "failed", errorMessage: msg } })
         .catch(() => {});
     }
   }

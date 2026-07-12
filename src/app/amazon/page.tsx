@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Store, Package, ShoppingCart, AlertTriangle, ArrowRight, Loader2, Plus, Settings as SettingsIcon } from "lucide-react";
+import { Store, Package, ShoppingCart, AlertTriangle, ArrowRight, Loader2, Plus, Upload } from "lucide-react";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { AMZ_ACCENT } from "@/components/amazon/shared";
 
@@ -61,10 +61,10 @@ export default function AmazonPanelPage() {
             style={{ background: AMZ_ACCENT }}>
             <Plus className="h-4 w-4" /> Mağaza Bağla
           </Link>
-          <Link href="/amazon/settings"
+          <Link href="/amazon/auto-upload"
             className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-xl text-slate-300 hover:text-white transition-colors"
             style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
-            <SettingsIcon className="h-4 w-4" /> Ayarlar
+            <Upload className="h-4 w-4" /> Oto Yükleme
           </Link>
         </motion.div>
       </div>
