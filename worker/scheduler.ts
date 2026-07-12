@@ -19,6 +19,7 @@ import {
   amazonPollOrdersQueue,
   amazonTrackingSyncQueue,
   freezeStoresQueue,
+  freezeAmazonAccountsQueue,
   ebayAutoUploadQueue,
   retierProductsQueue,
   scraperUsageCheckQueue,
@@ -112,6 +113,15 @@ export async function setupScheduler(): Promise<void> {
     { repeat: { every: 60 * 60 * 1000 } } // 1 saat (ms)
   );
   console.log("[scheduler] freeze-stores kuruldu: her saat");
+
+  // ── freeze-amazon-accounts: her saat (deneme/paket süresi biten Amazon hesapları) ──
+  await clearRepeatableJobs(freezeAmazonAccountsQueue, "freeze-amazon-accounts");
+  await freezeAmazonAccountsQueue.add(
+    "freeze-amazon-accounts",
+    {},
+    { repeat: { every: 60 * 60 * 1000 } } // 1 saat (ms)
+  );
+  console.log("[scheduler] freeze-amazon-accounts kuruldu: her saat");
 
   // ── retier-products: her gün 01:30 UTC (satış-hızına göre tarama grubu) ──────
   await clearRepeatableJobs(retierProductsQueue, "retier-products");

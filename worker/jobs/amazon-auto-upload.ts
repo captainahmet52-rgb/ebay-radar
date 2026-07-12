@@ -25,11 +25,14 @@ interface UploadCounts {
 async function uploadForUser(userId: string, log: (m: string) => void): Promise<UploadCounts | null> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { amazonAccounts: true },
+    // PAKET = HESAP (eBay'deki EbayAccount ile aynı desen): sadece isActive
+    // hesaplara yüklenir — deneme/paket süresi dolmuş (freeze-amazon-accounts
+    // worker'ının false yaptığı) hesaplar burada hiç işlenmez.
+    include: { amazonAccounts: { where: { isActive: true } } },
   });
   if (!user || !user.amazonAutoUploadEnabled) return null;
   if (user.amazonAccounts.length === 0) {
-    log(`Kullanıcı ${userId}: Amazon hesabı yok — atlanıyor`);
+    log(`Kullanıcı ${userId}: aktif Amazon hesabı yok (deneme/paket bitmiş olabilir) — atlanıyor`);
     return { uploaded: 0, skipped: 0, checked: 0 };
   }
 
@@ -42,6 +45,18 @@ async function uploadForUser(userId: string, log: (m: string) => void): Promise<
 
     const margin = resolveMargin(marketCfg, userMarginForMarket(market, user));
 
+    // Hesabın PAKET limiti (productLimit) ile kullanıcının kendi günlük yükleme
+    // tercihinin (amazonUploadDailyLimit) küçüğü uygulanır — paket limiti asla aşılmaz.
+    const totalListings = await prisma.amazonListing.count({ where: { amazonAccountId: account.id } });
+    const remaining = Math.min(
+      Math.max(0, account.productLimit - totalListings),
+      user.amazonUploadDailyLimit
+    );
+    if (remaining <= 0) {
+      log(`Hesap ${account.id} (${market}): paket limiti dolu (${totalListings}/${account.productLimit}) — atlanıyor`);
+      continue;
+    }
+
     // Bu hesapta henüz listelenmemiş, kurallara uyan depo kazananları
     const products = await prisma.amazonDepotProduct.findMany({
       where: {
@@ -51,7 +66,7 @@ async function uploadForUser(userId: string, log: (m: string) => void): Promise<
         listings: { none: { amazonAccountId: account.id } },
       },
       orderBy: { radarScore: "desc" },
-      take: user.amazonUploadDailyLimit,
+      take: remaining,
     });
 
     log(`Hesap ${account.id} (${market}): ${products.length} aday yüklenecek`);

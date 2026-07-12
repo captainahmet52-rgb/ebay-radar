@@ -17,7 +17,12 @@ import { enqueueVerificationForAccount } from "@/lib/ebay/listing-import";
 interface LsWebhook {
   meta?: {
     event_name?: string;
-    custom_data?: { ebay_account_id?: string; user_id?: string; plan?: string };
+    custom_data?: {
+      ebay_account_id?: string;
+      amazon_account_id?: string;
+      user_id?: string;
+      plan?: string;
+    };
   };
   data?: { id?: string; attributes?: Record<string, unknown> };
 }
@@ -82,6 +87,50 @@ async function setPaidUntil(ebayAccountId: string, userId: string, paidUntil: Da
   });
 }
 
+/** activateStore'un Amazon karşılığı (PAKET = HESAP, aynı desen). */
+async function activateAmazonAccount(args: {
+  amazonAccountId: string;
+  userId: string;
+  plan: string;
+  subscriptionId: string | undefined;
+  paidUntil: Date;
+}): Promise<void> {
+  const planDef = getPlan(args.plan);
+  if (!planDef) {
+    console.warn(`[ls-webhook] bilinmeyen paket: ${args.plan}`);
+    return;
+  }
+  const account = await prisma.amazonAccount.findFirst({
+    where: { id: args.amazonAccountId, userId: args.userId },
+    select: { id: true, activatedAt: true },
+  });
+  if (!account) {
+    console.warn(`[ls-webhook] Amazon hesabı bulunamadı: ${args.amazonAccountId}`);
+    return;
+  }
+
+  await prisma.amazonAccount.update({
+    where: { id: account.id },
+    data: {
+      isActive: true,
+      activatedAt: account.activatedAt ?? new Date(),
+      paidUntil: args.paidUntil,
+      plan: args.plan,
+      productLimit: planDef.productLimit,
+    },
+  });
+  // Not: User.stripeSubscriptionId/plan burada GÜNCELLENMEZ — eBay'in genel abonelik
+  // göstergesi Amazon paketiyle karışmasın diye (paket = hesap, kullanıcı-geneli değil).
+}
+
+/** Amazon hesabının paidUntil'ini günceller (iptal → dönem sonu). */
+async function setAmazonPaidUntil(amazonAccountId: string, userId: string, paidUntil: Date): Promise<void> {
+  await prisma.amazonAccount.updateMany({
+    where: { id: amazonAccountId, userId },
+    data: { paidUntil },
+  });
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   // İmza doğrulaması HAM gövde üzerinden yapılmalı — önce text oku.
   const rawBody = await req.text();
@@ -102,61 +151,86 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const subscriptionId = payload.data?.id;
 
   const ebayAccountId = custom?.ebay_account_id;
+  const amazonAccountId = custom?.amazon_account_id;
   const userId = custom?.user_id;
   const plan = custom?.plan;
   // Bizim checkout'umuzdan gelmeyen (custom'sız) olayları sessizce geç — 200 dön ki
-  // LS tekrar tekrar denemesin.
-  if (!ebayAccountId || !userId || !plan) {
+  // LS tekrar tekrar denemesin. Tam olarak biri dolu olmalı (ikisi birden değil).
+  if ((!ebayAccountId && !amazonAccountId) || !userId || !plan) {
     return NextResponse.json({ ok: true, ignored: "custom_data yok" });
   }
 
+  const paidUntilFromAttrs = () => parseDate(attrs.renews_at, addDays(new Date(), STORE_SUBSCRIPTION_DAYS));
+
   try {
-    switch (event) {
-      case "subscription_created":
-      case "subscription_payment_success":
-      case "subscription_resumed":
-      case "subscription_unpaused":
-        await activateStore({
-          ebayAccountId,
-          userId,
-          plan,
-          subscriptionId,
-          paidUntil: parseDate(attrs.renews_at, addDays(new Date(), STORE_SUBSCRIPTION_DAYS)),
-        });
-        break;
+    if (ebayAccountId) {
+      switch (event) {
+        case "subscription_created":
+        case "subscription_payment_success":
+        case "subscription_resumed":
+        case "subscription_unpaused":
+          await activateStore({ ebayAccountId, userId, plan, subscriptionId, paidUntil: paidUntilFromAttrs() });
+          break;
 
-      case "subscription_updated": {
-        const status = String(attrs.status ?? "");
-        if (status === "active" || status === "on_trial") {
-          await activateStore({
-            ebayAccountId,
-            userId,
-            plan,
-            subscriptionId,
-            paidUntil: parseDate(attrs.renews_at, addDays(new Date(), STORE_SUBSCRIPTION_DAYS)),
-          });
-        } else if (status === "cancelled") {
-          // İptal edildi ama dönem sonuna kadar açık kalır.
-          await setPaidUntil(ebayAccountId, userId, parseDate(attrs.ends_at, new Date()));
-        } else if (status === "expired" || status === "unpaid") {
-          await setPaidUntil(ebayAccountId, userId, new Date(Date.now() - 1000));
+        case "subscription_updated": {
+          const status = String(attrs.status ?? "");
+          if (status === "active" || status === "on_trial") {
+            await activateStore({ ebayAccountId, userId, plan, subscriptionId, paidUntil: paidUntilFromAttrs() });
+          } else if (status === "cancelled") {
+            // İptal edildi ama dönem sonuna kadar açık kalır.
+            await setPaidUntil(ebayAccountId, userId, parseDate(attrs.ends_at, new Date()));
+          } else if (status === "expired" || status === "unpaid") {
+            await setPaidUntil(ebayAccountId, userId, new Date(Date.now() - 1000));
+          }
+          break;
         }
-        break;
+
+        case "subscription_cancelled":
+          // Dönem sonuna kadar açık; ends_at gelince freeze-stores dondurur.
+          await setPaidUntil(ebayAccountId, userId, parseDate(attrs.ends_at, new Date()));
+          break;
+
+        case "subscription_expired":
+          // Süre doldu → paidUntil'i geçmişe çek; freeze-stores eBay ilanlarını güvene alır.
+          await setPaidUntil(ebayAccountId, userId, new Date(Date.now() - 1000));
+          break;
+
+        default:
+          // order_created / diğer olaylar → abonelik olayları yönettiği için yok sayılır.
+          break;
       }
+    } else if (amazonAccountId) {
+      switch (event) {
+        case "subscription_created":
+        case "subscription_payment_success":
+        case "subscription_resumed":
+        case "subscription_unpaused":
+          await activateAmazonAccount({ amazonAccountId, userId, plan, subscriptionId, paidUntil: paidUntilFromAttrs() });
+          break;
 
-      case "subscription_cancelled":
-        // Dönem sonuna kadar açık; ends_at gelince freeze-stores dondurur.
-        await setPaidUntil(ebayAccountId, userId, parseDate(attrs.ends_at, new Date()));
-        break;
+        case "subscription_updated": {
+          const status = String(attrs.status ?? "");
+          if (status === "active" || status === "on_trial") {
+            await activateAmazonAccount({ amazonAccountId, userId, plan, subscriptionId, paidUntil: paidUntilFromAttrs() });
+          } else if (status === "cancelled") {
+            await setAmazonPaidUntil(amazonAccountId, userId, parseDate(attrs.ends_at, new Date()));
+          } else if (status === "expired" || status === "unpaid") {
+            await setAmazonPaidUntil(amazonAccountId, userId, new Date(Date.now() - 1000));
+          }
+          break;
+        }
 
-      case "subscription_expired":
-        // Süre doldu → paidUntil'i geçmişe çek; freeze-stores eBay ilanlarını güvene alır.
-        await setPaidUntil(ebayAccountId, userId, new Date(Date.now() - 1000));
-        break;
+        case "subscription_cancelled":
+          await setAmazonPaidUntil(amazonAccountId, userId, parseDate(attrs.ends_at, new Date()));
+          break;
 
-      default:
-        // order_created / diğer olaylar → abonelik olayları yönettiği için yok sayılır.
-        break;
+        case "subscription_expired":
+          await setAmazonPaidUntil(amazonAccountId, userId, new Date(Date.now() - 1000));
+          break;
+
+        default:
+          break;
+      }
     }
   } catch (err) {
     console.error(`[ls-webhook] '${event}' işlenemedi:`, err);

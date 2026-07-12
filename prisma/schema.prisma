@@ -87,8 +87,11 @@ model User {
   // Çapraz kaynak sabit tamponu (KAYNAK pazar para biriminde — uluslararası kargo)
   crossExtraFixed       Float    @default(0)
 
-  // Trial
+  // Trial (eBay) — bir kez set edilir, asla sıfırlanmaz (ömür boyu 1 deneme).
   trialEndsAt DateTime?
+  // Trial (Amazon) — eBay'den BAĞIMSIZ ayrı bir "ömür boyu 1 deneme" bayrağı
+  // (iki farklı ürün/hizmet, her biri kendi ücretsiz denemesini hak eder).
+  amazonTrialEndsAt DateTime?
 
   // ─── Referans (davet) sistemi ──────────────────────────────────────────────
   referralCode       String?  @unique          // bu kullanıcının paylaştığı davet kodu
@@ -434,10 +437,37 @@ model AmazonAccount {
   spapiRefreshTokenEncrypted String?   @db.Text
   spapiAccessTokenEncrypted  String?   @db.Text
   tokenExpiresAt             DateTime?
+  // PAKET = HESAP (eBay'deki EbayAccount ile AYNI desen, bkz. src/lib/plans.ts +
+  // src/lib/store-access.ts). Bağlanınca 7 günlük deneme ile AKTİF gelir.
+  // Süre (deneme veya paket) bitince freeze-amazon-accounts worker'ı false yapar.
+  // Sadece isActive hesaplara ürün yüklenir / otomasyon çalışır.
+  isActive                   Boolean   @default(false)
+  activatedAt                DateTime?
+  // Hesap başına 7 günlük ücretsiz deneme bitiş tarihi (bağlanınca set edilir).
+  trialEndsAt                DateTime?
+  // Ücretli erişim bitiş tarihi (paket alınca +30 gün; admin comp'ta uzak gelecek).
+  paidUntil                  DateTime?
+  // PAKET = HESAP: bu hesabın paketi ve o pakete ait ürün limiti burada tutulur
+  // (kullanıcı-başına değil, hesap-başına). Aktivasyonda (LS checkout / admin comp) set edilir.
+  plan                       String    @default("starter")
+  productLimit               Int       @default(300)
   createdAt                  DateTime  @default(now())
 
   user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   listings AmazonListing[]
+
+  @@index([userId])
+}
+
+// ─── Amazon deneme geçmişi (bedava deneme suistimal koruması, EbayTrialHistory'nin eşi) ──
+// Her Amazon satıcı hesabı (immutable sellerId) GLOBAL olarak yalnızca BİR kez bedava
+// deneme alabilir. Kullanıcı başına "ömür boyu 1 deneme" kuralı User.amazonTrialEndsAt
+// ile zorlanır — eBay'den BAĞIMSIZ ayrı bir deneme hakkı (iki farklı ürün/hizmet).
+model AmazonTrialHistory {
+  id       String   @id @default(cuid())
+  sellerId String   @unique // global tekil — bu hesap zaten deneme kullandı mı?
+  userId   String?  // denemeyi ilk kullanan hesap (bilgi/iz amaçlı, FK değil)
+  usedAt   DateTime @default(now())
 
   @@index([userId])
 }

@@ -21,6 +21,7 @@ import { createRefreshTokensWorker } from "./jobs/refresh-tokens";
 import { createDispatchPollsWorker } from "./jobs/dispatch-polls";
 import { createDispatchPollOrdersWorker } from "./jobs/dispatch-poll-orders";
 import { createFreezeStoresWorker } from "./jobs/freeze-stores";
+import { createFreezeAmazonAccountsWorker } from "./jobs/freeze-amazon-accounts";
 import { createPublishListingWorker } from "./jobs/publish-listing";
 import { createEbayAutoUploadWorker } from "./jobs/ebay-auto-upload";
 import { createRetierProductsWorker } from "./jobs/retier-products";
@@ -48,6 +49,7 @@ const workers: Worker[] = [
   createDispatchPollsWorker(connection),
   createDispatchPollOrdersWorker(connection),
   createFreezeStoresWorker(connection),
+  createFreezeAmazonAccountsWorker(connection),
   createPublishListingWorker(connection),
   createEbayAutoUploadWorker(connection),
   createRetierProductsWorker(connection),

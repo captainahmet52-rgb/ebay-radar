@@ -405,6 +405,23 @@ export const freezeStoresQueue = createQueue<FreezeStoresJobData, void, string>(
   }
 );
 
+// ── freeze-amazon-accounts: süresi biten (deneme/paket) Amazon hesaplarını dondurur ──
+export interface FreezeAmazonAccountsJobData {
+  _trigger?: string;
+}
+
+export const freezeAmazonAccountsQueue = createQueue<FreezeAmazonAccountsJobData, void, string>(
+  "freeze-amazon-accounts",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 1,
+      removeOnComplete: { count: 10 },
+      removeOnFail: { count: 20 },
+    },
+  }
+);
+
 // ── listing-import: satıcının MEVCUT eBay ilanlarını çek (Trading API keşif fazı) ──
 export interface ListingImportJobData {
   importId: string;

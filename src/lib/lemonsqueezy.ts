@@ -118,8 +118,12 @@ export async function getVariantIdForPlan(planId: PlanId): Promise<string> {
 }
 
 // ─── Checkout oluşturma ──────────────────────────────────────────────────────
+// PAKET = HESAP: hem eBay hem Amazon aynı fiyat kademelerini (dolayısıyla aynı LS
+// varyantlarını) kullanır — hangi hesabın aktifleşeceğine LS değil, BİZİM webhook'umuz
+// custom_data'ya bakarak karar verir. Bu yüzden iki tarafa da ayrı LS ürünü GEREKMEZ.
 export interface CheckoutCustom {
-  ebayAccountId: string;
+  ebayAccountId?: string;
+  amazonAccountId?: string;
   userId: string;
   plan: string;
 }
@@ -143,8 +147,11 @@ export async function createCheckoutUrl(params: {
         checkout_data: {
           email: params.email || undefined,
           // custom değerler LS'e string gider, webhook'ta meta.custom_data olarak döner.
+          // ebay_account_id / amazon_account_id — hangisi verildiyse o gider, webhook
+          // hangisinin dolu geldiğine bakıp doğru hesabı aktive eder.
           custom: {
-            ebay_account_id: params.custom.ebayAccountId,
+            ...(params.custom.ebayAccountId ? { ebay_account_id: params.custom.ebayAccountId } : {}),
+            ...(params.custom.amazonAccountId ? { amazon_account_id: params.custom.amazonAccountId } : {}),
             user_id: params.custom.userId,
             plan: params.custom.plan,
           },
