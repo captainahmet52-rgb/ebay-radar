@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Lean Automation — Amazon ASIN Grabber",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Amazon'da kârlı ürünleri filtrele ve ASIN'leri topla. Tek tık kopyala, Lean Automation paneline toplu yapıştır. Sadece ASIN toplama — başka hiçbir şey yapmaz.",
   "permissions": ["storage"],
   "host_permissions": [

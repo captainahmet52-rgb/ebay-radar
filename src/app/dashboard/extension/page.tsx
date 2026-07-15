@@ -35,6 +35,7 @@ const steps = [
 
 const features = [
   "Amazon aramasında ürünlere onay kutusu — kârlıları işaretle, ASIN topla",
+  "Tekli ürün sayfasında (dp) da ASIN'i tanır — panelden tek tıkla listeye ekle",
   "Sayfa üstünde yüzen panel (sürüklenebilir) — tek tek ya da \"Tümünü Seç\"",
   "Filtreler: Min/Max Fiyat, Min Yorum, Min Puan, Teslimat (gün), Sadece Prime",
   "Filtreyle \"Tümünü Seç\" — sadece kritere uyan ürünleri işaretler",
@@ -69,7 +70,7 @@ export default function ExtensionPage() {
       <div className="bg-gradient-to-br from-violet-600/15 to-blue-600/10 border border-violet-500/20 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
           <p className="text-white font-semibold">Lean Automation — Amazon ASIN Grabber</p>
-          <p className="text-sm text-slate-400 mt-1">Sürüm 0.3.0 · Chrome / Edge · ~11 KB</p>
+          <p className="text-sm text-slate-400 mt-1">Sürüm 0.4.0 · Chrome / Edge · ~14 KB</p>
         </div>
         <a
           href={EXTENSION_ZIP}

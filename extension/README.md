@@ -1,15 +1,21 @@
-# Lean Automation — Amazon ASIN Grabber (v0.3.0)
+# Lean Automation — Amazon ASIN Grabber (v0.4.0)
 
 Amazon'da kârlı ürünleri **filtrele** ve **ASIN'leri topla**. Tek tık kopyala → Lean Automation
 panelinde "Toplu ASIN" ile yapıştır. **Sadece ASIN toplar — başka hiçbir şey yapmaz.**
 eBay/Amazon otomasyonu, otomatik form doldurma, sahte tıklama vb. YOKTUR.
 
 ## Nasıl çalışır
+### Arama sayfasında (çoklu ürün)
 1. Amazon'da bir **arama** yap (örn. `amazon.com/s?k=...`).
 2. Sayfanın sağında **yüzen panel** açılır; ürün görsellerinin köşesinde **mor onay kutuları** çıkar.
 3. Tek tek işaretle **veya** panelden **"Tümünü Seç"** ile sayfadaki tümünü (filtre varsa filtreye uyanları) seç.
 4. **"Kopyala"** → ASIN listesi panoya kopyalanır.
 5. Lean Automation paneline → "Toplu ASIN" → yapıştır → toplu içeri al.
+
+### Tekli ürün sayfasında (`/dp/ASIN`)
+Ürün detay sayfasında "kart" yapısı olmadığı için köşe checkbox'ı çıkmaz — bunun yerine panelin
+üstünde **"Bu ürün: ASIN"** kutusu belirir, yanındaki **"Listeye Ekle"** butonuyla o tek ürünü
+listeye eklersin (tekrar tıklayınca "Listeden Çıkar" olur).
 
 ## Panel kontrolleri
 - **Tümünü Seç / Seçimi Kaldır / Kopyala / Listeyi Temizle**

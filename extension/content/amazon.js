@@ -23,6 +23,7 @@
     injectCheckboxes();
     buildPanel();
     renderList();
+    renderDetail();
   });
 
   function persist() {
@@ -74,8 +75,65 @@
   let debounce = null;
   new MutationObserver(() => {
     clearTimeout(debounce);
-    debounce = setTimeout(injectCheckboxes, 400);
+    debounce = setTimeout(() => {
+      injectCheckboxes();
+      renderDetail();
+    }, 400);
   }).observe(document.body, { childList: true, subtree: true });
+
+  // ── Tekli ürün (detay) sayfası ASIN algılama ────────────────────────────────
+  // Arama sonucu kartlarının aksine /dp/ASIN sayfasında "kart" elemanı yok; ASIN'i
+  // URL'den veya sayfadaki gizli inputtan/data-asin'den okuyup ayrı bir kutu gösteririz.
+  function detailPageAsin() {
+    const m = location.pathname.match(/\/(?:dp|gp\/product|gp\/aw\/d)\/([A-Z0-9]{10})(?:[/?]|$)/i);
+    if (m) return m[1].toUpperCase();
+    const input = document.querySelector('input#ASIN, input[name="ASIN"]');
+    if (input && ASIN_RE.test(input.value)) return input.value.toUpperCase();
+    const el = document.querySelector('[data-asin]:not([data-asin=""])');
+    if (el) {
+      const a = el.getAttribute("data-asin");
+      if (a && ASIN_RE.test(a)) return a.toUpperCase();
+    }
+    return null;
+  }
+
+  function renderDetail() {
+    const box = document.getElementById("la-detail");
+    if (!box) return;
+    const asin = detailPageAsin();
+    if (!asin) {
+      box.style.display = "none";
+      return;
+    }
+    box.style.display = "flex";
+    box.textContent = "";
+
+    const label = document.createElement("span");
+    label.className = "la-detail-asin";
+    label.textContent = `Bu ürün: ${asin}`;
+
+    const isSel = selected.has(asin);
+    const btn = document.createElement("button");
+    btn.className = `la-btn ${isSel ? "la-danger" : "la-primary"} la-detail-btn`;
+    btn.textContent = isSel ? "Listeden Çıkar" : "Listeye Ekle";
+    btn.addEventListener("click", () => {
+      if (selected.has(asin)) {
+        selected.delete(asin);
+      } else {
+        if (selected.size >= MAX_ASINS) {
+          alert(`En fazla ${MAX_ASINS} ASIN seçilebilir.`);
+          return;
+        }
+        selected.add(asin);
+      }
+      persist();
+      renderList();
+      renderDetail();
+    });
+
+    box.appendChild(label);
+    box.appendChild(btn);
+  }
 
   // ── Kart filtre yardımcıları ────────────────────────────────────────────────
   // Çok-yerelli sayı ayrıştırma: "2.249,00" (TR/AB) ve "2,249.00" (US/UK) ikisini de doğru okur.
@@ -269,6 +327,7 @@
         </div>
       </div>
       <div class="la-detected">✓ Amazon sayfası algılandı<br><small>Ürün köşesindeki kutularla ASIN seç</small></div>
+      <div id="la-detail" class="la-detail" style="display:none"></div>
 
       <div class="la-row"><span>Seçili ASIN'ler</span><span id="la-count" class="la-badge">0</span></div>
       <div id="la-list" class="la-list"><p class="la-empty">Ürün seç…</p></div>
@@ -411,6 +470,7 @@
     list.forEach((a) => selected.add(a));
     document.querySelectorAll(".la-asin-cb").forEach((cb) => (cb.checked = selected.has(cb.dataset.asin)));
     renderList();
+    renderDetail();
   });
 
   // ── Popup mesajları (geriye dönük uyumluluk) ────────────────────────────────

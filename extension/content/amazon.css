@@ -85,6 +85,19 @@
 }
 .la-detected small { color: #94a3b8; font-weight: 400; }
 
+.la-detail {
+  margin: 0 14px 12px;
+  padding: 10px 12px;
+  background: rgba(124, 58, 237, 0.1);
+  border: 1px solid rgba(124, 58, 237, 0.35);
+  border-radius: 9px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.la-detail-asin { font: 12px monospace; color: #e2e8f0; }
+.la-detail-btn { flex: none; padding: 6px 12px; }
+
 .la-row {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 14px; margin: 10px 0 6px; font-weight: 600;
