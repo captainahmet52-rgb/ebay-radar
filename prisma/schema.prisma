@@ -19,8 +19,7 @@ model User {
   plan                 String   @default("starter")
   role                 String   @default("user") // user | admin
   productLimit         Int      @default(300)    // pakete göre atanır
-  stripeCustomerId     String?
-  stripeSubscriptionId String?
+  lemonSqueezySubscriptionId String?
   createdAt            DateTime @default(now())
 
   ebayAccounts         EbayAccount[]

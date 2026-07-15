@@ -17,14 +17,14 @@ export default async function PricingPage({
   const user = session?.user?.id
     ? await prisma.user.findUnique({
         where: { id: session.user.id },
-        select: { plan: true, trialEndsAt: true, stripeSubscriptionId: true },
+        select: { plan: true, trialEndsAt: true, lemonSqueezySubscriptionId: true },
       })
     : null;
 
   const currentPlan = user?.plan ?? "starter";
   const onTrial = isOnTrial(user?.trialEndsAt ?? null);
   const daysLeft = trialDaysLeft(user?.trialEndsAt ?? null);
-  const hasPaid = !!user?.stripeSubscriptionId;
+  const hasPaid = !!user?.lemonSqueezySubscriptionId;
 
   return (
     <div className="max-w-6xl mx-auto py-4 space-y-10">

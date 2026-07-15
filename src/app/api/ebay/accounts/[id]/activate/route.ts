@@ -36,7 +36,7 @@ export const POST = requireAuth(async (req, { userId, params }) => {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { plan: true, stripeSubscriptionId: true },
+      select: { plan: true, lemonSqueezySubscriptionId: true },
     });
     if (!user) {
       return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 });
@@ -45,7 +45,7 @@ export const POST = requireAuth(async (req, { userId, params }) => {
     // PAKET = MAĞAZA: aktivasyon yalnızca ÖDEME ile yapılır (normal akışta Lemon
     // Squeezy webhook'u aktive eder). Deneme, ek mağaza aktivasyonu hakkı VERMEZ.
     // Abonelik yoksa paket sayfasına yönlendirilir.
-    if (!user.stripeSubscriptionId) {
+    if (!user.lemonSqueezySubscriptionId) {
       return NextResponse.json(
         { error: "Bu mağazayı aktifleştirmek için bir paket satın almanız gerekiyor.", needUpgrade: true },
         { status: 402 }

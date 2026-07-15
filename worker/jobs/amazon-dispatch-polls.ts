@@ -24,15 +24,23 @@ const TRACKABLE_AMAZON_LISTING: Prisma.AmazonListingWhereInput = {
   ],
 };
 
+// NOT: eBay'deki dispatch-polls.ts 15dk/2sa/12sa kullanır çünkü Amazon SP-API çağrısı
+// ücretsiz. Amazon tarafında şu an resmi AliExpress API yok (başvuru sürecinde),
+// stok/fiyat ScrapingBee'den ÜCRETLİ çekiliyor (bkz. aliexpress-scraper.ts) — o yüzden
+// buradaki eşikler bilinçli olarak daha seyrek. Resmi API onaylanınca (isAliExpressConfigured
+// true olunca) çekim ücretsizleşir; o noktada bu değerler eBay'inkiyle aynı sıklığa
+// düşürülebilir (kod değişikliği gerekmez, sadece bu üç sayı).
 const TIER_THRESHOLDS_MS = {
-  hot: 15 * 60 * 1000,        // 15 dakika
-  normal: 2 * 60 * 60 * 1000, // 2 saat
-  dead: 12 * 60 * 60 * 1000,  // 12 saat
+  hot: 2 * 60 * 60 * 1000,     // 2 saat (düşük stoklu — daha sık ama hâlâ maliyet-bilinçli)
+  normal: 12 * 60 * 60 * 1000, // 12 saat
+  dead: 24 * 60 * 60 * 1000,   // 24 saat
 } as const;
 
 const TIER_BUDGET = { hot: 600, normal: 300, dead: 100 } as const;
 
-const STALE_MS = 6 * 60 * 60 * 1000; // 6 saat
+// "dead" tier 24 saatte bir tarandığı için bayat eşiği ondan uzun olmalı, yoksa
+// sağlıklı dead-tier ürünler her tur yanlışlıkla "bayat" sayılıp duraklatılır.
+const STALE_MS = 30 * 60 * 60 * 1000; // 30 saat
 const STALE_MAX_PER_RUN = 300;
 
 const RECOVERY_MS = 60 * 60 * 1000; // 1 saat

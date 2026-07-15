@@ -36,7 +36,6 @@ DOSYA: package.json
     "@prisma/client": "^5.17.0",
     "bullmq": "^5.12.0",
     "ioredis": "^5.4.1",
-    "stripe": "^16.9.0",
     "bcryptjs": "^2.4.3",
     "zod": "^3.23.8",
     "swr": "^2.2.5",
@@ -1986,7 +1985,7 @@ DOSYA: src/app/dashboard/settings/page.tsx
 // 3 bolum: eBay Hesaplari, Fiyatlandirma Kurallari, Abonelik Plani
 // eBay OAuth baglama/cikartma
 // Kar marji slider (%10-%40)
-// Stripe checkout + portal
+// Lemon Squeezy checkout
 // Tam kod: 263 satir
 
 export default function SettingsPage() {
@@ -2182,29 +2181,6 @@ DOSYA: src/app/api/ebay/accounts/[id]/route.ts
 ================================================================
 // DELETE: Hesabi kaldir (cascade: bagli listing'ler de silinir)
 // Tam kod: 32 satir
-
-
-================================================================
-DOSYA: src/app/api/stripe/checkout/route.ts
-================================================================
-// POST: Stripe checkout session olustur (pro/enterprise plan)
-// STRIPE_PRICE_PRO_ID / STRIPE_PRICE_ENTERPRISE_ID env'den
-// Tam kod: 68 satir
-
-
-================================================================
-DOSYA: src/app/api/stripe/webhook/route.ts
-================================================================
-// POST: checkout.session.completed, customer.subscription.updated/deleted
-// Stripe imza dogrulama, plan guncelleme
-// Tam kod: 84 satir
-
-
-================================================================
-DOSYA: src/app/api/stripe/portal/route.ts
-================================================================
-// POST: Stripe billing portal session olustur
-// Tam kod: 38 satir
 
 
 ================================================================

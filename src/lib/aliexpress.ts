@@ -16,6 +16,7 @@
 
 import { createHmac } from "crypto";
 import type { AliStockStatus } from "@/lib/amazon-repricer";
+import { fetchAliExpressProductViaScraper } from "@/lib/aliexpress-scraper";
 
 // Yeni global gateway (System Tools /sync uç noktası)
 const ALI_GATEWAY = process.env.ALIEXPRESS_GATEWAY ?? "https://api-sg.aliexpress.com/sync";
@@ -108,9 +109,10 @@ function parseStock(raw: unknown): { status: AliStockStatus; qty: number | null 
  */
 export async function fetchAliExpressProduct(aliId: string): Promise<AliProductData> {
   if (!isAliExpressConfigured()) {
-    throw new Error(
-      `AliExpress kaynağı bağlanmadı (aliId ${aliId}) — ALIEXPRESS_* .env eksik. API en sonda bağlanacak.`
-    );
+    // Resmi API henüz onaylanmadı (başvuru sürecinde) — ScrapingBee ile geçici çözüm.
+    // API onaylanıp .env'e eklenince isAliExpressConfigured() true döner, kod
+    // değişikliği GEREKMEDEN resmi (ücretsiz) API'ye otomatik geçilir.
+    return fetchAliExpressProductViaScraper(aliId);
   }
 
   // aliexpress.ds.product.get → fiyat + stok. Yanıt şeması canlı testte teyit edilir;

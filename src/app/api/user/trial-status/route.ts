@@ -11,7 +11,7 @@ export async function GET() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { trialEndsAt: true, plan: true, stripeSubscriptionId: true },
+    select: { trialEndsAt: true, plan: true, lemonSqueezySubscriptionId: true },
   });
 
   if (!user) {
@@ -20,7 +20,7 @@ export async function GET() {
 
   const onTrial = isOnTrial(user.trialEndsAt);
   const daysLeft = trialDaysLeft(user.trialEndsAt);
-  const hasSubscription = !!user.stripeSubscriptionId;
+  const hasSubscription = !!user.lemonSqueezySubscriptionId;
   const trialStarted = !!user.trialEndsAt;
   const trialExpired = trialStarted && !onTrial;
 

@@ -68,7 +68,7 @@ async function activateStore(args: {
   });
   await prisma.user.update({
     where: { id: args.userId },
-    data: { stripeSubscriptionId: args.subscriptionId ?? undefined, plan: args.plan },
+    data: { lemonSqueezySubscriptionId: args.subscriptionId ?? undefined, plan: args.plan },
   });
 
   // Frozen'ken atlanmış ilan doğrulamasını tetikle (activate route ile aynı davranış).
@@ -119,7 +119,7 @@ async function activateAmazonAccount(args: {
       productLimit: planDef.productLimit,
     },
   });
-  // Not: User.stripeSubscriptionId/plan burada GÜNCELLENMEZ — eBay'in genel abonelik
+  // Not: User.lemonSqueezySubscriptionId/plan burada GÜNCELLENMEZ — eBay'in genel abonelik
   // göstergesi Amazon paketiyle karışmasın diye (paket = hesap, kullanıcı-geneli değil).
 }
 

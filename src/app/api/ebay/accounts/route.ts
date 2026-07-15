@@ -24,12 +24,12 @@ export const GET = requireAuth(async (_req, { userId }) => {
       }),
       prisma.user.findUnique({
         where: { id: userId },
-        select: { plan: true, trialEndsAt: true, stripeSubscriptionId: true },
+        select: { plan: true, trialEndsAt: true, lemonSqueezySubscriptionId: true },
       }),
     ]);
 
     const storeLimit = user
-      ? storeLimitForUser(user.plan, user.trialEndsAt, user.stripeSubscriptionId)
+      ? storeLimitForUser(user.plan, user.trialEndsAt, user.lemonSqueezySubscriptionId)
       : 0;
     const activeCount = accounts.filter((a) => a.isActive).length;
 

@@ -213,7 +213,7 @@ tarama ile kendi kendine dönsün. Stok/fiyat kurallarını uygula.
  Adım 6 — Multi-tenant. Kullanıcı kaydı, OAuth ile mağaza bağlama,
 token şifreleme.
  Adım 7 — Müşteri paneli. Frontend: ürün ekleme, kural ayarları, raporlar.
- Adım 8 — Ödeme + plan. Stripe/Paddle, abonelik.
+ Adım 8 — Ödeme + plan. Lemon Squeezy, abonelik.
  Adım 9 — Yedek, izleme, ölçek. Operasyonel sağlamlaştırma.
 
 
