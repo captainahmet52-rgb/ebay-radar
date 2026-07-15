@@ -10,7 +10,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
-import { getPlan, type PlanId } from "@/lib/plans";
+import { getAmazonPlan, type PlanId } from "@/lib/plans";
 import { createCheckoutUrl } from "@/lib/lemonsqueezy";
 import { SITE } from "@/lib/site";
 
@@ -25,7 +25,7 @@ export const POST = requireAuth(async (req, { userId }) => {
     if (!parsed.success) {
       return NextResponse.json({ error: "Geçersiz veri" }, { status: 400 });
     }
-    const planDef = getPlan(parsed.data.plan);
+    const planDef = getAmazonPlan(parsed.data.plan);
     if (!planDef) {
       return NextResponse.json({ error: "Geçersiz paket" }, { status: 400 });
     }

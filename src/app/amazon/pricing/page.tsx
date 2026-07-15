@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PLAN_LIST, isOnTrial, trialDaysLeft } from "@/lib/plans";
+import { AMAZON_PLAN_LIST as PLAN_LIST, isOnTrial, trialDaysLeft } from "@/lib/plans";
 import { AmazonProPlusCard } from "@/components/amazon/pro-plus-card";
 import { AmazonPlanCheckoutButton } from "@/components/amazon/plan-checkout-button";
 import { AMZ_ACCENT } from "@/components/amazon/shared";

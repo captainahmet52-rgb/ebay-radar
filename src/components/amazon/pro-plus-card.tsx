@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Check } from "lucide-react";
-import { PRO_PLUS_PLANS } from "@/lib/plans";
+import { AMAZON_PRO_PLUS_PLANS as PRO_PLUS_PLANS } from "@/lib/plans";
 import { AmazonPlanCheckoutButton } from "@/components/amazon/plan-checkout-button";
 import { AMZ_ACCENT } from "@/components/amazon/shared";
 

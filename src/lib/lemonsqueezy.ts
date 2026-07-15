@@ -15,17 +15,24 @@
 //   LEMONSQUEEZY_STORE_NAME     (ops.)  — varsayılan "LeanAutomation"
 
 import crypto from "crypto";
-import { PLANS, type PlanId } from "@/lib/plans";
+import { PLANS, AMAZON_PLANS, type PlanId } from "@/lib/plans";
+
+type Service = "ebay" | "amazon";
 
 const LS_API = "https://api.lemonsqueezy.com/v1";
 const CACHE_MS = 5 * 60_000;
 
 // ─── Fiyat → paket eşlemesi ──────────────────────────────────────────────────
 // Her paketin aylık fiyatı BENZERSİZ; LS varyantını fiyatına (cent) göre eşleriz.
-// Böylece variant ID'leri elle girmeye gerek kalmaz.
+// Böylece variant ID'leri elle girmeye gerek kalmaz. eBay ve Amazon artık FARKLI
+// fiyatlarda (2026-07-15) — iki ayrı harita, LS panelinde iki ayrı ürün seti gerekir.
 const PLAN_BY_PRICE_CENTS = new Map<number, PlanId>();
 for (const p of Object.values(PLANS)) {
   PLAN_BY_PRICE_CENTS.set(Math.round(p.priceMonthly * 100), p.id);
+}
+const AMAZON_PLAN_BY_PRICE_CENTS = new Map<number, PlanId>();
+for (const p of Object.values(AMAZON_PLANS)) {
+  AMAZON_PLAN_BY_PRICE_CENTS.set(Math.round(p.priceMonthly * 100), p.id);
 }
 
 // ─── Düşük seviye API yardımcıları ───────────────────────────────────────────
@@ -88,39 +95,46 @@ export async function getStoreId(): Promise<string> {
 }
 
 // ─── Paket → varyant ID eşlemesi (fiyata göre, önbellekli) ───────────────────
-let cachedVariants: { map: Record<string, string>; at: number } | null = null;
+// eBay ve Amazon farklı fiyatlarda olduğu için ayrı önbellek/harita gerekir.
+const cachedVariants: Record<Service, { map: Record<string, string>; at: number } | null> = {
+  ebay: null,
+  amazon: null,
+};
 
-async function getPlanVariantMap(): Promise<Record<string, string>> {
-  if (cachedVariants && Date.now() - cachedVariants.at < CACHE_MS) return cachedVariants.map;
+async function getPlanVariantMap(service: Service): Promise<Record<string, string>> {
+  const cached = cachedVariants[service];
+  if (cached && Date.now() - cached.at < CACHE_MS) return cached.map;
 
+  const priceLookup = service === "amazon" ? AMAZON_PLAN_BY_PRICE_CENTS : PLAN_BY_PRICE_CENTS;
   const storeId = await getStoreId();
   const res = await lsGet(`/products?filter[store_id]=${storeId}&include=variants`);
   const map: Record<string, string> = {};
   for (const v of res.included ?? []) {
     const priceCents = Number(v.attributes.price);
     if (!Number.isFinite(priceCents)) continue;
-    const planId = PLAN_BY_PRICE_CENTS.get(priceCents);
+    const planId = priceLookup.get(priceCents);
     if (planId && !map[planId]) map[planId] = v.id;
   }
-  cachedVariants = { map, at: Date.now() };
+  cachedVariants[service] = { map, at: Date.now() };
   return map;
 }
 
-export async function getVariantIdForPlan(planId: PlanId): Promise<string> {
-  const map = await getPlanVariantMap();
+export async function getVariantIdForPlan(planId: PlanId, service: Service = "ebay"): Promise<string> {
+  const map = await getPlanVariantMap(service);
   const variantId = map[planId];
   if (!variantId) {
     throw new Error(
-      `'${planId}' paketi için Lemon Squeezy varyantı bulunamadı — panelde bu fiyatta abonelik ürünü var mı?`
+      `'${planId}' (${service}) paketi için Lemon Squeezy varyantı bulunamadı — panelde bu fiyatta abonelik ürünü var mı?`
     );
   }
   return variantId;
 }
 
 // ─── Checkout oluşturma ──────────────────────────────────────────────────────
-// PAKET = HESAP: hem eBay hem Amazon aynı fiyat kademelerini (dolayısıyla aynı LS
-// varyantlarını) kullanır — hangi hesabın aktifleşeceğine LS değil, BİZİM webhook'umuz
-// custom_data'ya bakarak karar verir. Bu yüzden iki tarafa da ayrı LS ürünü GEREKMEZ.
+// PAKET = HESAP: hangi hesabın aktifleşeceğine LS değil, BİZİM webhook'umuz
+// custom_data'ya bakarak karar verir (LS varyantı sadece ödeme aracı). eBay ve
+// Amazon FARKLI fiyat kademelerinde (2026-07-15) — bu yüzden LS panelinde İKİ
+// AYRI ürün seti olması gerekir (fiyata göre eşleşiyoruz, bkz. AMAZON_PLAN_BY_PRICE_CENTS).
 export interface CheckoutCustom {
   ebayAccountId?: string;
   amazonAccountId?: string;
@@ -135,9 +149,10 @@ export async function createCheckoutUrl(params: {
   custom: CheckoutCustom;
   redirectUrl: string;
 }): Promise<string> {
+  const service: Service = params.custom.amazonAccountId ? "amazon" : "ebay";
   const [storeId, variantId] = await Promise.all([
     getStoreId(),
-    getVariantIdForPlan(params.planId),
+    getVariantIdForPlan(params.planId, service),
   ]);
 
   const body = {

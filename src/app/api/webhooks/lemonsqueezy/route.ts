@@ -9,7 +9,7 @@
 // eBay ilanlarını güvene alır).
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getPlan } from "@/lib/plans";
+import { getPlan, getAmazonPlan } from "@/lib/plans";
 import { verifyWebhookSignature } from "@/lib/lemonsqueezy";
 import { addDays, STORE_SUBSCRIPTION_DAYS } from "@/lib/store-access";
 import { enqueueVerificationForAccount } from "@/lib/ebay/listing-import";
@@ -95,9 +95,9 @@ async function activateAmazonAccount(args: {
   subscriptionId: string | undefined;
   paidUntil: Date;
 }): Promise<void> {
-  const planDef = getPlan(args.plan);
+  const planDef = getAmazonPlan(args.plan);
   if (!planDef) {
-    console.warn(`[ls-webhook] bilinmeyen paket: ${args.plan}`);
+    console.warn(`[ls-webhook] bilinmeyen Amazon paketi: ${args.plan}`);
     return;
   }
   const account = await prisma.amazonAccount.findFirst({
