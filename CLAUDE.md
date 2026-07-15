@@ -240,3 +240,26 @@ yasaklıyor; tespit halinde hesap askıya alma riski vardır ve bu risk SaaS'ta
 müşteri hesaplarına biner. Proje sahibi bu riski bilerek bu modelle ilerlemeyi
 seçmiştir. Alternatif (onaylı toptancı tedarikçi modeli) ileride değerlendirilebilir;
 mimari aynı kalır, sadece veri kaynağı değişir.
+
+Not — AmazonBot (AliExpress→Amazon) tarafında kargo SLA riski (2026-07-13,
+bilinçli kabul edildi)
+Amazon satıcı hesap sağlığı eşikleri: Geç Kargo Oranı < %4 (aşılırsa satış
+yetkisi kapanır), Zamanında Teslimat > %90, varsayılan handling time 2 gün.
+AliExpress'in tipik 2-4 haftalık kargo süresi bu eşikleri yapısal olarak
+aşma riski taşır — bu, sadece marka/kategori riski değil, doğrudan kargo
+HIZI kaynaklı bir hesap-askıya-alma riskidir. Şu an radar/depo veri modelinde
+AliExpress kargo SÜRESİ (sadece kargo MALİYETİ) tutulmuyor, o yüzden bu risk
+koda otomatik filtre olarak işlenmedi — operasyonel/manuel bir risk notu
+olarak kayıtlı. İleride AliExpress ürün verisinde teslimat süresi tahmini
+güvenilir çekilebilirse (resmi API onaylanınca `logistics_info` alanı
+kontrol edilmeli), yavaş kargolu ürünleri radar aşamasında eleyen/düşük
+skorlayan bir kural eklenebilir.
+
+Not — sipariş-sonrası fiyat değişikliği YASAĞI (repricer güvenlik invaryantı)
+Amazon, onaylanmış bir siparişin fiyatının sonradan artırılmasını hesap
+kapatan davranış sayar. Mimari gereği zaten güvenli: `amazon-poll-product.ts`/
+`amazon-update-listing.ts` SADECE `AmazonListing` (gelecekteki alıcılar için
+canlı ilan) fiyatını günceller; `AmazonOrder` (onaylanmış sipariş) hiçbir
+worker tarafından yeniden fiyatlandırılmaz, SP-API zaten bunu API düzeyinde
+desteklemez. Yeni bir repricing/oto-fiyat özelliği eklenirken bu ayrımı
+BOZMAMAK kritik — asla `AmazonOrder.soldPrice` üzerinden yazma yapılmamalı.
