@@ -26,25 +26,48 @@ export const POST = requireAuth(async (_req, { userId, params }) => {
       return NextResponse.json({ error: "Sipariş tutarı hesaplanmadı" }, { status: 400 });
     }
 
-    // Atomik koşullu düşme — yeterli bakiye varsa
-    const reserve = await prisma.user.updateMany({
-      where: { id: userId, creditBalanceUsd: { gte: total } },
-      data: { creditBalanceUsd: { decrement: total } },
-    });
-    if (reserve.count === 0) {
+    // ÇİFT ÖDEME KORUMASI: durum geçişi + bakiye düşme + ledger TEK transaction'da.
+    // Kapı = koşullu durum geçişi (updateMany count). İki paralel istekten yalnızca
+    // biri "awaiting_order_payment" satırını yakalar; ikincisi count=0 alır.
+    // Bakiye yetersizse throw → transaction geri sarılır (durum geçişi de geri alınır).
+    let outcome: "ok" | "already_paid" | "insufficient";
+    try {
+      outcome = await prisma.$transaction(async (tx) => {
+        const gate = await tx.order.updateMany({
+          where: { id, userId, managedStatus: "awaiting_order_payment" },
+          data: { orderChargePaidAt: new Date(), managedStatus: "awaiting_tracking_payment" },
+        });
+        if (gate.count === 0) return "already_paid" as const;
+
+        const reserve = await tx.user.updateMany({
+          where: { id: userId, creditBalanceUsd: { gte: total } },
+          data: { creditBalanceUsd: { decrement: total } },
+        });
+        if (reserve.count === 0) {
+          // Rollback için throw — durum geçişi de geri sarılır
+          throw new Error("INSUFFICIENT_BALANCE");
+        }
+
+        await tx.creditTransaction.create({
+          data: { userId, amountUsd: -total, type: "order_purchase", refId: id, note: "Managed sipariş (maliyet + markup)" },
+        });
+        return "ok" as const;
+      });
+    } catch (txErr) {
+      if (txErr instanceof Error && txErr.message === "INSUFFICIENT_BALANCE") {
+        outcome = "insufficient";
+      } else {
+        throw txErr;
+      }
+    }
+
+    if (outcome === "already_paid") {
+      return NextResponse.json({ error: "Bu sipariş ödeme aşamasında değil" }, { status: 409 });
+    }
+    if (outcome === "insufficient") {
       await notifyInsufficientBalance(userId, "managed sipariş ödemesi").catch(() => {});
       return NextResponse.json({ error: "Yetersiz bakiye — cüzdana yükle", needTopUp: true, amount: total }, { status: 402 });
     }
-
-    await prisma.$transaction([
-      prisma.creditTransaction.create({
-        data: { userId, amountUsd: -total, type: "order_purchase", refId: id, note: "Managed sipariş (maliyet + markup)" },
-      }),
-      prisma.order.update({
-        where: { id },
-        data: { orderChargePaidAt: new Date(), managedStatus: "awaiting_tracking_payment" },
-      }),
-    ]);
 
     return NextResponse.json({ ok: true, chargedUsd: total });
   } catch (err) {

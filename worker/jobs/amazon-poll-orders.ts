@@ -4,8 +4,47 @@ import { Worker, Job } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
 import { prisma } from "@/lib/prisma";
 import { decryptToken } from "@/lib/crypto";
-import { getSpapiAccessToken, getOrders, isSpapiConfigured } from "@/lib/amazon-spapi";
+import { getSpapiAccessToken, getOrders, getOrderItems, isSpapiConfigured } from "@/lib/amazon-spapi";
 import { amazonVerifyOrderQueue, type AmazonPollOrdersJobData } from "@/lib/queues";
+
+/**
+ * Siparişi kendi AmazonListing kaydımıza bağlar (SİPARİŞ-ANI DOĞRULAMANIN ÖN KOŞULU).
+ * getOrderItems → SKU (bizim ürettiğimiz, en güvenilir) veya ASIN ile hesabın
+ * ilanı bulunur. Eşleşme yoksa null — verify worker "eşlenemedi" notu düşer.
+ */
+async function linkOrderToListing(
+  accountId: string,
+  market: string,
+  accessToken: string,
+  amazonOrderId: string,
+  log: (m: string) => void
+): Promise<{ listingId: string; qty: number } | null> {
+  let items;
+  try {
+    items = await getOrderItems(market, accessToken, amazonOrderId);
+  } catch (err) {
+    log(`getOrderItems hatası (${amazonOrderId}): ${err instanceof Error ? err.message : String(err)}`);
+    return null;
+  }
+  if (!items.length) return null;
+
+  const item = items[0];
+  const totalQty = items.reduce((s, i) => s + (i.quantityOrdered || 1), 0);
+
+  // Önce SKU (tenant'a özgü, bizim ürettiğimiz) — sonra ASIN yoluna düş
+  const listing = await prisma.amazonListing.findFirst({
+    where: {
+      amazonAccountId: accountId,
+      OR: [
+        ...(item.sellerSku ? [{ sku: item.sellerSku }] : []),
+        { asin: item.asin },
+      ],
+    },
+    select: { id: true },
+  });
+
+  return listing ? { listingId: listing.id, qty: totalQty } : null;
+}
 
 async function pollAccount(accountId: string, log: (m: string) => void): Promise<void> {
   const account = await prisma.amazonAccount.findUnique({ where: { id: accountId } });
@@ -37,6 +76,22 @@ async function pollAccount(accountId: string, log: (m: string) => void): Promise
       update: { status: o.orderStatus.toLowerCase(), ...(soldPrice != null ? { soldPrice } : {}) },
     });
 
+    // İlan eşlemesi yoksa kur — sipariş-anı doğrulama (canlı AliExpress stok/fiyat
+    // kontrolü) ancak sipariş bir ilana bağlıysa çalışabilir.
+    let listingLinked = Boolean(saved.listingId);
+    if (!listingLinked) {
+      const link = await linkOrderToListing(
+        account.id, account.market, accessToken, o.amazonOrderId, log
+      );
+      if (link) {
+        await prisma.amazonOrder.update({
+          where: { id: saved.id },
+          data: { listingId: link.listingId, qty: link.qty },
+        });
+        listingLinked = true;
+      }
+    }
+
     // Henüz doğrulanmamış siparişi sipariş-anı doğrulamaya gönder (canlı stok/fiyat)
     if (!saved.verifiedAt) {
       await amazonVerifyOrderQueue.add(
@@ -60,8 +115,13 @@ async function processAmazonPollOrders(job: Job<AmazonPollOrdersJobData>): Promi
     return;
   }
 
-  const accounts = await prisma.amazonAccount.findMany({ select: { id: true } });
-  log(`Toplu sipariş çekme: ${accounts.length} hesap`);
+  // Yalnızca AKTİF (abonelik/deneme süresi devam eden) hesaplar taranır —
+  // dondurulmuş hesabın siparişi işlenmez, oto-fulfillment tetiklenmez.
+  const accounts = await prisma.amazonAccount.findMany({
+    where: { isActive: true },
+    select: { id: true },
+  });
+  log(`Toplu sipariş çekme: ${accounts.length} aktif hesap`);
   for (const a of accounts) {
     try {
       await pollAccount(a.id, log);

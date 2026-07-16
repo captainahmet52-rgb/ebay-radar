@@ -70,6 +70,8 @@ async function tradingCall(
         "Content-Type": "text/xml",
       },
       body,
+      // Trading API (XML) görselli isteklerde yavaş olabilir — yine de sınırla
+      signal: AbortSignal.timeout(60_000),
     });
 
     if (response.ok) {

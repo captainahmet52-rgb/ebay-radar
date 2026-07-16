@@ -31,6 +31,7 @@ export class EbayClient {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
+      signal: AbortSignal.timeout(30_000),
     };
 
     if (body !== undefined) {

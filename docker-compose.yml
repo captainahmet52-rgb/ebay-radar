@@ -97,8 +97,11 @@ services:
         condition: service_healthy
     networks:
       - ebay_net
+    # Yalnızca loopback'e yayınla — Coolify/Traefik container AĞI üzerinden bağlanır,
+    # host portuna ihtiyacı yok. 0.0.0.0:3000 açık olursa proxy (ve rate-limit,
+    # X-Forwarded-For güveni) tamamen atlanabilir.
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     # 🔴 HER DEPLOY'DA 504 SORUNUNUN ÇÖZÜMÜ:
     # Healthcheck OLMAYINCA Coolify, container "started" der demez Traefik routing'ini
     # kuruyor — ama app henüz HTTP serve etmiyor / eski ölü backend'e yönlendiriliyor →

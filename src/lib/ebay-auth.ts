@@ -80,6 +80,7 @@ export async function exchangeCodeForTokens(code: string): Promise<EbayTokens> {
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: body.toString(),
+    signal: AbortSignal.timeout(15_000),
   });
 
   if (!response.ok) {
@@ -130,6 +131,7 @@ export async function refreshAccessToken(
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: body.toString(),
+    signal: AbortSignal.timeout(15_000),
   });
 
   if (!response.ok) {

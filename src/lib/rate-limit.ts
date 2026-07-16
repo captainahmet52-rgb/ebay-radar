@@ -120,13 +120,53 @@ export async function rateLimitAsync(
   return rateLimit(key, max, windowMs);
 }
 
+// ─── Tek kullanımlık anahtar (nonce tüketimi) ────────────────────────────────
+const onceStore = new Map<string, number>();
+
+/**
+ * Anahtarı atomik olarak "tüketir" — İLK çağrıda true, tekrarında (TTL içinde) false.
+ * OAuth state nonce'u gibi tek-kullanımlık değerlerin tekrar oynatılmasını
+ * (replay) engeller. Redis varsa SET NX (process/deploy sınırları aşılır),
+ * yoksa in-memory düşüş.
+ */
+export async function consumeOnce(key: string, ttlMs: number): Promise<boolean> {
+  const r = getRedis();
+  if (r) {
+    try {
+      const res = await r.set(`once:${key}`, "1", "PX", ttlMs, "NX");
+      return res === "OK";
+    } catch {
+      /* Redis hatası → in-memory fallback */
+    }
+  }
+  const now = Date.now();
+  // Süresi geçmiş girişleri temizle (sınırsız büyümesin)
+  if (onceStore.size > 10_000) {
+    for (const [k, exp] of onceStore) {
+      if (exp <= now) onceStore.delete(k);
+    }
+  }
+  const existing = onceStore.get(key);
+  if (existing && existing > now) return false;
+  onceStore.set(key, now + ttlMs);
+  return true;
+}
+
 // ─── İstemci IP ──────────────────────────────────────────────────────────────
-/** Reverse-proxy arkasındaki gerçek istemci IP'sini Headers'tan çıkarır. */
+/**
+ * Reverse-proxy arkasındaki gerçek istemci IP'sini Headers'tan çıkarır.
+ *
+ * SON girişi alırız, İLKİNİ DEĞİL: proxy'ler (Traefik/nginx) gördükleri istemci
+ * IP'sini listenin SONUNA ekler. İlk girişler istemcinin kendisi tarafından
+ * sahte gönderilebilir (rate-limit bypass) — son giriş bizim proxy'nin yazdığı,
+ * güvenilir olan değerdir.
+ */
 export function getClientIpFromHeaders(headers: Headers): string {
   const forwarded = headers.get("x-forwarded-for");
   if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) return first;
+    const parts = forwarded.split(",");
+    const last = parts[parts.length - 1]?.trim();
+    if (last) return last;
   }
   return headers.get("x-real-ip")?.trim() || "unknown";
 }

@@ -84,6 +84,7 @@ async function callAli<T = unknown>(
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams(params).toString(),
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!res.ok) throw new Error(`AliExpress API hatası [${method}]: ${res.status}`);

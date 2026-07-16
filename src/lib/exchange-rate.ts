@@ -54,7 +54,9 @@ async function fetchRates(): Promise<Record<string, number>> {
   }
 
   try {
-    const res = await fetch("https://open.er-api.com/v6/latest/USD");
+    const res = await fetch("https://open.er-api.com/v6/latest/USD", {
+      signal: AbortSignal.timeout(10_000),
+    });
     if (!res.ok) throw new Error(`Exchange rate API hatası: ${res.status}`);
 
     const data = (await res.json()) as { rates?: Record<string, number> };

@@ -115,6 +115,7 @@ async function ebayGet<T>(path: string, params?: Record<string, string>): Promis
       Authorization: `Bearer ${token}`,
       Accept: "application/json",
     },
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!response.ok) {

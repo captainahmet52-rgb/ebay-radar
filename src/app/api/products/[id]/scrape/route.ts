@@ -38,7 +38,7 @@ export const POST = requireAuth(async (req, { userId, params }) => {
 
     let scraperResult;
     try {
-      scraperResult = await fetchAmazonProduct(product.asin);
+      scraperResult = await fetchAmazonProduct(product.asin, product.amazonMarket ?? "US");
     } catch (err) {
       console.error("[scrape]", err);
       return NextResponse.json(
@@ -86,15 +86,18 @@ export const POST = requireAuth(async (req, { userId, params }) => {
       },
     });
 
+    // TENANT SINIRI: Product global (aynı ASIN'i birden çok kullanıcı takip eder) —
+    // güncelleme SADECE bu kullanıcının ilanlarına dokunur. Fiyat ayrıca pazara özgü
+    // (listing.ebaySite ile hesaplandı), o yüzden fiyat yazımı aynı siteyle sınırlı.
     const qty = determineQty(scraperResult.stockStatus, scraperResult.stockQty);
     if (spikeDetected || qty === 0) {
       await prisma.listing.updateMany({
-        where: { productId: id, status: "active" },
+        where: { userId, productId: id, status: "active" },
         data: { status: "paused", currentQty: 0 },
       });
     } else if (newPrice && marketEbayPrice !== null) {
       await prisma.listing.updateMany({
-        where: { productId: id, status: "active" },
+        where: { userId, productId: id, status: "active", ebaySite: listing.ebaySite },
         data: { currentPrice: marketEbayPrice, currentQty: qty },
       });
     }

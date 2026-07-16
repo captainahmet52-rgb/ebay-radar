@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encryptToken } from "@/lib/crypto";
 import { auth } from "@/lib/auth";
-import { verifyState } from "@/lib/oauth-state";
+import { verifyState, OAUTH_STATE_MAX_AGE_MS } from "@/lib/oauth-state";
+import { consumeOnce } from "@/lib/rate-limit";
 import { exchangeSpapiCode, getSpapiAccessToken, detectMarketFromParticipations } from "@/lib/amazon-spapi";
 import { addDays, STORE_TRIAL_DAYS } from "@/lib/store-access";
 
@@ -25,6 +26,13 @@ export async function GET(req: NextRequest) {
   const verified = verifyState(state);
   if (!verified) {
     return NextResponse.redirect(new URL("/amazon/stores?error=invalid_state", req.url));
+  }
+
+  // TEK KULLANIM: aynı state (nonce) ikinci kez oynatılamaz — çalınmış state'in
+  // 10 dakikalık pencere içinde tekrar kullanılmasını (replay) engeller.
+  const fresh = await consumeOnce(`oauth-state:${verified.nonce}`, OAUTH_STATE_MAX_AGE_MS);
+  if (!fresh) {
+    return NextResponse.redirect(new URL("/amazon/stores?error=state_reused", req.url));
   }
 
   const region = verified.region === "eu" ? "eu" : "na";

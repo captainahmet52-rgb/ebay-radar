@@ -50,25 +50,35 @@ export const POST = requireAuth(async (req, { userId }) => {
   }
 
   try {
-    const [, updatedUser] = await prisma.$transaction([
-      prisma.couponRedemption.create({ data: { couponId: coupon.id, userId } }),
-      prisma.user.update({
+    const updatedUser = await prisma.$transaction(async (tx) => {
+      await tx.couponRedemption.create({ data: { couponId: coupon.id, userId } });
+
+      // KOŞULLU artırım (yarış koruması): limit kontrolü ile artırım AYNI komutta.
+      // Prisma where'de kolon-kolona karşılaştırma (usedCount < maxUses) desteklemez —
+      // ham SQL şart. Satır etkilenmediyse limit son anda doldu → geri sar.
+      const affected = await tx.$executeRaw`
+        UPDATE "Coupon" SET "usedCount" = "usedCount" + 1
+        WHERE "id" = ${coupon.id}
+          AND ("maxUses" IS NULL OR "usedCount" < "maxUses")
+      `;
+      if (affected === 0) throw new Error("COUPON_EXHAUSTED");
+
+      return tx.user.update({
         where: { id: userId },
         data: { referralRewardDays: { increment: coupon.rewardDays } },
         select: { referralRewardDays: true },
-      }),
-      prisma.coupon.update({
-        where: { id: coupon.id },
-        data: { usedCount: { increment: 1 } },
-      }),
-    ]);
+      });
+    });
 
     return NextResponse.json({
       ok: true,
       rewardDays: coupon.rewardDays,
       balance: updatedUser.referralRewardDays,
     });
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && err.message === "COUPON_EXHAUSTED") {
+      return NextResponse.json({ error: "Bu kupon kullanım limitine ulaştı." }, { status: 409 });
+    }
     // unique çakışması (yarış) → zaten kullanılmış say
     return NextResponse.json({ error: "Bu kuponu zaten kullandın." }, { status: 409 });
   }

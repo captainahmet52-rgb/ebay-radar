@@ -64,6 +64,7 @@ export async function getSpapiAccessToken(refreshToken: string): Promise<SpapiTo
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),
+    signal: AbortSignal.timeout(15_000),
   });
 
   if (!res.ok) {
@@ -93,6 +94,7 @@ export async function exchangeSpapiCode(code: string, redirectUri: string): Prom
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),
+    signal: AbortSignal.timeout(15_000),
   });
 
   if (!res.ok) throw new Error(`LWA code değişimi hatası: ${res.status}`);
@@ -128,6 +130,8 @@ async function spapiRequest<T>(
       "Content-Type": "application/json",
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
+    // Askıda kalan bağlantı worker concurrency slotunu süresiz kilitlemesin
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!res.ok) {
@@ -296,6 +300,38 @@ export async function getOrders(
     purchaseDate: o["PurchaseDate"] as string | undefined,
     orderTotal: o["OrderTotal"] as { amount: string; currencyCode: string } | undefined,
   }));
+}
+
+// ─── Sipariş kalemleri (getOrderItems) ───────────────────────────────────────
+
+export interface SpapiOrderItem {
+  asin: string;
+  sellerSku?: string;
+  orderItemId?: string;
+  quantityOrdered: number;
+}
+
+/**
+ * Siparişin kalemlerini çeker — ASIN + SKU ile siparişi kendi AmazonListing
+ * kaydımıza bağlamak için gerekli (sipariş-anı doğrulama bu eşlemeye dayanır).
+ */
+export async function getOrderItems(
+  market: string,
+  accessToken: string,
+  amazonOrderId: string
+): Promise<SpapiOrderItem[]> {
+  const data = await spapiRequest<{
+    payload?: { OrderItems?: Array<Record<string, unknown>> };
+  }>(market, accessToken, "GET", `/orders/v0/orders/${amazonOrderId}/orderItems`);
+
+  return (data.payload?.OrderItems ?? [])
+    .map((i) => ({
+      asin: String(i["ASIN"] ?? ""),
+      sellerSku: i["SellerSKU"] as string | undefined,
+      orderItemId: i["OrderItemId"] as string | undefined,
+      quantityOrdered: Number(i["QuantityOrdered"] ?? 1),
+    }))
+    .filter((i) => i.asin);
 }
 
 // ─── Sipariş adresi (PII — RDT gerekli) ──────────────────────────────────────

@@ -58,7 +58,10 @@ interface ApiError {
 
 /** Sahibin güncel TrackCaptain kredi bakiyesini döndürür (ücretsiz endpoint). */
 export async function getTrackCaptainAccount(): Promise<TrackCaptainAccount> {
-  const res = await fetch(`${BASE_URL}/account`, { headers: authHeaders() });
+  const res = await fetch(`${BASE_URL}/account`, {
+    headers: authHeaders(),
+    signal: AbortSignal.timeout(30_000),
+  });
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as ApiError;
     throw new Error(`TrackCaptain /account hatası: ${res.status} — ${body.error ?? ""}`);
@@ -93,6 +96,7 @@ export async function matchAndClaim(
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (res.status === 402) {

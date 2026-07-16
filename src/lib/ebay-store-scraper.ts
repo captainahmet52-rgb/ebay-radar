@@ -62,7 +62,10 @@ export async function fetchEbayStoreListing(
     extract_rules: extractRules,
   });
 
-  const response = await fetch(`${SCRAPINGBEE_URL}?${params.toString()}`);
+  // JS render'lı istekler uzun sürebilir — ama süresiz asılı KALMASIN (worker slotu)
+  const response = await fetch(`${SCRAPINGBEE_URL}?${params.toString()}`, {
+    signal: AbortSignal.timeout(120_000),
+  });
   if (!response.ok) {
     const body = await response.text().catch(() => "");
     throw new Error(`ScrapingBee eBay store hatası: ${response.status} — ${body}`);

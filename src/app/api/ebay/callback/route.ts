@@ -3,7 +3,8 @@ import { exchangeCodeForTokens } from "@/lib/ebay/oauth";
 import { encryptToken } from "@/lib/crypto";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { verifyState } from "@/lib/oauth-state";
+import { verifyState, OAUTH_STATE_MAX_AGE_MS } from "@/lib/oauth-state";
+import { consumeOnce } from "@/lib/rate-limit";
 import { normalizeEbayMarketplaceId } from "@/lib/ebay-markets";
 import { addDays, STORE_TRIAL_DAYS } from "@/lib/store-access";
 import { REFERRAL_MAX_BONUS_PER_STORE } from "@/lib/referral";
@@ -88,6 +89,15 @@ export async function GET(req: NextRequest) {
     if (!verified) {
       return NextResponse.redirect(
         new URL("/dashboard/settings?error=invalid_state", req.url)
+      );
+    }
+
+    // TEK KULLANIM: aynı state (nonce) ikinci kez oynatılamaz — çalınmış state'in
+    // 10 dakikalık pencere içinde tekrar kullanılmasını (replay) engeller.
+    const fresh = await consumeOnce(`oauth-state:${verified.nonce}`, OAUTH_STATE_MAX_AGE_MS);
+    if (!fresh) {
+      return NextResponse.redirect(
+        new URL("/dashboard/settings?error=state_reused", req.url)
       );
     }
 

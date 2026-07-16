@@ -116,7 +116,9 @@ export async function getScraperUsage(): Promise<ScraperUsage> {
   const apiKey = process.env.SCRAPINGBEE_API_KEY;
   if (!apiKey) throw new Error("SCRAPINGBEE_API_KEY tanımlı değil");
 
-  const res = await fetch(`https://app.scrapingbee.com/api/v1/usage?api_key=${apiKey}`);
+  const res = await fetch(`https://app.scrapingbee.com/api/v1/usage?api_key=${apiKey}`, {
+    signal: AbortSignal.timeout(15_000),
+  });
   if (!res.ok) {
     throw new Error(`ScrapingBee usage hatası: ${res.status}`);
   }
@@ -177,7 +179,10 @@ async function fetchExtractedFields(
     extract_rules: extractRules,
   });
 
-  const response = await fetch(`${SCRAPINGBEE_URL}?${params.toString()}`);
+  // JS render'lı istekler uzun sürebilir — ama süresiz asılı KALMASIN (worker slotu)
+  const response = await fetch(`${SCRAPINGBEE_URL}?${params.toString()}`, {
+    signal: AbortSignal.timeout(120_000),
+  });
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => "");

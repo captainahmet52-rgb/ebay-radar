@@ -65,6 +65,8 @@ export class EbayClient {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
+        // Askıda kalan bağlantı retry döngüsünü/worker slotunu süresiz kilitlemesin
+        signal: AbortSignal.timeout(30_000),
       };
 
       if (serializedBody !== undefined) {

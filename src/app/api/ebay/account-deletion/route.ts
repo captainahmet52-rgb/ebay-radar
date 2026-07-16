@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "crypto";
+import {
+  verifyEbayNotificationSignature,
+  looksLikeEbaySignature,
+} from "@/lib/ebay/notification-verify";
 
 /** Sabit-zamanlı string karşılaştırma — uzunluk farkını da güvenli ele alır. */
 function safeEqual(a: string, b: string): boolean {
@@ -52,16 +56,23 @@ export async function POST(req: NextRequest) {
   // Bildirimin gerçekliği DOĞRULANMADAN ASLA yıkıcı silme yapılmaz —
   // aksi halde herkes POST atıp eBay hesap kayıtlarını silebilir.
   //
-  // eBay bildirimleri x-ebay-signature ile imzalar. Tam ECDSA imza doğrulaması
-  // eBay'in public key'ini çekmeyi gerektirir; o kurulmadan paylaşılan
-  // doğrulama token'ı (panelde girilen, .env'deki EBAY_DELETION_VERIFICATION_TOKEN)
-  // ile gerçeklik kapısı koruyoruz. Token eşleşmezse: silme YAPMA, sadece 200 dön.
+  // Gerçek eBay bildirimleri x-ebay-signature'ı Base64-JSON (kid + ECDSA imza)
+  // olarak gönderir → verifyEbayNotificationSignature ile HAM gövde üzerinde
+  // doğrulanır. Düz token eşitliği yalnızca manuel test için yedek yol.
   try {
-    const token = process.env.EBAY_DELETION_VERIFICATION_TOKEN;
     const signature = req.headers.get("x-ebay-signature");
-    const verified = Boolean(token) && Boolean(signature) && safeEqual(signature!, token!);
+    const rawBody = await req.text().catch(() => "");
 
-    const body = (await req.json().catch(() => null)) as {
+    let verified = false;
+    if (looksLikeEbaySignature(signature)) {
+      verified = await verifyEbayNotificationSignature(rawBody, signature);
+    } else {
+      // Yedek yol (manuel test): düz token eşitliği
+      const token = process.env.EBAY_DELETION_VERIFICATION_TOKEN;
+      verified = Boolean(token) && Boolean(signature) && safeEqual(signature!, token!);
+    }
+
+    const body = (rawBody ? JSON.parse(rawBody) : null) as {
       notification?: { data?: { username?: string; userId?: string } };
     } | null;
     const username = body?.notification?.data?.username;

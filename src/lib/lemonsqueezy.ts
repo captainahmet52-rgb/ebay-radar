@@ -57,6 +57,7 @@ function apiKey(): string {
 async function lsGet(path: string): Promise<LsListResponse> {
   const res = await fetch(`${LS_API}${path}`, {
     headers: { Accept: "application/vnd.api+json", Authorization: `Bearer ${apiKey()}` },
+    signal: AbortSignal.timeout(20_000),
   });
   if (!res.ok) throw new Error(`Lemon Squeezy GET ${path} → ${res.status} ${await res.text()}`);
   return (await res.json()) as LsListResponse;
@@ -71,6 +72,7 @@ async function lsPost(path: string, body: unknown): Promise<LsSingleResponse> {
       Authorization: `Bearer ${apiKey()}`,
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(20_000),
   });
   if (!res.ok) throw new Error(`Lemon Squeezy POST ${path} → ${res.status} ${await res.text()}`);
   return (await res.json()) as LsSingleResponse;

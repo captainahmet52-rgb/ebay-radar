@@ -32,7 +32,10 @@ async function fetchRawHtml(
     ...(opts.premiumProxy ? { premium_proxy: "true" } : {}),
   });
 
-  const res = await fetch(`${SCRAPINGBEE_URL}?${params.toString()}`);
+  // JS render'lı istekler uzun sürebilir — ama süresiz asılı KALMASIN (worker slotu)
+  const res = await fetch(`${SCRAPINGBEE_URL}?${params.toString()}`, {
+    signal: AbortSignal.timeout(120_000),
+  });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     if (res.status === 402) throw new AliScraperOutOfCreditsError(body.slice(0, 200));

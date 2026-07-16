@@ -27,12 +27,45 @@ export const POST = requireAuth(async (_req, { userId, params }) => {
     return NextResponse.json({ error: "Bu sipariş için zaten geçerli numara oluşturuldu" }, { status: 409 });
   }
 
-  // 1. Ücreti rezerve et — yalnızca yeterli bakiye varsa düşer (atomik koşullu update)
-  const reserve = await prisma.user.updateMany({
-    where: { id: userId, creditBalanceUsd: { gte: FEE } },
-    data: { creditBalanceUsd: { decrement: FEE } },
-  });
-  if (reserve.count === 0) {
+  // 1. Atomik kapı + rezervasyon TEK transaction'da (çift ücretlendirme koruması).
+  // Kapı: trackingStatus'u koşullu "converting" yapmak — iki paralel istekten yalnızca
+  // biri geçer (ikincisi count=0). Bakiye yetersizse throw → kapı da geri sarılır.
+  let gateOutcome: "ok" | "busy" | "insufficient";
+  try {
+    gateOutcome = await prisma.$transaction(async (tx) => {
+      const gate = await tx.amazonOrder.updateMany({
+        where: {
+          id,
+          userId,
+          validTrackingNo: null,
+          NOT: { trackingStatus: "converting" },
+        },
+        data: { trackingStatus: "converting" },
+      });
+      if (gate.count === 0) return "busy" as const;
+
+      const reserve = await tx.user.updateMany({
+        where: { id: userId, creditBalanceUsd: { gte: FEE } },
+        data: { creditBalanceUsd: { decrement: FEE } },
+      });
+      if (reserve.count === 0) throw new Error("INSUFFICIENT_BALANCE");
+      return "ok" as const;
+    });
+  } catch (txErr) {
+    if (txErr instanceof Error && txErr.message === "INSUFFICIENT_BALANCE") {
+      gateOutcome = "insufficient";
+    } else {
+      throw txErr;
+    }
+  }
+
+  if (gateOutcome === "busy") {
+    return NextResponse.json(
+      { error: "Bu sipariş için çevirme zaten yapıldı veya devam ediyor" },
+      { status: 409 }
+    );
+  }
+  if (gateOutcome === "insufficient") {
     // Bakiye yetersiz → admin panele KRİTİK bildirim düş (sipariş kargosuz kalmasın)
     await notifyInsufficientBalance(userId, "takip kodu çevirme").catch(() => {});
     return NextResponse.json(
@@ -43,8 +76,6 @@ export const POST = requireAuth(async (_req, { userId, params }) => {
 
   // 2. Çevir — hata olursa ücreti İADE et
   try {
-    await prisma.amazonOrder.update({ where: { id }, data: { trackingStatus: "converting" } });
-
     const result = await convertTracking(order.aliTrackingNo);
 
     const [, updated] = await prisma.$transaction([

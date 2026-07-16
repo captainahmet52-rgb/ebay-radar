@@ -3,6 +3,10 @@ import { timingSafeEqual } from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { verifyOrderQueue } from "@/lib/queues";
+import {
+  verifyEbayNotificationSignature,
+  looksLikeEbaySignature,
+} from "@/lib/ebay/notification-verify";
 
 /** Sabit-zamanlı string karşılaştırma — uzunluk farkını da güvenli ele alır. */
 function safeEqual(a: string, b: string): boolean {
@@ -26,20 +30,30 @@ interface EbayOrderWebhookBody {
 
 export async function POST(req: NextRequest) {
   try {
-    const verificationToken = req.headers.get("x-ebay-signature");
-    const expectedToken = process.env.EBAY_WEBHOOK_VERIFICATION_TOKEN;
+    const signature = req.headers.get("x-ebay-signature");
+    const rawBody = await req.text();
 
-    // Token yapılandırılmamışsa isteği reddet — boş token bypass'ına izin verme
-    if (!expectedToken) {
-      console.error("[webhooks/ebay] EBAY_WEBHOOK_VERIFICATION_TOKEN tanımlı değil");
-      return NextResponse.json({ error: "Webhook yapılandırılmamış" }, { status: 500 });
+    // Gerçek eBay bildirimleri Base64-JSON (kid + ECDSA) imza gönderir →
+    // HAM gövde üzerinde doğrula. Düz token eşitliği manuel/özel entegrasyon
+    // için yedek yol olarak kalır.
+    let verified = false;
+    if (looksLikeEbaySignature(signature)) {
+      verified = await verifyEbayNotificationSignature(rawBody, signature);
+    } else {
+      const expectedToken = process.env.EBAY_WEBHOOK_VERIFICATION_TOKEN;
+      if (!expectedToken) {
+        // Token yapılandırılmamışsa isteği reddet — boş token bypass'ına izin verme
+        console.error("[webhooks/ebay] EBAY_WEBHOOK_VERIFICATION_TOKEN tanımlı değil");
+        return NextResponse.json({ error: "Webhook yapılandırılmamış" }, { status: 500 });
+      }
+      verified = Boolean(signature) && safeEqual(signature!, expectedToken);
     }
 
-    if (!verificationToken || !safeEqual(verificationToken, expectedToken)) {
+    if (!verified) {
       return NextResponse.json({ error: "Yetkisiz webhook" }, { status: 401 });
     }
 
-    const body = await req.json() as EbayOrderWebhookBody;
+    const body = JSON.parse(rawBody) as EbayOrderWebhookBody;
 
     // eBay order ID ve listing ID çıkar
     const ebayOrderId =
@@ -164,7 +178,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true, orderId: order.id });
   } catch (err) {
     console.error("[webhooks/ebay POST]", err);
-    // Webhook'larda 500 dönme — eBay tekrar gönderir, sonsuz döngü olabilir
-    return NextResponse.json({ received: true });
+    // GEÇİCİ altyapı hatasında (DB/Redis çökmesi vb.) 500 dön — eBay bildirimi
+    // TEKRAR gönderir, sipariş kaybolmaz. (200 dönülürse eBay "teslim edildi"
+    // sayar ve bir daha göndermez → sipariş kalıcı kaybolur.) İş-mantığı
+    // no-op'ları (listing bulunamadı, duplicate) yukarıda zaten 200 dönüyor.
+    return NextResponse.json({ error: "İşleme hatası — tekrar dene" }, { status: 500 });
   }
 }

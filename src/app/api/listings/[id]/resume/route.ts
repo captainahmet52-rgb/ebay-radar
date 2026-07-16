@@ -42,10 +42,22 @@ export const PUT = requireAuth(async (req, { userId, params }) => {
       );
     }
 
+    // ABONELİK KAPISI: dondurulmuş (süresi bitmiş) mağazada ilan yeniden AÇILAMAZ —
+    // worker o mağazayı takip etmediği için oversell riski doğar.
+    if (!listing.ebayAccount?.isActive) {
+      return NextResponse.json(
+        { error: "Mağaza aboneliği aktif değil — önce paketi yenileyin" },
+        { status: 403 }
+      );
+    }
+
     // 1. Taze Amazon verisi çek
     let scraperResult;
     try {
-      scraperResult = await fetchAmazonProduct(listing.product.asin);
+      scraperResult = await fetchAmazonProduct(
+        listing.product.asin,
+        listing.product.amazonMarket ?? "US"
+      );
     } catch (err) {
       console.error("[resume scrape]", err);
       return NextResponse.json(

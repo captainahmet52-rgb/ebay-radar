@@ -88,7 +88,11 @@ setupScheduler()
   })
   .catch((err: unknown) => {
     const errMsg = err instanceof Error ? err.message : String(err);
-    console.error("[worker] Scheduler hatası:", errMsg);
+    // Scheduler kurulamazsa periyodik tarama (fiyat/stok/sipariş) HİÇ çalışmaz —
+    // süreç "sağlıklı" görünüp sessizce işlevsiz kalmasın: çık, Docker
+    // (restart: unless-stopped) yeniden başlatır ve kurulum tekrar denenir.
+    console.error("[worker] Scheduler kurulamadı — süreç yeniden başlatılacak:", errMsg);
+    process.exit(1);
   });
 
 // ─── Graceful shutdown ────────────────────────────────────────────────────────
