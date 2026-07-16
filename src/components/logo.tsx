@@ -5,48 +5,22 @@ interface LogoMarkProps {
   className?: string;
 }
 
-/** Açılı "LA" monogram — beyaz L + mor degrade A. */
+/** Radar pingi — dedektör noktası + tek yöne yayılan üç kavis. Marka rengi tek başına, degrade yok. */
 export function LogoMark({ size = 40, className }: LogoMarkProps) {
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 48 46"
+      viewBox="0 0 32 32"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       aria-label="Lean Automation"
     >
-      <defs>
-        <linearGradient id="la-grad" x1="22" y1="42" x2="44" y2="6" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#6366f1" />
-          <stop offset="0.55" stopColor="#a855f7" />
-          <stop offset="1" stopColor="#e9d5ff" />
-        </linearGradient>
-      </defs>
-      {/* L — beyaz */}
-      <path
-        d="M9 4 V39 H25"
-        stroke="#ffffff"
-        strokeWidth="7"
-        strokeLinejoin="round"
-        strokeLinecap="square"
-      />
-      {/* A — mor degrade */}
-      <path
-        d="M22 41 L33 5 L44 41"
-        stroke="url(#la-grad)"
-        strokeWidth="7"
-        strokeLinejoin="round"
-        strokeLinecap="square"
-      />
-      {/* A çubuğu */}
-      <path
-        d="M27 28 H39"
-        stroke="url(#la-grad)"
-        strokeWidth="6"
-        strokeLinecap="square"
-      />
+      <circle cx="11" cy="21" r="2.6" fill="#7c3aed" />
+      <path d="M11 15 A6 6 0 0 1 17 21" stroke="#7c3aed" strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M11 10 A11 11 0 0 1 22 21" stroke="#7c3aed" strokeWidth="2.6" strokeLinecap="round" opacity="0.65" />
+      <path d="M11 5 A16 16 0 0 1 27 21" stroke="#7c3aed" strokeWidth="2.6" strokeLinecap="round" opacity="0.4" />
     </svg>
   );
 }

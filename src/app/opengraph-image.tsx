@@ -28,16 +28,18 @@ export default function OpengraphImage() {
               width: 88,
               height: 88,
               borderRadius: 22,
-              background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
+              background: "#7c3aed",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 44,
-              fontWeight: 900,
-              color: "white",
             }}
           >
-            LA
+            <svg width="52" height="52" viewBox="0 0 32 32" fill="none">
+              <circle cx="11" cy="21" r="2.6" fill="#ffffff" />
+              <path d="M11 15 A6 6 0 0 1 17 21" stroke="#ffffff" strokeWidth="2.6" strokeLinecap="round" />
+              <path d="M11 10 A11 11 0 0 1 22 21" stroke="#ffffff" strokeWidth="2.6" strokeLinecap="round" opacity={0.65} />
+              <path d="M11 5 A16 16 0 0 1 27 21" stroke="#ffffff" strokeWidth="2.6" strokeLinecap="round" opacity={0.4} />
+            </svg>
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
             <span style={{ fontSize: 34, fontWeight: 900, letterSpacing: 6 }}>LEAN</span>

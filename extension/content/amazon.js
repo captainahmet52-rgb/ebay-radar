@@ -11,6 +11,9 @@
   const MAX_ASINS = 5000;
   const ASIN_RE = /^[A-Z0-9]{10}$/i;
 
+  /** Radar pingi marka ikonu — dedektör noktası + tek yöne yayılan üç kavis. */
+  const LA_ICON = `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="11" cy="21" r="2.6" fill="currentColor"/><path d="M11 15 A6 6 0 0 1 17 21" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M11 10 A11 11 0 0 1 22 21" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" opacity="0.65"/><path d="M11 5 A16 16 0 0 1 27 21" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" opacity="0.4"/></svg>`;
+
   /** Seçili ASIN seti (hafıza). */
   const selected = new Set();
   let filters = { minPrice: null, maxPrice: null, minReviews: null, minRating: null, maxDeliveryDays: null, prime: false };
@@ -314,13 +317,13 @@
     const launcher = document.createElement("button");
     launcher.id = "la-launcher";
     launcher.title = "Lean Automation — ASIN Grabber";
-    launcher.textContent = "LA";
+    launcher.innerHTML = LA_ICON;
 
     const panel = document.createElement("div");
     panel.id = "la-panel";
     panel.innerHTML = `
       <div id="la-head">
-        <div class="la-brand"><span class="la-logo">LA</span><b>Lean Automation</b></div>
+        <div class="la-brand"><span class="la-logo">${LA_ICON}</span><b>Lean Automation</b></div>
         <div class="la-head-right">
           <span class="la-dot" title="Aktif"></span>
           <button id="la-close" title="Kapat">✕</button>

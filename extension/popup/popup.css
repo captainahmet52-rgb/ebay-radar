@@ -28,10 +28,11 @@ body {
 }
 .brand { display: flex; align-items: center; gap: 9px; }
 .logo {
-  width: 28px; height: 28px; border-radius: 7px; font-weight: 700; font-size: 11px;
+  width: 28px; height: 28px; border-radius: 7px;
   display: flex; align-items: center; justify-content: center; color: #fff;
   background: var(--la-accent);
 }
+.logo svg { width: 16px; height: 16px; }
 .name { font-weight: 700; font-size: 12.5px; letter-spacing: -0.01em; }
 .sub { font-size: 10px; color: var(--la-text-faint); margin-top: 1px; }
 .status { display: flex; align-items: center; gap: 5px; font-size: 10.5px; color: var(--la-text-dim); }
