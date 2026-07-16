@@ -6,7 +6,7 @@ const $ = (id) => document.getElementById(id);
 function setMsg(t, ok = true) {
   const el = $("msg");
   el.textContent = t;
-  el.style.color = ok ? "#10b981" : "#f85149";
+  el.style.color = ok ? "#10b981" : "#f87171";
   if (t) setTimeout(() => (el.textContent = ""), 2500);
 }
 

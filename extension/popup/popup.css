@@ -1,80 +1,86 @@
+/* Lean Automation — popup. Panelle aynı token sistemi (bkz. content/amazon.css). */
+:root {
+  --la-bg: #0b1220;
+  --la-surface: #121a2c;
+  --la-surface-2: #1a2338;
+  --la-border: rgba(148, 163, 184, 0.14);
+  --la-text: #e7ecf3;
+  --la-text-dim: #8993a8;
+  --la-text-faint: #7d859a; /* AA: ≥4.5:1 against both --la-bg and --la-surface */
+  --la-accent: #7c3aed;
+  --la-accent-hover: #8b52f0;
+  --la-success: #10b981;
+  --la-danger: #f87171;
+  --la-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-  width: 360px;
-  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-  background: #0b0f17;
-  color: #e6edf3;
+  width: 320px;
+  font-family: -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
+  background: var(--la-bg);
+  color: var(--la-text);
 }
 
 .hd {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.07);
-  background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(16,185,129,0.08));
+  padding: 13px 14px; border-bottom: 1px solid var(--la-border);
 }
-.brand { display: flex; align-items: center; gap: 10px; }
+.brand { display: flex; align-items: center; gap: 9px; }
 .logo {
-  width: 32px; height: 32px; border-radius: 8px; font-weight: 900; font-size: 14px;
+  width: 28px; height: 28px; border-radius: 7px; font-weight: 700; font-size: 11px;
   display: flex; align-items: center; justify-content: center; color: #fff;
-  background: linear-gradient(135deg, #7c3aed, #10b981);
+  background: var(--la-accent);
 }
-.name { font-weight: 800; font-size: 13px; }
-.sub { font-size: 10px; color: #8b949e; margin-top: 1px; }
-.status { font-size: 11px; color: #10b981; }
+.name { font-weight: 700; font-size: 12.5px; letter-spacing: -0.01em; }
+.sub { font-size: 10px; color: var(--la-text-faint); margin-top: 1px; }
+.status { display: flex; align-items: center; gap: 5px; font-size: 10.5px; color: var(--la-text-dim); }
+.status::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--la-success);
+}
 
 .body { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
 
 .info {
-  font-size: 12px; line-height: 1.5; color: #c9d1d9;
-  background: rgba(124,58,237,0.08); border: 1px solid rgba(124,58,237,0.25);
-  border-radius: 10px; padding: 10px 12px;
+  font-size: 11.5px; line-height: 1.5; color: var(--la-text-dim);
 }
+.info b { color: var(--la-text); font-weight: 600; }
 
 .row { display: flex; align-items: center; justify-content: space-between; }
-.count-row span:first-child { font-weight: 700; font-size: 13px; }
+.count-row span:first-child {
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--la-text-faint);
+}
 .badge {
-  background: #7c3aed; color: #fff; font-weight: 700; font-size: 12px;
-  min-width: 26px; text-align: center; border-radius: 999px; padding: 2px 8px;
+  background: var(--la-surface-2); color: var(--la-text); border: 1px solid var(--la-border);
+  font: 700 11.5px var(--la-mono); font-variant-numeric: tabular-nums;
+  min-width: 22px; text-align: center; border-radius: 999px; padding: 1px 9px;
 }
 
 .list {
-  max-height: 160px; overflow-y: auto; font-family: monospace; font-size: 11px;
-  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 10px; padding: 8px;
+  max-height: 160px; overflow-y: auto; font: 11.5px var(--la-mono);
+  background: var(--la-surface); border: 1px solid var(--la-border);
+  border-radius: 8px; padding: 6px;
 }
-.list .empty { color: #6e7681; text-align: center; padding: 18px 0; }
-.list .item { padding: 3px 4px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.list .empty { color: var(--la-text-faint); text-align: center; padding: 18px 0; font-family: -apple-system, sans-serif; font-size: 11.5px; }
+.list .item { padding: 4px 6px; border-bottom: 1px solid var(--la-border); color: var(--la-text-dim); }
 .list .item:last-child { border-bottom: none; }
-
-.filters { font-size: 12px; }
-.filters summary { cursor: pointer; color: #8b949e; padding: 4px 0; }
-.filters .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
-.filters label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: #8b949e; }
-.filters input, .filters select {
-  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 7px; padding: 6px 8px; color: #fff; font-size: 12px;
-}
-.chk { flex-direction: row !important; align-items: center; gap: 6px !important; margin-top: 8px; color: #c9d1d9 !important; }
 
 .actions { display: flex; gap: 8px; }
 .btn {
-  flex: 1; padding: 9px; border: none; border-radius: 9px; cursor: pointer;
-  font-weight: 700; font-size: 12px; color: #e6edf3;
-  background: rgba(255,255,255,0.06); transition: opacity .15s;
+  flex: 1; padding: 9px; border: none; border-radius: 7px; cursor: pointer;
+  font-weight: 600; font-size: 12px; color: var(--la-text);
+  background: var(--la-surface-2); transition: filter .12s ease-out;
 }
-.btn:hover { opacity: 0.85; }
-.btn.primary { background: #7c3aed; color: #fff; }
-.btn.green { background: #10b981; color: #04130d; }
-.btn.danger { background: transparent; border: 1px solid #f8514955; color: #f85149; }
-
-.msg { font-size: 11px; color: #10b981; min-height: 14px; text-align: center; }
-
-.divider { height: 1px; background: rgba(255,255,255,0.08); margin: 4px 0; }
-.green-badge { background: #10b981; color: #04130d; }
-.margin-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #c9d1d9; }
-.margin-row input {
-  width: 90px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 7px; padding: 6px 8px; color: #fff; font-size: 12px;
+.btn:hover { filter: brightness(1.12); }
+@media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
+.btn.primary { background: var(--la-accent); color: #fff; }
+.btn.ghost {
+  flex: none; background: none; color: var(--la-text-faint); padding: 6px 10px; font-size: 11px;
 }
-.prep-item { display: flex; justify-content: space-between; gap: 8px; padding: 4px 4px; border-bottom: 1px solid rgba(255,255,255,0.05); font-family: -apple-system, sans-serif; }
-.prep-item .t { font-size: 11px; color: #c9d1d9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-.prep-item .p { font-size: 11px; font-weight: 700; color: #10b981; white-space: nowrap; }
+.btn.ghost:hover { color: var(--la-danger); filter: none; }
+
+.msg { font-size: 11px; color: var(--la-success); min-height: 14px; text-align: center; }
+
+/* Kullanılan bileşenler: brand/status header, count rozeti, mono ASIN listesi,
+   birincil (Kopyala) + sessiz (Listeyi Temizle) eylem çifti. */

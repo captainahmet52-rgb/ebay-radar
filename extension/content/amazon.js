@@ -326,7 +326,7 @@
           <button id="la-close" title="Kapat">✕</button>
         </div>
       </div>
-      <div class="la-detected">✓ Amazon sayfası algılandı<br><small>Ürün köşesindeki kutularla ASIN seç</small></div>
+      <p class="la-detected"><b>●</b> Amazon algılandı <span>— ürün köşesindeki kutularla ASIN seç</span></p>
       <div id="la-detail" class="la-detail" style="display:none"></div>
 
       <div class="la-row"><span>Seçili ASIN'ler</span><span id="la-count" class="la-badge">0</span></div>
@@ -351,11 +351,11 @@
 
       <div class="la-actions">
         <button id="la-selectAll" class="la-btn la-primary">Tümünü Seç</button>
-        <button id="la-deselect" class="la-btn">Seçimi Kaldır</button>
+        <button id="la-copy" class="la-btn">Kopyala</button>
       </div>
-      <div class="la-actions">
-        <button id="la-copy" class="la-btn la-green">Kopyala</button>
-        <button id="la-clear" class="la-btn la-danger">Listeyi Temizle</button>
+      <div class="la-actions-quiet">
+        <button id="la-deselect" class="la-btn-ghost">Seçimi kaldır</button>
+        <button id="la-clear" class="la-btn-ghost la-danger-ghost">Listeyi temizle</button>
       </div>
       <p id="la-msg" class="la-msg"></p>
     `;
