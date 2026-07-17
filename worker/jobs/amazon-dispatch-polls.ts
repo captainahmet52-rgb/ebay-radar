@@ -10,7 +10,7 @@ import { Worker, Job } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { amazonPollProductQueue, amazonUpdateListingQueue } from "@/lib/queues";
+import { amazonPollProductQueue, amazonUpdateListingQueue, shopifyUpdateListingQueue } from "@/lib/queues";
 import { chunk, QUEUE_CHUNK } from "@/lib/batch";
 import type { DispatchAmazonPollsJobData, AmazonPollProductJobData } from "@/lib/queues";
 
@@ -21,6 +21,22 @@ const TRACKABLE_AMAZON_LISTING: Prisma.AmazonListingWhereInput = {
     { asin: { not: null }, status: { not: "ended" } },
     { status: "active" },
     { status: "paused", lastError: null, amazonAccount: { isActive: true } },
+  ],
+};
+
+const TRACKABLE_SHOPIFY_LISTING: Prisma.ShopifyListingWhereInput = {
+  OR: [
+    { status: "active" },
+    { status: "paused", lastError: null, shopifyAccount: { isActive: true } },
+  ],
+};
+
+// ORTAK DEPO: ürün Amazon'a VEYA Shopify'a yüklüyse takip edilir — tarama ürün
+// başına TEK sefer yapılır, sonuç yüklendiği her kanala yansır (maliyet katlanmaz).
+const HAS_TRACKABLE_LISTING: Prisma.AmazonDepotProductWhereInput = {
+  OR: [
+    { listings: { some: TRACKABLE_AMAZON_LISTING } },
+    { shopifyListings: { some: TRACKABLE_SHOPIFY_LISTING } },
   ],
 };
 
@@ -53,7 +69,7 @@ async function guardStaleProducts(now: Date): Promise<number> {
     where: {
       status: "active",
       lastScrapedAt: { lt: cutoff },
-      listings: { some: TRACKABLE_AMAZON_LISTING },
+      AND: [HAS_TRACKABLE_LISTING],
     },
     select: { id: true, aliId: true },
     take: STALE_MAX_PER_RUN,
@@ -77,11 +93,29 @@ async function guardStaleProducts(now: Date): Promise<number> {
     await amazonUpdateListingQueue.addBulk(part);
   }
 
+  // ORTAK DEPO: bayat ürünün Shopify listelemeleri de güvene alınır (DRAFT + qty 0)
+  const shopifyListings = await prisma.shopifyListing.findMany({
+    where: { productId: { in: ids }, status: "active" },
+    select: { id: true, salePrice: true },
+  });
+  const shopifyPauseJobs = shopifyListings.map((l) => ({
+    name: "shopify-update-listing" as const,
+    data: { listingId: l.id, price: l.salePrice ?? 0, qty: 0, pause: true },
+    opts: { jobId: `pause-shopify-listing:${l.id}` },
+  }));
+  for (const part of chunk(shopifyPauseJobs, QUEUE_CHUNK)) {
+    await shopifyUpdateListingQueue.addBulk(part);
+  }
+
   await prisma.amazonDepotProduct.updateMany({
     where: { id: { in: ids } },
     data: { status: "paused" },
   });
   await prisma.amazonListing.updateMany({
+    where: { productId: { in: ids }, status: "active" },
+    data: { status: "paused", currentQty: 0 },
+  });
+  await prisma.shopifyListing.updateMany({
     where: { productId: { in: ids }, status: "active" },
     data: { status: "paused", currentQty: 0 },
   });
@@ -101,7 +135,7 @@ async function dispatchActive(now: Date): Promise<number> {
         status: "active",
         pollTier: tier,
         OR: [{ lastScrapedAt: null }, { lastScrapedAt: { lt: cutoff } }],
-        listings: { some: TRACKABLE_AMAZON_LISTING },
+        AND: [HAS_TRACKABLE_LISTING],
       },
       select: { id: true },
       take: budget,
@@ -129,7 +163,7 @@ async function dispatchRecovery(now: Date): Promise<number> {
     where: {
       status: "paused",
       OR: [{ lastScrapedAt: null }, { lastScrapedAt: { lt: cutoff } }],
-      listings: { some: TRACKABLE_AMAZON_LISTING },
+      AND: [HAS_TRACKABLE_LISTING],
     },
     select: { id: true },
     take: RECOVERY_BUDGET,

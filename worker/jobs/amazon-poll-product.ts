@@ -14,8 +14,9 @@ import {
   determineAmazonQty,
   isPriceSpike,
 } from "@/lib/amazon-repricer";
-import { amazonUpdateListingQueue } from "@/lib/queues";
+import { amazonUpdateListingQueue, shopifyUpdateListingQueue } from "@/lib/queues";
 import type { AmazonPollProductJobData } from "@/lib/queues";
+import { calculateShopifyPrice } from "@/lib/shopify/pricing";
 
 // ─── Aktif listing'leri duraklat + Amazon'a qty 0 GÖNDER (oversell koruması) ────
 // Sadece DB'yi değil Amazon'u da güncellemek şart; yoksa Amazon'da satılabilir kalır.
@@ -36,6 +37,25 @@ async function pauseAllListings(depotProductId: string): Promise<void> {
     )
   );
   await prisma.amazonListing.updateMany({
+    where: { productId: depotProductId, status: "active" },
+    data: { status: "paused", currentQty: 0 },
+  });
+
+  // ORTAK DEPO: aynı ürünün Shopify listelemeleri de duraklatılır (DRAFT + qty 0)
+  const shopifyListings = await prisma.shopifyListing.findMany({
+    where: { productId: depotProductId, status: "active" },
+    select: { id: true, salePrice: true },
+  });
+  await Promise.all(
+    shopifyListings.map((l) =>
+      shopifyUpdateListingQueue.add(
+        "shopify-update-listing",
+        { listingId: l.id, price: l.salePrice ?? 0, qty: 0, pause: true },
+        { jobId: `pause-shopify-listing:${l.id}` }
+      )
+    )
+  );
+  await prisma.shopifyListing.updateMany({
     where: { productId: depotProductId, status: "active" },
     data: { status: "paused", currentQty: 0 },
   });
@@ -150,8 +170,37 @@ async function processAmazonPollProduct(job: Job<AmazonPollProductJobData>): Pro
     );
   }
 
+  // 5. ORTAK DEPO: aynı ürünün Shopify listelemelerini de yeniden fiyatla + senkronla
+  const shopifyListings = await prisma.shopifyListing.findMany({
+    where: {
+      productId: depotProductId,
+      OR: [
+        { status: "active" },
+        { status: "paused", lastError: null, shopifyAccount: { isActive: true } },
+      ],
+    },
+    select: { id: true, salePrice: true, currentQty: true, status: true },
+  });
+
+  let shopifyUpdateCount = 0;
+  for (const sl of shopifyListings) {
+    const pricing = calculateShopifyPrice(newCost, ali.shippingUsd);
+    const wasPaused = sl.status === "paused";
+    const priceChanged = isSignificantChange(sl.salePrice, pricing.salePrice);
+    const qtyChanged = sl.currentQty !== newQty;
+    if (!wasPaused && !priceChanged && !qtyChanged) continue;
+
+    shopifyUpdateCount++;
+    await shopifyUpdateListingQueue.add(
+      "shopify-update-listing",
+      { listingId: sl.id, price: pricing.salePrice, qty: newQty },
+      { jobId: `shopify-update-listing:${sl.id}:${Date.now()}` }
+    );
+  }
+
   await job.log(
-    `Tamam: ${product.aliId} | güncelle=${updateCount} reaktive=${reactivateCount} atlanan(histerezis)=${skipCount}`
+    `Tamam: ${product.aliId} | amazon güncelle=${updateCount} reaktive=${reactivateCount} ` +
+    `atlanan(histerezis)=${skipCount} | shopify güncelle=${shopifyUpdateCount}`
   );
 }
 

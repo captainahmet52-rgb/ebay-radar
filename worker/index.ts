@@ -13,6 +13,7 @@ import { createUpdateListingWorker } from "./jobs/update-listing";
 import { createAmazonAutoUploadWorker } from "./jobs/amazon-auto-upload";
 import { createAmazonPollProductWorker } from "./jobs/amazon-poll-product";
 import { createAmazonUpdateListingWorker } from "./jobs/amazon-update-listing";
+import { createShopifyUpdateListingWorker } from "./jobs/shopify-update-listing";
 import { createDispatchAmazonPollsWorker } from "./jobs/amazon-dispatch-polls";
 import { createAmazonPollOrdersWorker } from "./jobs/amazon-poll-orders";
 import { createAmazonVerifyOrderWorker } from "./jobs/amazon-verify-order";
@@ -43,6 +44,7 @@ const workers: Worker[] = [
   createAmazonAutoUploadWorker(connection),
   createAmazonPollProductWorker(connection),
   createAmazonUpdateListingWorker(connection),
+  createShopifyUpdateListingWorker(connection),
   createDispatchAmazonPollsWorker(connection),
   createAmazonPollOrdersWorker(connection),
   createAmazonVerifyOrderWorker(connection),
@@ -70,6 +72,7 @@ console.log("  → update-listing         (concurrency: 4)");
 console.log("  → amazon-auto-upload     (concurrency: 2)");
 console.log("  → amazon-poll-product    (concurrency: 4)");
 console.log("  → amazon-update-listing  (concurrency: 4)");
+console.log("  → shopify-update-listing (concurrency: 4)");
 console.log("  → dispatch-amazon-polls  (concurrency: 1)");
 console.log("  → amazon-poll-orders     (concurrency: 2)");
 console.log("  → amazon-verify-order    (concurrency: 4)");

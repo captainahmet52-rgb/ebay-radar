@@ -215,6 +215,28 @@ export const amazonUpdateListingQueue = createQueue<AmazonUpdateListingJobData, 
   }
 );
 
+// ─── ShopifyBot Listing Güncelleme Kuyruğu (fiyat/stok/pause senkronu) ─────────
+export interface ShopifyUpdateListingJobData {
+  listingId: string;
+  price: number;
+  qty: number;
+  // true → ürün Shopify'da DRAFT'a çekilir (stok bitti/spike), false → ACTIVE
+  pause?: boolean;
+}
+
+export const shopifyUpdateListingQueue = createQueue<ShopifyUpdateListingJobData, void, string>(
+  "shopify-update-listing",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 4,
+      backoff: { type: "exponential", delay: 2000 },
+      removeOnComplete: { count: 200 },
+      removeOnFail: { count: 500 },
+    },
+  }
+);
+
 // ─── AmazonBot Sipariş-Anı Doğrulama (canlı stok/fiyat kontrolü) ──────────────
 export interface AmazonVerifyOrderJobData {
   orderId: string;

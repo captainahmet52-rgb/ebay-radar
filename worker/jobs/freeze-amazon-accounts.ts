@@ -25,6 +25,24 @@ async function processFreezeAmazonAccounts(job: Job<FreezeAmazonAccountsJobData>
     await job.log(`${result.count} Amazon hesabı donduruldu (süre doldu)`);
     console.log(`[freeze-amazon-accounts] ${result.count} hesap donduruldu`);
   }
+
+  // Shopify hesapları da AYNI kuralla dondurulur (paket = hesap, tek yaşam döngüsü).
+  // Dondurulan hesabın listelemeleri poll propagasyonundan düşer (isActive filtresi).
+  const shopify = await prisma.shopifyAccount.updateMany({
+    where: {
+      isActive: true,
+      AND: [
+        { OR: [{ paidUntil: null }, { paidUntil: { lte: now } }] },
+        { OR: [{ trialEndsAt: null }, { trialEndsAt: { lte: now } }] },
+      ],
+    },
+    data: { isActive: false },
+  });
+
+  if (shopify.count > 0) {
+    await job.log(`${shopify.count} Shopify hesabı donduruldu (süre doldu)`);
+    console.log(`[freeze-amazon-accounts] ${shopify.count} Shopify hesabı donduruldu`);
+  }
 }
 
 export function createFreezeAmazonAccountsWorker(connection: ConnectionOptions): Worker {

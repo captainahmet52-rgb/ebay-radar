@@ -34,6 +34,10 @@ model User {
   amazonAutoUploadLogs AmazonAutoUploadLog[]
   creditTransactions   CreditTransaction[]
 
+  // ShopifyBot (AliExpress → müşterinin Shopify mağazası)
+  shopifyAccounts      ShopifyAccount[]
+  shopifyListings      ShopifyListing[]
+
   // Ön ödemeli kredi cüzdanı (takip kodu çevirme vb. mikro-ücretler buradan düşer)
   creditBalanceUsd     Float    @default(0)
 
@@ -504,6 +508,10 @@ model AmazonDepotProduct {
 
   listings AmazonListing[]
 
+  // ORTAK DEPO: aynı ürün Shopify kanalına da yüklenebilir (stok takibi ürün
+  // başına TEK sefer yapılır, yüklendiği her kanala yansır)
+  shopifyListings ShopifyListing[]
+
   @@index([status])
   @@index([pollTier])
 }
@@ -570,6 +578,63 @@ model AmazonOrder {
 
   @@index([userId])
   @@index([trackingStatus])
+}
+
+// ─── ShopifyBot: mağaza hesapları + listelemeler (AliExpress → Shopify) ────────
+model ShopifyAccount {
+  id                   String    @id @default(cuid())
+  userId               String
+  // Mağazanın myshopify.com domain'i (ör. benim-magazam.myshopify.com).
+  // GLOBAL tekil: aynı mağaza ikinci kez bağlanıp yeni deneme alamaz.
+  shopDomain           String    @unique
+  // Admin API kalıcı (offline) access token — AES-256-GCM ŞİFRELİ, düz metin ASLA
+  accessTokenEncrypted String?   @db.Text
+  // PAKET = HESAP (eBay EbayAccount / AmazonAccount ile aynı desen):
+  // bağlanınca 7 günlük deneme ile aktif; süre bitince freeze worker'ı kapatır.
+  isActive             Boolean   @default(false)
+  activatedAt          DateTime?
+  trialEndsAt          DateTime?
+  paidUntil            DateTime?
+  plan                 String    @default("starter")
+  productLimit         Int       @default(300)
+  // Meta entegrasyonu: müşterinin Pixel ID'si (katalog feed + pixel rehberi)
+  metaPixelId          String?
+  // Katalog feed'i için gizli erişim anahtarı (feed URL'i tahmin edilemesin)
+  feedToken            String    @unique @default(cuid())
+  createdAt            DateTime  @default(now())
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listings ShopifyListing[]
+
+  @@index([userId])
+}
+
+// Kullanıcının Shopify listelemeleri — ORTAK DEPO (AmazonDepotProduct) ürününün
+// Shopify kanalındaki karşılığı. AmazonListing ile aynı yaşam döngüsü:
+// active | paused | ended; stok/fiyat senkronu worker'larla yürür.
+model ShopifyListing {
+  id               String   @id @default(cuid())
+  userId           String
+  shopifyAccountId String
+  productId        String
+  // Shopify tarafı kimlikleri (GraphQL GID formatında saklanır)
+  shopifyProductId String?
+  shopifyVariantId String?
+  inventoryItemId  String?
+  salePrice        Float?
+  currentQty       Int      @default(2)
+  lastError        String?
+  status           String   @default("active")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shopifyAccount ShopifyAccount     @relation(fields: [shopifyAccountId], references: [id], onDelete: Cascade)
+  product        AmazonDepotProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([shopifyAccountId, productId])
+  @@index([userId])
+  @@index([status])
 }
 
 // ─── Kredi cüzdanı hareketleri (audit ledger) ─────────────────────────────────
