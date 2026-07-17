@@ -127,8 +127,8 @@ export default async function AmazonPricingPage({
       </div>
 
       <p className="text-center text-slate-600 text-xs">
-        Ödemeler Lemon Squeezy üzerinden güvenle alınır (kart bilgin bize ulaşmaz).
-        Her paket tek bir Amazon hesabı içindir; istediğin zaman iptal edebilirsin.
+        Satın alma işlemi canlı destek üzerinden tamamlanır — &quot;Satın Al&quot;a tıkla,
+        sohbet açılır. Her paket tek bir Amazon hesabı içindir; istediğin zaman iptal edebilirsin.
       </p>
     </div>
   );

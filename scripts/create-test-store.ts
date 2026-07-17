@@ -2,7 +2,7 @@
 /**
  * eBay Otomasyon SaaS — Ödeme Testi İçin Sahte Mağaza Oluşturucu
  *
- * Lemon Squeezy checkout/webhook zincirini test etmek için gerçek bir eBay
+ * Paket/aktivasyon akışını test etmek için gerçek bir eBay
  * hesabına/OAuth token'ına ihtiyaç YOKTUR — EbayAccount şemasında token
  * alanları opsiyoneldir. Bu script SADECE test amaçlıdır; token'sız,
  * isActive:false başlayan bir kayıt oluşturur (otomasyon tetiklenmez).

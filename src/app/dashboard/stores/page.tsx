@@ -72,8 +72,8 @@ export default function StoresPage() {
   }
 
   // PAKET = MAĞAZA: her mağaza kendi aboneliğini alır. "Paket Al" → o mağaza
-  // bağlamıyla (?store=) paketler sayfasına gider; seçilen paket Lemon Squeezy
-  // ödeme sayfasını açar, ödeme gelince webhook mağazayı aktive eder.
+  // bağlamıyla (?store=) paketler sayfasına gider; satın alma canlı destek
+  // üzerinden manuel yürür (ödeme sağlayıcısı yok), aktivasyonu admin yapar.
   function goToCheckout(id: string) {
     router.push(`/dashboard/pricing?store=${id}`);
   }

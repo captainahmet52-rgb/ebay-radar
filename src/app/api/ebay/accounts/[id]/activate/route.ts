@@ -15,8 +15,8 @@ export const POST = requireAuth(async (req, { userId, params }) => {
   try {
     const { id } = await params;
 
-    // Bu mağaza için seçilen paket (opsiyonel). Normal akışta aktivasyonu artık
-    // /api/webhooks/lemonsqueezy yapar; bu route admin/manuel aktivasyon için kalır.
+    // Bu mağaza için seçilen paket (opsiyonel). Ödeme sağlayıcısı yok —
+    // aktivasyon admin/manuel akışla yapılır; bu route o akış için kalır.
     const body = await req.json().catch(() => null);
     const requestedPlan =
       body && typeof body.plan === "string" && getPlan(body.plan) ? body.plan : undefined;
@@ -42,9 +42,9 @@ export const POST = requireAuth(async (req, { userId, params }) => {
       return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 });
     }
 
-    // PAKET = MAĞAZA: aktivasyon yalnızca ÖDEME ile yapılır (normal akışta Lemon
-    // Squeezy webhook'u aktive eder). Deneme, ek mağaza aktivasyonu hakkı VERMEZ.
-    // Abonelik yoksa paket sayfasına yönlendirilir.
+    // PAKET = MAĞAZA: aktivasyon yalnızca ÖDEME ile yapılır (ödeme canlı destek
+    // üzerinden manuel alınır, admin aktive eder). Deneme, ek mağaza aktivasyonu
+    // hakkı VERMEZ. Abonelik kaydı yoksa paket sayfasına yönlendirilir.
     if (!user.lemonSqueezySubscriptionId) {
       return NextResponse.json(
         { error: "Bu mağazayı aktifleştirmek için bir paket satın almanız gerekiyor.", needUpgrade: true },

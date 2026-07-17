@@ -91,8 +91,7 @@ export function getPlan(planId: string) {
 // bu, ürün limiti büyüdükçe gerçek ve önemli bir maliyet demek (eBay'in ücretsiz
 // SP-API'sinden farklı). +$50 düz ekleme bu geçici maliyet riskine karşı tampon;
 // resmi API onaylanınca bu risk ortadan kalkar, fiyatlar o zaman yeniden gözden
-// geçirilebilir. Lemon Squeezy'de eBay'inkinden AYRI 7 ürün/varyant gerekir
-// (fiyata göre eşleşiyoruz — bkz. lemonsqueezy.ts).
+// geçirilebilir. (Ödeme sağlayıcısı yok — satın alma canlı destekle manuel.)
 export const AMAZON_PLANS = {
   starter: { ...PLANS.starter, priceMonthly: 69.90 },
   basic: { ...PLANS.basic, priceMonthly: 89.90 },
@@ -112,9 +111,6 @@ export const AMAZON_PRO_PLUS_PLANS = [AMAZON_PLANS.scale, AMAZON_PLANS.ultimate]
 export function getAmazonPlan(planId: string) {
   return AMAZON_PLANS[planId as PlanId] ?? null;
 }
-
-// Lemon Squeezy varyant ID → paket eşlemesi src/lib/lemonsqueezy.ts'te FİYATA göre
-// otomatik çözülür (getVariantIdForPlan) — burada elle tutulan bir harita yok.
 
 // ─── Trial Sistemi ────────────────────────────────────────────────────────────
 

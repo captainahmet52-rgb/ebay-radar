@@ -213,7 +213,9 @@ tarama ile kendi kendine dönsün. Stok/fiyat kurallarını uygula.
  Adım 6 — Multi-tenant. Kullanıcı kaydı, OAuth ile mağaza bağlama,
 token şifreleme.
  Adım 7 — Müşteri paneli. Frontend: ürün ekleme, kural ayarları, raporlar.
- Adım 8 — Ödeme + plan. Lemon Squeezy, abonelik.
+ Adım 8 — Ödeme + plan. (Lemon Squeezy reddedildi ve kaldırıldı, 2026-07-17 —
+ödeme sağlayıcısı YOK; satın alma canlı destek + admin manuel aktivasyonla yürür.
+Yeni sağlayıcı bulununca burası güncellenecek.)
  Adım 9 — Yedek, izleme, ölçek. Operasyonel sağlamlaştırma.
 
 

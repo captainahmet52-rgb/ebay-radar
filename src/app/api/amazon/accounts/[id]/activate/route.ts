@@ -4,9 +4,9 @@ import { prisma } from "@/lib/prisma";
 
 /**
  * DELETE /api/amazon/accounts/[id]/activate — hesabı pasifleştirir (eBay'in
- * DELETE /api/ebay/accounts/[id]/activate'i ile aynı desen). Normal aktivasyon
- * /api/webhooks/lemonsqueezy üzerinden (checkout sonrası) olur; manuel POST
- * aktivasyona burada gerek yok — gerçek akış hep ödeme webhook'undan geçer.
+ * DELETE /api/ebay/accounts/[id]/activate'i ile aynı desen). Aktivasyon
+ * admin/manuel akışla yapılır (ödeme sağlayıcısı yok — satın alma canlı
+ * destek üzerinden yürür).
  */
 export const DELETE = requireAuth(async (_req, { userId, params }) => {
   try {
