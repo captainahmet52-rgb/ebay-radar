@@ -48,6 +48,14 @@ const ETSY_FEATURES = [
   { icon: HeartHandshake, label: "Müşteri Destek AI" },
 ];
 
+const SHOPIFY_FEATURES = [
+  { icon: Upload,       label: "Depodan Ürün Yükleme"  },
+  { icon: RefreshCcw,   label: "Stok Senkronizasyonu"  },
+  { icon: DollarSign,   label: "Otomatik Fiyatlama"    },
+  { icon: ShoppingCart, label: "Sipariş Otomasyonu"    },
+  { icon: BarChart2,    label: "Kâr Analitiği"         },
+];
+
 const STATS = [
   { icon: Shield,     title: "%99.9 Uptime",     sub: "Kurumsal Güvenilirlik"   },
   { icon: Lock,       title: "Güvenli API",       sub: "Banka Düzeyinde Güvenlik" },
@@ -358,7 +366,7 @@ export default function LandingPage() {
 
       {/* ══ Platform Kartları ══ */}
       <section id="entegrasyonlar" className="relative z-10 max-w-7xl mx-auto px-6 pb-6 scroll-mt-24">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
 
           {/* Amazon */}
           <PlatformCard
@@ -422,6 +430,26 @@ export default function LandingPage() {
             btnLabel="Etsy'i Bağla"
             btnTextColor="#fff"
             href="/etsy"
+          />
+
+          {/* Shopify */}
+          <PlatformCard
+            delay={0.55}
+            logo={
+              <span
+                className="text-[3rem] font-black leading-none tracking-tight"
+                style={{ color: "#96bf48" }}
+              >
+                shopify
+              </span>
+            }
+            tagline="Shopify mağazanı bağla, depodan yükle, stok ve siparişler otomatik."
+            features={SHOPIFY_FEATURES}
+            accent="#96bf48"
+            accent2="#7ca93c"
+            btnLabel="Shopify'ı Bağla"
+            btnTextColor="#000"
+            href="/shopify"
           />
         </div>
       </section>

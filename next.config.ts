@@ -68,6 +68,8 @@ const nextConfig: NextConfig = {
       { source: "/amazon", headers: noindex },
       { source: "/etsy/:path*", headers: noindex },
       { source: "/etsy", headers: noindex },
+      { source: "/shopify/:path*", headers: noindex },
+      { source: "/shopify", headers: noindex },
       { source: "/login", headers: noindex },
       { source: "/register", headers: noindex },
       // Statik görseller / favicon uzun süre cache'lensin
