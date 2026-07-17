@@ -436,12 +436,18 @@ export default function LandingPage() {
           <PlatformCard
             delay={0.55}
             logo={
-              <span
-                className="text-[3rem] font-black leading-none tracking-tight"
-                style={{ color: "#96bf48" }}
-              >
-                shopify
-              </span>
+              /* Siyah fonlu 3D loop — mix-blend screen ile fon karta karışır,
+                 yalnız dönen çanta görünür. Sessiz+loop: tarayıcı autoplay izni sorunsuz. */
+              <video
+                src="/videos/shopify-logo.mp4"
+                autoPlay
+                muted
+                loop
+                playsInline
+                aria-label="Shopify"
+                className="h-28 w-28 object-cover"
+                style={{ mixBlendMode: "screen" }}
+              />
             }
             tagline="Shopify mağazanı bağla, depodan yükle, stok ve siparişler otomatik."
             features={SHOPIFY_FEATURES}
