@@ -74,6 +74,21 @@ export function Empty({ text }: { text: string }) {
   );
 }
 
+export function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    active: "#22c55e", paused: "#f59e0b", ended: "#94a3b8", error: "#ef4444",
+  };
+  const c = map[status] ?? "#94a3b8";
+  return (
+    <span
+      className="text-[10px] font-medium rounded-full px-2 py-0.5 capitalize flex-shrink-0"
+      style={{ color: c, border: `1px solid ${c}55`, background: `${c}14` }}
+    >
+      {status}
+    </span>
+  );
+}
+
 export function InfoCard({ title, text }: { title: string; text: string }) {
   return (
     <div

@@ -9,7 +9,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   LayoutDashboard, Store, Warehouse, ShoppingCart, Home, Loader2,
-  Megaphone, Clapperboard,
+  Megaphone, Clapperboard, Package,
 } from "lucide-react";
 import { LogoMark } from "@/components/logo";
 import { SHOPIFY_ACCENT } from "@/components/shopify/shared";
@@ -19,6 +19,7 @@ const NAV = [
   { href: "/shopify", label: "Panel", icon: LayoutDashboard, exact: true },
   { href: "/shopify/stores", label: "Mağazalar", icon: Store },
   { href: "/shopify/depot", label: "Depo", icon: Warehouse },
+  { href: "/shopify/products", label: "Ürünlerim", icon: Package },
   { href: "/shopify/orders", label: "Siparişler", icon: ShoppingCart },
   { href: "/shopify/meta", label: "Meta Reklamları", icon: Megaphone },
   { href: "/shopify/videos", label: "UGC Video", icon: Clapperboard },
