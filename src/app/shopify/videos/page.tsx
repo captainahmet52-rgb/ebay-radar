@@ -163,7 +163,7 @@ function VideoGenerator({ listingId }: { listingId: string }) {
   const [charPreview, setCharPreview] = useState("");
   const [quality, setQuality] = useState<"standard" | "pro">("standard");
   const [seconds, setSeconds] = useState<15 | 30 | 45>(15);
-  const [prices, setPrices] = useState<{ std: number; pro: number } | null>(null);
+  const [priceTable, setPriceTable] = useState<Record<string, Record<number, number>> | null>(null);
   const [job, setJob] = useState<VideoJob | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -172,7 +172,7 @@ function VideoGenerator({ listingId }: { listingId: string }) {
     fetch("/api/shopify/ugc-video")
       .then((res) => (res.ok ? res.json() : null))
       .then((j) => {
-        if (j) setPrices({ std: j.priceUsd, pro: j.priceProUsd });
+        if (j?.priceTable) setPriceTable(j.priceTable);
       })
       .catch(() => {});
   }, []);
@@ -227,7 +227,7 @@ function VideoGenerator({ listingId }: { listingId: string }) {
     }
   }
 
-  const price = quality === "pro" ? prices?.pro : prices?.std;
+  const price = priceTable?.[quality]?.[seconds];
 
   return (
     <div

@@ -5,6 +5,7 @@ import { rateLimitAsync } from "@/lib/rate-limit";
 import {
   isUgcVideoConfigured,
   ugcVideoPriceUsd,
+  UGC_VIDEO_PRICES,
   chargeAndCreateJob,
   startUgcVideo,
 } from "@/lib/ugc-video/pipeline";
@@ -69,7 +70,7 @@ export const POST = requireAuth(async (req, { userId }) => {
   if (!charged) {
     return NextResponse.json(
       {
-        error: `Kredi bakiyen yetersiz (video ücreti $${ugcVideoPriceUsd(parsed.data.quality).toFixed(2)}) — canlı destekten kredi yükleyebilirsin.`,
+        error: `Kredi bakiyen yetersiz (video ücreti $${ugcVideoPriceUsd(parsed.data.quality, parsed.data.seconds).toFixed(2)}) — canlı destekten kredi yükleyebilirsin.`,
       },
       { status: 402 }
     );
@@ -110,5 +111,5 @@ export const GET = requireAuth(async (_req, { userId }) => {
     },
   });
 
-  return NextResponse.json({ jobs, priceUsd: ugcVideoPriceUsd("standard"), priceProUsd: ugcVideoPriceUsd("pro") });
+  return NextResponse.json({ jobs, priceTable: UGC_VIDEO_PRICES });
 });

@@ -25,12 +25,16 @@ export function isUgcVideoConfigured(): boolean {
   );
 }
 
-// ⚠️ TASLAK fiyatlar (kredi cüzdanından düşen USD) — env ile ezilebilir.
-// Kaynak maliyet: Kling Avatar v2 + ElevenLabs + Nano Banana + Haiku.
-export function ugcVideoPriceUsd(quality: AvatarQuality): number {
-  const std = parseFloat(process.env.UGC_VIDEO_PRICE_USD ?? "3");
-  const pro = parseFloat(process.env.UGC_VIDEO_PRICE_PRO_USD ?? "6");
-  return quality === "pro" ? pro : std;
+// SAHİBİN ONAYLADIĞI FİYATLAR (2026-07-18) — süre × kalite tablosu (~3x marj).
+// Kaynak maliyet: Kling Avatar v2 ($0.0562/sn std, $0.115/sn pro) + ElevenLabs
+// + Nano Banana + Haiku → 15sn std ~$1.00 ... 45sn pro ~$5.40.
+export const UGC_VIDEO_PRICES: Record<AvatarQuality, Record<number, number>> = {
+  standard: { 15: 3, 30: 6, 45: 9 },
+  pro: { 15: 6, 30: 11, 45: 16 },
+};
+
+export function ugcVideoPriceUsd(quality: AvatarQuality, seconds: number): number {
+  return UGC_VIDEO_PRICES[quality][seconds] ?? UGC_VIDEO_PRICES[quality][15];
 }
 
 /**
@@ -44,7 +48,7 @@ export async function chargeAndCreateJob(params: {
   seconds: number;
   characterImageUrl: string;
 }): Promise<{ jobId: string } | null> {
-  const price = ugcVideoPriceUsd(params.quality);
+  const price = ugcVideoPriceUsd(params.quality, params.seconds);
 
   return prisma.$transaction(async (tx) => {
     const charged = await tx.user.updateMany({
