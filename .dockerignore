@@ -1,5 +1,9 @@
 node_modules
 .next
+# Remotion demo videosu — bağımsız yerel araç, kendi package.json'ı var,
+# ana build'e taşınırsa remotion tipleri kök tsconfig'e sızıp build'i patlatır.
+# Video zaten public/videos/demo.mp4'e render edilmiş halde commit'te duruyor.
+demo-video
 .env
 .env.local
 .env.*.local
