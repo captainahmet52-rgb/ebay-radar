@@ -15,6 +15,13 @@ interface ShopifyAccountRow {
   listingCount: number;
 }
 
+interface PlanRow {
+  id: string;
+  name: string;
+  priceUsd: number;
+  productLimit: number;
+}
+
 const ERROR_TEXT: Record<string, string> = {
   not_configured: "Shopify uygulaması henüz yapılandırılmadı — canlı desteğe yaz.",
   missing_params: "Bağlantı yarım kaldı, tekrar dene.",
@@ -44,6 +51,7 @@ function StoresContent() {
   const searchParams = useSearchParams();
   const [accounts, setAccounts] = useState<ShopifyAccountRow[] | null>(null);
   const [configured, setConfigured] = useState(true);
+  const [plans, setPlans] = useState<PlanRow[]>([]);
   const [shop, setShop] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -53,12 +61,14 @@ function StoresContent() {
     const j = await res.json();
     setAccounts(j.accounts);
     setConfigured(j.configured);
+    setPlans(j.plans ?? []);
   }, []);
 
   useEffect(() => { void load(); }, [load]);
 
   const errCode = searchParams.get("error");
   const connected = searchParams.get("connected");
+  const billing = searchParams.get("billing");
 
   function connect() {
     if (!shop.trim()) return;
@@ -85,6 +95,12 @@ function StoresContent() {
         )}
         {connected && (
           <InfoCard title="Mağaza bağlandı 🎉" text="7 günlük ücretsiz deneme başladı. Depodan ürün seçip yüklemeye başlayabilirsin." />
+        )}
+        {billing === "ok" && (
+          <InfoCard title="Paket aktif 🎉" text="Aboneliğin Shopify üzerinden başladı — mağazan tam kapasite çalışıyor." />
+        )}
+        {billing && billing !== "ok" && (
+          <InfoCard title="Paket satın alma tamamlanamadı" text="Onay tamamlanmadı veya doğrulanamadı — tekrar dene, olmazsa canlı desteğe yaz." />
         )}
 
         {/* Bağlama formu */}
@@ -155,12 +171,67 @@ function StoresContent() {
                     </button>
                   </div>
                 </div>
+                {/* Paket seçimi — Shopify Billing açıkken görünür; ödeme Shopify
+                    admin onayıyla alınır (deneme biten/donan mağazayı canlandırır) */}
+                {plans.length > 0 && a.accessState !== "active" && (
+                  <PlanPicker accountId={a.id} plans={plans} currentPlan={a.plan} />
+                )}
               </Card>
             ))}
           </div>
         )}
       </div>
     </>
+  );
+}
+
+function PlanPicker({ accountId, plans, currentPlan }: { accountId: string; plans: PlanRow[]; currentPlan: string }) {
+  const [busyPlan, setBusyPlan] = useState("");
+  const [err, setErr] = useState("");
+
+  async function subscribe(planId: string) {
+    setBusyPlan(planId); setErr("");
+    try {
+      const res = await fetch("/api/shopify/billing/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId, plan: planId }),
+      });
+      const j = await res.json();
+      if (!res.ok || !j.confirmationUrl) {
+        setErr(j.error ?? "Başlatılamadı — tekrar dene");
+        return;
+      }
+      window.location.href = j.confirmationUrl; // Shopify admin onay ekranı
+    } catch {
+      setErr("Bağlantı hatası — tekrar dene");
+    } finally {
+      setBusyPlan("");
+    }
+  }
+
+  return (
+    <div className="mt-4 pt-4 border-t border-white/5">
+      <p className="text-xs text-slate-400 mb-2.5">
+        Paket seç — ödeme güvenle <span className="text-slate-300">Shopify üzerinden</span> alınır:
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {plans.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => subscribe(p.id)}
+            disabled={Boolean(busyPlan)}
+            className="text-xs font-bold rounded-lg px-3.5 py-2 text-white bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50 transition-colors"
+            style={p.id === currentPlan ? { borderColor: `${SHOPIFY_ACCENT}66` } : undefined}
+          >
+            {busyPlan === p.id
+              ? <Loader2 className="h-3.5 w-3.5 animate-spin inline" />
+              : <>{p.name} · ${p.priceUsd}/ay · {p.productLimit} ürün</>}
+          </button>
+        ))}
+      </div>
+      {err && <p className="text-xs text-red-400 mt-2">{err}</p>}
+    </div>
   );
 }
 

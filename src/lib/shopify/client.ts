@@ -6,7 +6,11 @@
 // Retry politikası (eBay client ile aynı ruh): 429/5xx → backoff ile max 3
 // deneme; THROTTLED GraphQL hatası da 429 gibi ele alınır. Token log'a yazılmaz.
 
-const API_VERSION = "2024-10";
+// Shopify API sürümleri 12 ay desteklenir — 2024-10 artık kapalı (2026 itibarıyla).
+// 2026-01, Temmuz 2026'da yayınlanmış en güncel KARARLI sürümlerden; kullandığımız
+// productCreate / productVariantsBulkUpdate / inventorySetQuantities / orders
+// uçlarının tamamı bu sürümde mevcut.
+const API_VERSION = "2026-01";
 const MAX_RETRIES = 3;
 
 function backoffMs(attempt: number): number {

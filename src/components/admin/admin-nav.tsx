@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 // Alt sıra: seçili pazarın kendi linkleri. Sayfalar yerinde kalır,
 // sadece hangi linklerin gösterileceği seçili sekmeye göre değişir.
 
-type SectionKey = "ebay" | "amazon" | "etsy" | "genel";
+type SectionKey = "ebay" | "amazon" | "shopify" | "etsy" | "genel";
 
 interface NavLink {
   href: string;
@@ -44,6 +44,12 @@ const SECTIONS: Section[] = [
     links: [{ href: "/admin/amazon", label: "Panel", exact: true }],
   },
   {
+    key: "shopify",
+    label: "Shopify",
+    color: "#96bf48",
+    links: [{ href: "/admin/shopify", label: "Panel", exact: true }],
+  },
+  {
     key: "etsy",
     label: "Etsy",
     color: "#ec4899",
@@ -66,6 +72,7 @@ const SECTIONS: Section[] = [
 /** Aktif pazarı adres yolundan çözer. Eşleşme yoksa eBay varsayılan. */
 function resolveSection(pathname: string): SectionKey {
   if (pathname.startsWith("/admin/amazon")) return "amazon";
+  if (pathname.startsWith("/admin/shopify")) return "shopify";
   if (pathname.startsWith("/admin/etsy")) return "etsy";
   const genelPrefixes = [
     "/admin/user-stores",

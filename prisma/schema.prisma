@@ -37,6 +37,7 @@ model User {
   // ShopifyBot (AliExpress → müşterinin Shopify mağazası)
   shopifyAccounts      ShopifyAccount[]
   shopifyListings      ShopifyListing[]
+  shopifyOrders        ShopifyOrder[]
 
   // Ön ödemeli kredi cüzdanı (takip kodu çevirme vb. mikro-ücretler buradan düşer)
   creditBalanceUsd     Float    @default(0)
@@ -601,10 +602,15 @@ model ShopifyAccount {
   metaPixelId          String?
   // Katalog feed'i için gizli erişim anahtarı (feed URL'i tahmin edilemesin)
   feedToken            String    @unique @default(cuid())
+  // Sipariş çekme imleci: son başarılı sipariş senkronu (worker/jobs/shopify-poll-orders)
+  lastOrdersSyncAt     DateTime?
+  // app/uninstalled webhook'u gelince damgalanır (token da geçersizleşir)
+  uninstalledAt        DateTime?
   createdAt            DateTime  @default(now())
 
   user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   listings ShopifyListing[]
+  orders   ShopifyOrder[]
 
   @@index([userId])
 }
@@ -635,6 +641,38 @@ model ShopifyListing {
   @@unique([shopifyAccountId, productId])
   @@index([userId])
   @@index([status])
+}
+
+// Shopify mağazasına düşen siparişler. Müşteri PII'ı (isim/adres/e-posta) BURADA
+// SAKLANMAZ — mağaza sahibi kargo bilgilerini kendi Shopify panelinde görür; biz
+// yalnız sipariş özetini + ortak depo eşlemesini + AliExpress kaynak durumunu tutarız.
+// Bu sayede customers/redact GDPR webhook'unda silinecek müşteri verimiz yoktur.
+model ShopifyOrder {
+  id                String   @id @default(cuid())
+  userId            String
+  shopifyAccountId  String
+  // Shopify sipariş GID'i (gid://shopify/Order/123) — hesap içinde tekil
+  shopifyOrderId    String
+  name              String   // müşteriye görünen numara (#1001)
+  totalPrice        Float
+  currency          String   @default("USD")
+  financialStatus   String?
+  fulfillmentStatus String?
+  // [{title, quantity, shopifyProductId, listingId?, depotProductId?}]
+  lineItems         Json
+  // Sipariş-anı kaynak kontrolü (ortak depo verisinden): ok | ali_stock_risk | unlinked
+  sourcingStatus    String   @default("ok")
+  // Eşleşen kalemlerin AliExpress maliyeti (ürün+kargo, adetle çarpılı toplam)
+  aliCostUsd        Float?
+  shopifyCreatedAt  DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shopifyAccount ShopifyAccount @relation(fields: [shopifyAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([shopifyAccountId, shopifyOrderId])
+  @@index([userId, shopifyCreatedAt])
 }
 
 // ─── Kredi cüzdanı hareketleri (audit ledger) ─────────────────────────────────

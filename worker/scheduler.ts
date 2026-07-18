@@ -25,6 +25,7 @@ import {
   ebayAutoUploadQueue,
   retierProductsQueue,
   scraperUsageCheckQueue,
+  shopifyPollOrdersQueue,
 } from "@/lib/queues";
 
 export async function setupScheduler(): Promise<void> {
@@ -105,6 +106,15 @@ export async function setupScheduler(): Promise<void> {
     { repeat: { every: 30 * 60 * 1000 } }
   );
   console.log("[scheduler] amazon-poll-orders kuruldu: her 30 dakika");
+
+  // ── shopify-poll-orders: her 30 dakika (Admin GraphQL orders → Siparişler) ───
+  await clearRepeatableJobs(shopifyPollOrdersQueue, "shopify-poll-orders");
+  await shopifyPollOrdersQueue.add(
+    "shopify-poll-orders",
+    {}, // shopifyAccountId undefined → aktif tüm mağazalar
+    { repeat: { every: 30 * 60 * 1000 } }
+  );
+  console.log("[scheduler] shopify-poll-orders kuruldu: her 30 dakika");
 
   // NOT: amazon-depot-watchdog KALDIRILDI — depo doldurma Radar'ın zamanlanmış
   // taramasıyla olur (yerelden radar tetiklemesi yok).

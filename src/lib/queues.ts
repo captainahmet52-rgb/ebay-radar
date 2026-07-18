@@ -237,6 +237,24 @@ export const shopifyUpdateListingQueue = createQueue<ShopifyUpdateListingJobData
   }
 );
 
+// ─── ShopifyBot Sipariş Çekme Kuyruğu (Admin GraphQL orders) ───────────────────
+export interface ShopifyPollOrdersJobData {
+  shopifyAccountId?: string; // undefined → aktif tüm Shopify hesapları
+}
+
+export const shopifyPollOrdersQueue = createQueue<ShopifyPollOrdersJobData, void, string>(
+  "shopify-poll-orders",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { type: "exponential", delay: 5000 },
+      removeOnComplete: { count: 100 },
+      removeOnFail: { count: 300 },
+    },
+  }
+);
+
 // ─── AmazonBot Sipariş-Anı Doğrulama (canlı stok/fiyat kontrolü) ──────────────
 export interface AmazonVerifyOrderJobData {
   orderId: string;

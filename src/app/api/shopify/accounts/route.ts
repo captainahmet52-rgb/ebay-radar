@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { isShopifyConfigured } from "@/lib/shopify/oauth";
+import { isShopifyBillingEnabled, SHOPIFY_PLANS } from "@/lib/shopify/billing";
 import { storeAccessState, trialDaysLeft } from "@/lib/store-access";
 
 /**
@@ -29,6 +30,9 @@ export const GET = requireAuth(async (_req, { userId }) => {
 
   return NextResponse.json({
     configured: isShopifyConfigured(),
+    // Billing kapalıyken planlar UI'da GÖSTERİLMEZ (taslak fiyatlar sızmasın)
+    billingEnabled: isShopifyBillingEnabled(),
+    plans: isShopifyBillingEnabled() ? SHOPIFY_PLANS : [],
     accounts: accounts.map((a) => ({
       ...a,
       accessState: storeAccessState(a),

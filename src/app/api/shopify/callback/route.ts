@@ -11,6 +11,7 @@ import {
   exchangeCodeForToken,
 } from "@/lib/shopify/oauth";
 import { addDays, STORE_TRIAL_DAYS, STORE_TRIAL_PRODUCT_LIMIT } from "@/lib/store-access";
+import { registerShopifyWebhooks } from "@/lib/shopify/webhooks";
 
 /**
  * GET /api/shopify/callback — Shopify OAuth dönüşü.
@@ -58,10 +59,11 @@ export async function GET(req: NextRequest) {
     const existing = await prisma.shopifyAccount.findUnique({ where: { shopDomain } });
     if (existing) {
       if (existing.userId !== userId) return fail("shop_owned_by_other");
-      // Yeniden bağlanma: token tazele, deneme hakkı YENİDEN VERİLMEZ
+      // Yeniden bağlanma: token tazele, deneme hakkı YENİDEN VERİLMEZ.
+      // Uygulama yeniden kurulduysa uninstall damgası da temizlenir.
       await prisma.shopifyAccount.update({
         where: { id: existing.id },
-        data: { accessTokenEncrypted: encryptToken(accessToken) },
+        data: { accessTokenEncrypted: encryptToken(accessToken), uninstalledAt: null },
       });
     } else {
       const now = new Date();
@@ -77,6 +79,10 @@ export async function GET(req: NextRequest) {
         },
       });
     }
+
+    // 6. Webhook abonelikleri (app/uninstalled + abonelik durumu) — best-effort:
+    // başarısız olsa bile bağlantı tamamdır (siparişler polling ile zaten çekilir)
+    await registerShopifyWebhooks(shopDomain, accessToken, new URL(req.url).origin);
 
     return NextResponse.redirect(new URL("/shopify/stores?connected=1", req.url));
   } catch (err) {
