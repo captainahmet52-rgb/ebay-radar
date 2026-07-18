@@ -10,7 +10,7 @@ export interface FaqItem {
 export const FAQ: FaqItem[] = [
   {
     q: "Lean Automation nedir?",
-    a: "Lean Automation; Amazon, eBay ve Etsy satıcıları için yapay zeka destekli bir pazar yeri otomasyon platformudur. Ürün listeleme, fiyatlandırma, stok takibi ve sipariş yönetimini tek panelden otomatikleştirir.",
+    a: "Lean Automation; Amazon, eBay, Etsy ve Shopify satıcıları için yapay zeka destekli bir pazar yeri otomasyon platformudur. Ürün listeleme, fiyatlandırma, stok takibi ve sipariş yönetimini tek panelden otomatikleştirir.",
   },
   {
     q: "eBay otomasyonu nasıl çalışır?",
@@ -22,7 +22,7 @@ export const FAQ: FaqItem[] = [
   },
   {
     q: "Hangi pazar yerleri destekleniyor?",
-    a: "Şu anda eBay otomasyonu (eBayBot) tam olarak aktiftir. Amazon (AmazonBot) ve Etsy (EtsyBot) entegrasyonları çok yakında eklenecektir.",
+    a: "eBay otomasyonu (eBayBot) tam aktiftir ve mağazanı hemen bağlayabilirsin. Amazon (AmazonBot) ve Shopify (ShopifyBot) motoru hazır, resmi API onayları tamamlanınca açılacak. Etsy (EtsyBot) entegrasyonu geliştirme aşamasındadır.",
   },
   {
     q: "Fiyatlandırma nasıl?",

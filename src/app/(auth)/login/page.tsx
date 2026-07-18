@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { Mail, Lock, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { openSupportChat } from "@/lib/open-support-chat";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -67,15 +68,24 @@ export default function LoginPage() {
           icon={<Mail className="h-4 w-4" />}
           required
         />
-        <Input
-          label="Şifre"
-          type="password"
-          placeholder="••••••••"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          icon={<Lock className="h-4 w-4" />}
-          required
-        />
+        <div className="space-y-1.5">
+          <Input
+            label="Şifre"
+            type="password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            icon={<Lock className="h-4 w-4" />}
+            required
+          />
+          <button
+            type="button"
+            onClick={openSupportChat}
+            className="text-xs text-violet-400 hover:text-violet-300 transition-colors"
+          >
+            Şifremi unuttum
+          </button>
+        </div>
 
         {error && (
           <motion.div

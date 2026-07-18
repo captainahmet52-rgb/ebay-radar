@@ -57,6 +57,7 @@ export default function RegisterPage() {
   const [success, setSuccess] = useState(false);
   const [callbackUrl, setCallbackUrl] = useState<string | null>(null);
   const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -78,6 +79,10 @@ export default function RegisterPage() {
     }
     if (password.length < 8) {
       setError("Şifre en az 8 karakter olmalıdır.");
+      return;
+    }
+    if (!acceptedTerms) {
+      setError("Devam etmek için Kullanım Şartları ve Gizlilik Politikası'nı onaylamalısın.");
       return;
     }
 
@@ -167,6 +172,25 @@ export default function RegisterPage() {
             error={confirmPassword && confirmPassword !== password ? "Şifreler eşleşmiyor" : undefined}
             required
           />
+
+          <label className="flex items-start gap-2.5 text-xs text-slate-400 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-800 text-violet-500 focus:ring-violet-500 focus:ring-offset-slate-900"
+            />
+            <span>
+              <Link href="/terms" target="_blank" className="text-violet-400 hover:text-violet-300 underline">
+                Kullanım Şartları
+              </Link>{" "}
+              ve{" "}
+              <Link href="/privacy" target="_blank" className="text-violet-400 hover:text-violet-300 underline">
+                Gizlilik Politikası
+              </Link>
+              &apos;nı okudum, kabul ediyorum.
+            </span>
+          </label>
 
           {error && (
             <motion.div

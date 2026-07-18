@@ -163,12 +163,20 @@ function PipelineScene() {
 }
 
 // ─── Sayaç ────────────────────────────────────────────────────────────────────
+// SEO/no-JS güvenli: sunucu HTML'i (ve JS çalışmayan tarayıcılar) HER ZAMAN
+// gerçek nihai değeri görür — sayma animasyonu yalnız görünür durumdaki bir
+// EKLENTİ, doğru değerin görünürlüğünü JS'e bağlamaz (impeccable: "reveal
+// animasyonları zaten görünen bir varsayılanı GÜÇLENDİRİR, gizlemez").
 function Counter({ to, suffix = "" }: { to: number; suffix?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true });
-  const [val, setVal] = useState(0);
+  const [val, setVal] = useState(to); // ilk render = gerçek değer (SSR/no-JS için doğru)
+
   useEffect(() => {
     if (!inView) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    setVal(0);
     const start = performance.now();
     const dur = 1400;
     let raf = 0;
@@ -180,6 +188,7 @@ function Counter({ to, suffix = "" }: { to: number; suffix?: string }) {
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
   }, [inView, to]);
+
   return <span ref={ref} className="tabular-nums">{val.toLocaleString("tr-TR")}{suffix}</span>;
 }
 
@@ -322,7 +331,7 @@ export default function LandingPage() {
           {[
             { v: 1500, s: "", label: "ürünlük ortak depo" },
             { v: 4, s: "", label: "platform, tek panel" },
-            { v: 5, s: " dk", label: "stok/fiyat tarama aralığı" },
+            { v: 15, s: " dk", label: "kritik üründe en hızlı tarama" },
             { v: 24, s: "/7", label: "kesintisiz takip" },
           ].map(({ v, s, label }) => (
             <div key={label}>
@@ -436,7 +445,7 @@ export default function LandingPage() {
             {[
               { icon: Radar, title: "Radar keşfeder", desc: "Sistem AliExpress'i sürekli tarar; puan, satış ve marj kanıtı olan ürünleri seçip ortak depoya yazar." },
               { icon: Warehouse, title: "Depo besler", desc: "1.500 ürünlük havuzdan seçersin; fiyat pazara göre hesaplanır, AI görselleri hazırlanır, kanalına yüklenir." },
-              { icon: TrendingUp, title: "Senkron korur", desc: "5 dakikada bir stok/fiyat taranır. Kaynak stok biterse ilanın anında durdurulur — asla satamayacağın ürünü satmazsın." },
+              { icon: TrendingUp, title: "Senkron korur", desc: "Ürünler riskine göre taranır: çok satan/az stoklu ürünlerde 15 dakikaya kadar, normalde saatlik. Kaynak stok biterse ilanın anında durdurulur." },
             ].map(({ icon: Icon, title, desc }, i) => (
               <motion.div
                 key={title}
@@ -526,7 +535,7 @@ export default function LandingPage() {
           {/* Dikey iki panel */}
           <div className="flex flex-col gap-5">
             {[
-              { icon: ImageIcon, title: "AI ürün görselleri", desc: "Yüklediğin her ürün için stüdyo, kullanım ve detay çekimi — filigranlar temizlenmiş 3 profesyonel fotoğraf." },
+              { icon: ImageIcon, title: "AI ürün görselleri", desc: "Yüklediğin her ürün için stüdyo, kullanım ve detay çekimi — satış kanalına optimize edilmiş 3 profesyonel fotoğraf." },
               { icon: Megaphone, title: "AI kampanya taslağı", desc: "Ürünü önce araştırır, sonra Meta reklam başlığını, metinlerini ve hedef kitleyi yazar. Kopyala, yapıştır, yayınla." },
             ].map(({ icon: Icon, title, desc }, i) => (
               <motion.div
