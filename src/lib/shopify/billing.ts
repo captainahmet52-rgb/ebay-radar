@@ -25,12 +25,12 @@ export interface ShopifyPlan {
   productLimit: number;
 }
 
-// ⚠️ TASLAK FİYATLAR — sahibin onayı olmadan YAYINA AÇILMAZ (SHOPIFY_BILLING_ENABLED
-// kapalı kaldığı sürece hiçbir kullanıcı görmez). Onay gelince burada güncellenir.
+// SAHİBİN ONAYLADIĞI FİYATLAR (2026-07-18): $100 / $250 / $400 aylık.
+// Yayına açılma yine SHOPIFY_BILLING_ENABLED bayrağına bağlı (App Store ile birlikte).
 export const SHOPIFY_PLANS: ShopifyPlan[] = [
-  { id: "starter", name: "Starter", priceUsd: 19.99, productLimit: 300 },
-  { id: "growth", name: "Growth", priceUsd: 39.99, productLimit: 750 },
-  { id: "pro", name: "Pro", priceUsd: 69.99, productLimit: 1500 },
+  { id: "starter", name: "Starter", priceUsd: 100, productLimit: 300 },
+  { id: "growth", name: "Growth", priceUsd: 250, productLimit: 750 },
+  { id: "pro", name: "Pro", priceUsd: 400, productLimit: 1500 },
 ];
 
 export function getShopifyPlan(planId: string): ShopifyPlan | undefined {
