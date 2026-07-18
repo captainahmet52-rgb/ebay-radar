@@ -292,11 +292,11 @@ export default function LandingPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="inline-flex items-center gap-2 text-xs font-semibold tracking-widest px-4 py-2 rounded-full mb-5"
-          style={{ border: "1px solid rgba(124,58,237,0.4)", background: "rgba(124,58,237,0.1)", color: "#a78bfa" }}
+          className="inline-flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-full mb-5"
+          style={{ border: "1px solid rgba(124,58,237,0.4)", background: "rgba(124,58,237,0.1)", color: "#c4b5fd" }}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
-          YAPAY ZEKA DESTEKLİ PAZAR YERİ OTOMASYONU
+          Yapay zeka destekli pazar yeri otomasyonu
         </motion.div>
 
         <motion.h1
@@ -304,20 +304,12 @@ export default function LandingPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.65, delay: 0.1 }}
           className="font-black leading-[1.08] mb-4"
-          style={{ fontSize: "clamp(2.2rem, 5.5vw, 4.2rem)" }}
+          style={{ fontSize: "clamp(2.2rem, 5.5vw, 4.2rem)", textWrap: "balance" }}
         >
           Pazar Yeri İşinizi
           <br />
-          <span
-            style={{
-              background: "linear-gradient(135deg, #818cf8 0%, #a78bfa 35%, #c084fc 70%, #e879f9 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-            }}
-          >
-            AI ile Ölçeklendirin
-          </span>
+          {/* Tek dolgun vurgu rengi — degrade yazı değil (okunurluk + kurumsal his) */}
+          <span style={{ color: "#a78bfa" }}>AI ile Ölçeklendirin</span>
         </motion.h1>
 
         <motion.p
@@ -326,7 +318,7 @@ export default function LandingPage() {
           transition={{ duration: 0.5, delay: 0.25 }}
           className="text-[#9ca3af] text-base max-w-xl mx-auto leading-relaxed"
         >
-          Amazon, eBay ve Etsy satıcıları için tam otomasyonlu çözümler.
+          Amazon, eBay, Etsy ve Shopify satıcıları için tam otomasyonlu çözümler.
           Listeleme, sipariş, stok ve müşteriyi tek platformdan yönetin.
         </motion.p>
 
@@ -353,7 +345,7 @@ export default function LandingPage() {
               <HeartHandshake className="h-4 w-4" /> Davet Et, +7 Gün Kazan
             </Link>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-slate-500">
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-slate-400">
             <span className="flex items-center gap-1.5"><Star className="h-3.5 w-3.5 text-emerald-400" /> Mağaza başına 7 gün / 50 ürün ücretsiz</span>
             <span className="flex items-center gap-1.5"><Lock className="h-3.5 w-3.5 text-emerald-400" /> Kredi kartı gerekmez</span>
             <span className="flex items-center gap-1.5"><Shield className="h-3.5 w-3.5 text-emerald-400" /> SSL korumalı</span>
@@ -498,7 +490,7 @@ export default function LandingPage() {
 
       {/* ══ Nasıl Çalışır + Demo ══ */}
       <section id="ozellikler" className="relative z-10 max-w-5xl mx-auto px-6 pb-16 scroll-mt-24">
-        <h2 className="text-3xl md:text-4xl font-black text-center mb-3">Nasıl Çalışır?</h2>
+        <h2 className="text-3xl md:text-4xl font-black text-center mb-3" style={{ textWrap: "balance" }}>Nasıl Çalışır?</h2>
         <p className="text-slate-400 text-center mb-10">3 adımda otomasyona başla</p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
@@ -572,7 +564,7 @@ export default function LandingPage() {
         <FaqStructuredData />
         <h2 className="text-3xl md:text-4xl font-black text-center mb-3">Sık Sorulan Sorular</h2>
         <p className="text-slate-400 text-center mb-10">
-          Amazon, eBay ve Etsy otomasyonu hakkında merak edilenler
+          Amazon, eBay, Etsy ve Shopify otomasyonu hakkında merak edilenler
         </p>
         <div className="space-y-3">
           {FAQ.map((item) => (
