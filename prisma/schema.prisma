@@ -38,6 +38,7 @@ model User {
   shopifyAccounts      ShopifyAccount[]
   shopifyListings      ShopifyListing[]
   shopifyOrders        ShopifyOrder[]
+  ugcVideoJobs         UgcVideoJob[]
 
   // Ön ödemeli kredi cüzdanı (takip kodu çevirme vb. mikro-ücretler buradan düşer)
   creditBalanceUsd     Float    @default(0)
@@ -637,10 +638,41 @@ model ShopifyListing {
   user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   shopifyAccount ShopifyAccount     @relation(fields: [shopifyAccountId], references: [id], onDelete: Cascade)
   product        AmazonDepotProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  ugcVideos      UgcVideoJob[]
 
   @@unique([shopifyAccountId, productId])
   @@index([userId])
   @@index([status])
+}
+
+// UGC video üretim işi — Lumina AI (sahibin UGC projesi) motorunun portu:
+// Haiku konuşma metni (EN) → ElevenLabs ses → Nano Banana ürün-karaktere uygulama
+// → Kling AI Avatar v2 (fal kuyruğu). Ücret kredi cüzdanından; patlarsa iade.
+model UgcVideoJob {
+  id                String    @id @default(cuid())
+  userId            String
+  listingId         String
+  // processing | completed | failed
+  status            String    @default("processing")
+  step              String?
+  // standard | pro (Kling Avatar v2 kalite)
+  quality           String    @default("standard")
+  seconds           Int       @default(15)
+  spokenText        String?   @db.Text
+  characterImageUrl String?   @db.Text
+  editedImageUrl    String?   @db.Text
+  falRequestId      String?
+  videoUrl          String?   @db.Text
+  error             String?
+  priceUsd          Float
+  refunded          Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  completedAt       DateTime?
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing ShopifyListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 // Shopify mağazasına düşen siparişler. Müşteri PII'ı (isim/adres/e-posta) BURADA

@@ -2,8 +2,8 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Clapperboard, Loader2, Copy, Check, Package, Sparkles } from "lucide-react";
-import { PageHeader, InfoCard, SHOPIFY_ACCENT } from "@/components/shopify/shared";
+import { Clapperboard, Loader2, Copy, Check, Package, Sparkles, Upload, Download, Film } from "lucide-react";
+import { PageHeader, SHOPIFY_ACCENT } from "@/components/shopify/shared";
 import type { UgcScript } from "@/lib/ugc-script";
 
 interface ListingRow {
@@ -140,14 +140,205 @@ function VideosContent() {
 
         {script && <ScriptView script={script} />}
 
-        {!script && (
-          <InfoCard
-            title="Video render motoru yolda"
-            text="Şimdilik senaryo üretiliyor: hook'lar, sahne sahne çekim planı ve reklam metni telefonla çekim için hazır. Otomatik video üretimi (AI render) açıldığında aynı senaryodan tek tuşla video çıkacak ve kredi cüzdanından düşülecek."
-          />
-        )}
+        {/* Otomatik video üretimi — Lumina motoru (Kling Avatar v2 + ElevenLabs) */}
+        <VideoGenerator listingId={selectedId} />
       </div>
     </>
+  );
+}
+
+interface VideoJob {
+  id: string;
+  status: string;
+  step: string | null;
+  quality: string;
+  seconds: number;
+  spokenText: string | null;
+  videoUrl: string | null;
+  error: string | null;
+}
+
+function VideoGenerator({ listingId }: { listingId: string }) {
+  const [charFile, setCharFile] = useState<File | null>(null);
+  const [charPreview, setCharPreview] = useState("");
+  const [quality, setQuality] = useState<"standard" | "pro">("standard");
+  const [seconds, setSeconds] = useState<15 | 30 | 45>(15);
+  const [prices, setPrices] = useState<{ std: number; pro: number } | null>(null);
+  const [job, setJob] = useState<VideoJob | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    fetch("/api/shopify/ugc-video")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((j) => {
+        if (j) setPrices({ std: j.priceUsd, pro: j.priceProUsd });
+      })
+      .catch(() => {});
+  }, []);
+
+  // İş sürerken 5 sn'de bir durum yokla (her yoklama fal kuyruğunu kontrol eder)
+  useEffect(() => {
+    if (!job || job.status !== "processing") return;
+    const t = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/shopify/ugc-video/${job.id}`);
+        if (!res.ok) return;
+        const j = await res.json();
+        setJob(j.job);
+      } catch { /* geçici — sonraki turda tekrar */ }
+    }, 5000);
+    return () => clearInterval(t);
+  }, [job]);
+
+  function pickFile(f: File | null) {
+    setCharFile(f);
+    setCharPreview(f ? URL.createObjectURL(f) : "");
+  }
+
+  async function generate() {
+    if (!listingId || !charFile) return;
+    setBusy(true); setErr(""); setJob(null);
+    try {
+      // 1. Karakter fotoğrafını yükle
+      const fd = new FormData();
+      fd.append("image", charFile);
+      const up = await fetch("/api/shopify/ugc-video/character", { method: "POST", body: fd });
+      const upJson = await up.json();
+      if (!up.ok || !upJson.url) { setErr(upJson.error ?? "Fotoğraf yüklenemedi"); return; }
+
+      // 2. Üretimi başlat (FAZ 1 ~15-30 sn sürer)
+      const res = await fetch("/api/shopify/ugc-video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listingId, characterImageUrl: upJson.url, quality, seconds }),
+      });
+      const j = await res.json();
+      if (!res.ok) { setErr(j.error ?? "Üretim başlatılamadı"); return; }
+
+      // 3. Durum yoklamaya başla
+      const st = await fetch(`/api/shopify/ugc-video/${j.jobId}`);
+      const stJson = await st.json();
+      setJob(st.ok ? stJson.job : { id: j.jobId, status: "processing", step: "Üretiliyor…", quality, seconds, spokenText: null, videoUrl: null, error: null });
+    } catch {
+      setErr("Bağlantı hatası — tekrar dene");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const price = quality === "pro" ? prices?.pro : prices?.std;
+
+  return (
+    <div
+      className="rounded-2xl p-6"
+      style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)" }}
+    >
+      <p className="font-bold mb-1.5 flex items-center gap-2">
+        <Film className="h-4 w-4" style={{ color: SHOPIFY_ACCENT }} /> Otomatik video üret (AI)
+      </p>
+      <p className="text-slate-400 text-xs mb-4 leading-relaxed max-w-xl">
+        Bir oyuncu fotoğrafı yükle — AI ürünü oyuncunun eline/üstüne yerleştirir, doğal İngilizce
+        konuşma yazar, seslendirir ve konuşan UGC videosunu üretir. Ücret kredi cüzdanından düşer;
+        üretim başarısız olursa otomatik iade edilir.
+      </p>
+
+      {!listingId ? (
+        <p className="text-slate-500 text-sm">Önce yukarıdan bir ürün seç.</p>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Karakter fotoğrafı */}
+            <label
+              className="flex items-center gap-2 text-xs font-bold rounded-xl px-4 py-2.5 cursor-pointer bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              {charFile ? "Fotoğrafı değiştir" : "Oyuncu fotoğrafı yükle"}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
+            {charPreview && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={charPreview} alt="" className="w-12 h-12 rounded-lg object-cover border border-white/10" />
+            )}
+
+            <select
+              value={quality}
+              onChange={(e) => setQuality(e.target.value as "standard" | "pro")}
+              className="rounded-xl px-3 py-2.5 text-xs bg-white/5 border border-white/10 outline-none text-white [&>option]:bg-slate-900"
+            >
+              <option value="standard">Standart kalite</option>
+              <option value="pro">Pro kalite</option>
+            </select>
+
+            <select
+              value={seconds}
+              onChange={(e) => setSeconds(Number(e.target.value) as 15 | 30 | 45)}
+              className="rounded-xl px-3 py-2.5 text-xs bg-white/5 border border-white/10 outline-none text-white [&>option]:bg-slate-900"
+            >
+              <option value={15}>~15 saniye</option>
+              <option value={30}>~30 saniye</option>
+              <option value={45}>~45 saniye</option>
+            </select>
+
+            <button
+              onClick={generate}
+              disabled={busy || !charFile || (job?.status === "processing")}
+              className="px-5 py-2.5 rounded-xl text-sm font-bold text-black disabled:opacity-50 inline-flex items-center gap-2"
+              style={{ background: SHOPIFY_ACCENT }}
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clapperboard className="h-4 w-4" />}
+              {busy ? "Başlatılıyor..." : `Video Üret${price ? ` · $${price.toFixed(2)}` : ""}`}
+            </button>
+          </div>
+          {err && <p className="text-xs text-red-400 mt-3">{err}</p>}
+
+          {/* İş durumu */}
+          {job && (
+            <div className="mt-5 pt-5 border-t border-white/5">
+              {job.status === "processing" && (
+                <div className="flex items-center gap-3 text-sm text-slate-300">
+                  <Loader2 className="h-4 w-4 animate-spin" style={{ color: SHOPIFY_ACCENT }} />
+                  {job.step ?? "Üretiliyor…"}
+                </div>
+              )}
+              {job.status === "failed" && (
+                <p className="text-sm text-red-400">{job.error ?? "Üretim başarısız — kredin iade edildi."}</p>
+              )}
+              {job.status === "completed" && job.videoUrl && (
+                <div className="space-y-3">
+                  <video
+                    src={job.videoUrl}
+                    controls
+                    playsInline
+                    className="w-full max-w-sm rounded-xl border border-white/10"
+                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <a
+                      href={`/api/shopify/ugc-video/${job.id}/download`}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold rounded-lg px-3.5 py-2 text-black"
+                      style={{ background: SHOPIFY_ACCENT }}
+                    >
+                      <Download className="h-3.5 w-3.5" /> Videoyu İndir
+                    </a>
+                    <span className="text-xs text-slate-500">Meta/TikTok reklamında kullanmaya hazır.</span>
+                  </div>
+                  {job.spokenText && (
+                    <p className="text-xs text-slate-400 leading-relaxed max-w-xl">
+                      <span className="text-slate-300 font-semibold">Konuşulan metin:</span> {job.spokenText}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 
