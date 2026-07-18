@@ -67,6 +67,12 @@ Bu bir reklam DEĞİL — ürünü DENEMİŞ gerçek bir insanın arkadaşların
 - Kişisel mini hikâye: nereden duydu, ilk şüphesi, ne değişti (0'dan olma süreci)
 - Kusur/şüphe ekle, %100 övgü YAPMA: "I wasn't sure at first", "it's not perfect but"
 - Bağ kur: gülümset, ortak derde taş at ("we've all bought junk that broke in a week")
+- HERKESE anlatıyor gibi konuş — tek bir arkadaşa değil, izleyen herkese
+  ("if you're like me and you..."); bu ekranda tutma süresini artırır
+- 1-2 cümlelik küçük UZMANLIK/bilgi anı ekle (kullanarak öğrendiği somut detay:
+  "turns out the little switch on the side changes the mode") — uzmanlık izlenmeyi artırır
+- TEMPO tek düze akmasın: heyecanlı hızlı bir an + sakin bir an dalgalansın
+  (kısa cümle patlamaları ↔ uzun rahat cümle)
 
 KESİNLİKLE YASAK (yapay zekâ/reklam kokan ifadeler):
 - "highly recommend", "life-changing", "game-changer", "revolutionary", "must-have"
