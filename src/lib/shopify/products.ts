@@ -93,11 +93,12 @@ async function setVariantPrice(
   assertNoUserErrors("productVariantsBulkUpdate", data.productVariantsBulkUpdate.userErrors);
 }
 
-/** Yeni ürün oluşturur; varsayılan varyanta fiyat + stok yazar, görseli ekler. */
+/** Yeni ürün oluşturur; varsayılan varyanta fiyat + stok yazar, görselleri ekler.
+ *  imageUrls: AI medya seti (3 görsel) veya tek orijinal görsel — hepsi tek çağrıda. */
 export async function createShopifyProduct(
   shopDomain: string,
   token: string,
-  input: { title: string; imageUrl?: string | null; price: number; qty: number }
+  input: { title: string; imageUrls?: string[]; price: number; qty: number }
 ): Promise<ShopifyProductIds> {
   const created = await shopifyGraphql<{
     productCreate: {
@@ -130,8 +131,9 @@ export async function createShopifyProduct(
   await setVariantPrice(shopDomain, token, product.id, variant.id, input.price);
   await setInventoryQuantity(shopDomain, token, variant.inventoryItem.id, input.qty);
 
-  // Görsel best-effort — görsel eklenemedi diye yükleme FAIL olmaz
-  if (input.imageUrl) {
+  // Görseller best-effort — görsel eklenemedi diye yükleme FAIL olmaz
+  const images = (input.imageUrls ?? []).filter(Boolean).slice(0, 5);
+  if (images.length > 0) {
     try {
       const media = await shopifyGraphql<{
         productCreateMedia: { mediaUserErrors: UserError[] };
@@ -145,7 +147,7 @@ export async function createShopifyProduct(
         }`,
         {
           productId: product.id,
-          media: [{ originalSource: input.imageUrl, mediaContentType: "IMAGE" }],
+          media: images.map((url) => ({ originalSource: url, mediaContentType: "IMAGE" })),
         }
       );
       assertNoUserErrors("productCreateMedia", media.productCreateMedia.mediaUserErrors);
@@ -159,6 +161,86 @@ export async function createShopifyProduct(
     variantId: variant.id,
     inventoryItemId: variant.inventoryItem.id,
   };
+}
+
+/**
+ * AI ürün videosunu Shopify'a yükler (staged upload → productCreateMedia VIDEO).
+ * Best-effort: patlarsa ürün videosuz kalır, yükleme FAIL olmaz.
+ */
+export async function attachProductVideo(
+  shopDomain: string,
+  token: string,
+  productId: string,
+  videoUrl: string
+): Promise<void> {
+  // 1. Videoyu indir (fal CDN)
+  const res = await fetch(videoUrl, { signal: AbortSignal.timeout(120_000) });
+  if (!res.ok) throw new Error(`Video kaynağı ${res.status} döndü`);
+  const bytes = Buffer.from(await res.arrayBuffer());
+
+  // 2. Staged upload hedefi al
+  const staged = await shopifyGraphql<{
+    stagedUploadsCreate: {
+      stagedTargets: Array<{
+        url: string;
+        resourceUrl: string;
+        parameters: Array<{ name: string; value: string }>;
+      }>;
+      userErrors: UserError[];
+    };
+  }>(
+    shopDomain,
+    token,
+    `mutation($input: [StagedUploadInput!]!) {
+      stagedUploadsCreate(input: $input) {
+        stagedTargets { url resourceUrl parameters { name value } }
+        userErrors { field message }
+      }
+    }`,
+    {
+      input: [
+        {
+          resource: "VIDEO",
+          filename: "product-video.mp4",
+          mimeType: "video/mp4",
+          fileSize: String(bytes.length),
+          httpMethod: "POST",
+        },
+      ],
+    }
+  );
+  assertNoUserErrors("stagedUploadsCreate", staged.stagedUploadsCreate.userErrors);
+  const target = staged.stagedUploadsCreate.stagedTargets[0];
+  if (!target) throw new Error("stagedUploadsCreate hedef dönmedi");
+
+  // 3. Dosyayı hedefe POST et (parametreler + dosya, multipart)
+  const form = new FormData();
+  for (const p of target.parameters) form.append(p.name, p.value);
+  form.append("file", new File([new Uint8Array(bytes)], "product-video.mp4", { type: "video/mp4" }));
+  const up = await fetch(target.url, {
+    method: "POST",
+    body: form,
+    signal: AbortSignal.timeout(180_000),
+  });
+  if (!up.ok) throw new Error(`Staged upload ${up.status} döndü`);
+
+  // 4. Videoyu ürüne bağla
+  const media = await shopifyGraphql<{
+    productCreateMedia: { mediaUserErrors: UserError[] };
+  }>(
+    shopDomain,
+    token,
+    `mutation($productId: ID!, $media: [CreateMediaInput!]!) {
+      productCreateMedia(productId: $productId, media: $media) {
+        mediaUserErrors { field message }
+      }
+    }`,
+    {
+      productId,
+      media: [{ originalSource: target.resourceUrl, mediaContentType: "VIDEO" }],
+    }
+  );
+  assertNoUserErrors("productCreateMedia(video)", media.productCreateMedia.mediaUserErrors);
 }
 
 /** Mevcut listelemenin fiyat + adedini günceller. */

@@ -11,6 +11,7 @@ import {
   updateShopifyListing,
   setShopifyProductStatus,
 } from "@/lib/shopify/products";
+import { ensureProductMedia } from "@/lib/ugc-video/product-media";
 import type { ShopifyUpdateListingJobData } from "@/lib/queues";
 
 async function processShopifyUpdateListing(job: Job<ShopifyUpdateListingJobData>): Promise<void> {
@@ -36,10 +37,18 @@ async function processShopifyUpdateListing(job: Job<ShopifyUpdateListingJobData>
 
   try {
     if (!listing.shopifyProductId || !listing.shopifyVariantId || !listing.inventoryItemId) {
-      // İlk yükleme: Shopify'da ürünü oluştur
+      // İlk yükleme: AI görsel seti (3 profesyonel görsel, ortak depoda önbellekli —
+      // ürün başına BİR KEZ üretilir). FAL_KEY yoksa/patlar ise orijinal AliExpress
+      // görseliyle devam edilir. NOT: video BU AKIŞTA YOK — video, kullanıcının
+      // UGC Video panelinden kendi kredisiyle ürettiği AYRI bir üründür (sahibin kuralı).
+      job.log("AI ürün görselleri hazırlanıyor (önbellekten ya da üretimle)…");
+      const media = await ensureProductMedia(listing.productId).catch(() => ({
+        imageUrls: listing.product.imageUrl ? [listing.product.imageUrl] : [],
+      }));
+
       const ids = await createShopifyProduct(shopDomain, token, {
         title: listing.product.title ?? `AliExpress Ürünü ${listing.product.aliId}`,
-        imageUrl: listing.product.imageUrl,
+        imageUrls: media.imageUrls,
         price,
         qty,
       });

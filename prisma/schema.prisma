@@ -499,6 +499,10 @@ model AmazonDepotProduct {
   amazonSalesEst     Int?
   amazonSellerCount  Int?
   amazonSoldByAmazon Boolean   @default(false)
+  // AI ÜRÜN MEDYASI (ortak depo — ürün başına BİR KEZ üretilir, her yükleyen kullanır):
+  // Nano Banana ile 3 temiz görsel (stüdyo/kullanım/yakın çekim) + Kling kısa video
+  aiImageUrls        Json?
+  aiVideoUrl         String?   @db.Text
   // Radar
   radarScore         Int?      // 0-100
   // hot | normal | dead
