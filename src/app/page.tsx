@@ -370,15 +370,17 @@ export default function LandingPage() {
             delay={0.25}
             badge
             logo={
-              <div className="inline-block">
-                <span className="text-[2.8rem] font-black text-white leading-none tracking-tight" style={{ fontFamily: "Georgia, serif" }}>
-                  amazon
-                </span>
-                <svg width="150" height="20" viewBox="0 0 150 20" fill="none" className="mt-1.5 mx-auto block">
-                  <path d="M10 7 C 52 23, 102 23, 138 8" stroke="#f59e0b" strokeWidth="4" strokeLinecap="round" />
-                  <path d="M138 8 L129 6.5 M138 8 L133 15" stroke="#f59e0b" strokeWidth="4" strokeLinecap="round" />
-                </svg>
-              </div>
+              /* Siyah fonlu 3D loop — Shopify kartıyla aynı desen (mix-blend screen) */
+              <video
+                src="/videos/amazon-logo.mp4"
+                autoPlay
+                muted
+                loop
+                playsInline
+                aria-label="Amazon"
+                className="h-28 w-28 object-cover"
+                style={{ mixBlendMode: "screen" }}
+              />
             }
             tagline="Amazon mağazanı bağla, ürünleri ve siparişleri otomatik yönet."
             features={AMAZON_FEATURES}
@@ -413,12 +415,17 @@ export default function LandingPage() {
           <PlatformCard
             delay={0.45}
             logo={
-              <span
-                className="text-[3rem] font-black leading-none tracking-tight"
-                style={{ color: "#f97316", fontFamily: "Georgia, serif" }}
-              >
-                Etsy
-              </span>
+              /* Siyah fonlu 3D loop — Shopify kartıyla aynı desen (mix-blend screen) */
+              <video
+                src="/videos/etsy-logo.mp4"
+                autoPlay
+                muted
+                loop
+                playsInline
+                aria-label="Etsy"
+                className="h-28 w-28 object-cover"
+                style={{ mixBlendMode: "screen" }}
+              />
             }
             tagline="Etsy mağazanı bağla, ürün ve mesajları otomatikleştir."
             features={ETSY_FEATURES}
