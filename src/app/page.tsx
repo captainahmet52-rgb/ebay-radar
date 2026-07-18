@@ -12,7 +12,7 @@ import { useSession, signOut } from "next-auth/react";
 import {
   RefreshCcw, ShoppingCart, Cpu, Upload, DollarSign,
   Package, TrendingUp, Shield, Lock, Headphones, ArrowRight, ChevronDown,
-  Play, Clapperboard, Megaphone, ImageIcon, Radar, Warehouse, CheckCircle2,
+  Clapperboard, Megaphone, ImageIcon, Radar, Warehouse, CheckCircle2,
 } from "lucide-react";
 import { Logo, LogoMark } from "@/components/logo";
 import { FAQ } from "@/lib/faq";
@@ -472,15 +472,17 @@ export default function LandingPage() {
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
             </div>
           ) : (
-            <div className="aspect-video w-full flex flex-col items-center justify-center gap-3"
-              style={{ background: "radial-gradient(circle at 50% 40%, rgba(124,58,237,0.18), rgba(5,5,8,0.6))" }}>
-              <div className="w-16 h-16 rounded-full flex items-center justify-center"
-                style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)" }}>
-                <Play className="h-7 w-7 text-white ml-1" />
-              </div>
-              <p className="text-white font-semibold">Ürün Turu</p>
-              <p className="text-slate-400 text-sm">Demo videosu çok yakında</p>
-            </div>
+            /* Remotion ile üretilen ürün turu (demo-video/) — sessiz döngü + kontroller */
+            <video
+              src="/videos/demo.mp4"
+              className="aspect-video w-full"
+              autoPlay
+              muted
+              loop
+              playsInline
+              controls
+              aria-label="Lean Automation ürün turu"
+            />
           )}
         </motion.div>
       </section>

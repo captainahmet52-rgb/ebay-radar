@@ -1,0 +1,14 @@
+{
+  "name": "lean-demo-video",
+  "private": true,
+  "description": "leanautomation.pro ana sayfa demo videosu — Remotion ile kod tabanlı üretim",
+  "scripts": {
+    "render": "remotion render src/index.ts Demo ../public/videos/demo.mp4 --codec h264 --crf 23"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.242",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "remotion": "^4.0.242"
+  }
+}
