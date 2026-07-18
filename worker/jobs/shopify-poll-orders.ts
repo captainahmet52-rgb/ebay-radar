@@ -26,6 +26,9 @@ interface StoredLineItem {
   shopifyProductId: string | null;
   listingId?: string;
   depotProductId?: string;
+  // AliExpress ürün ID — sipariş ekranında "AliExpress'te aç" linki için
+  // (mağaza sahibi siparişi tek tıkla kaynaktan kendisi verir)
+  aliId?: string;
 }
 
 async function syncAccountOrders(
@@ -106,7 +109,7 @@ async function upsertOrder(
           shopifyProductId: true,
           productId: true,
           product: {
-            select: { aliCostUsd: true, aliShippingUsd: true, aliStockStatus: true },
+            select: { aliId: true, aliCostUsd: true, aliShippingUsd: true, aliStockStatus: true },
           },
         },
       })
@@ -122,7 +125,7 @@ async function upsertOrder(
     matchedAny = true;
     aliCostUsd += (listing.product.aliCostUsd + listing.product.aliShippingUsd) * li.quantity;
     if (listing.product.aliStockStatus !== "in_stock") stockRisk = true;
-    return { ...li, listingId: listing.id, depotProductId: listing.productId };
+    return { ...li, listingId: listing.id, depotProductId: listing.productId, aliId: listing.product.aliId };
   });
 
   const sourcingStatus = !matchedAny ? "unlinked" : stockRisk ? "ali_stock_risk" : "ok";

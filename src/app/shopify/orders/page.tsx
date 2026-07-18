@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, ShoppingCart, AlertTriangle } from "lucide-react";
+import { Loader2, ShoppingCart, AlertTriangle, ExternalLink } from "lucide-react";
 import { PageHeader, InfoCard, Empty, SHOPIFY_ACCENT } from "@/components/shopify/shared";
 
 interface OrderLineItem {
   title: string;
   quantity: number;
   listingId?: string;
+  aliId?: string;
 }
 
 interface OrderRow {
@@ -119,12 +120,25 @@ function OrderCard({ order }: { order: OrderRow }) {
       </div>
 
       {order.lineItems.length > 0 && (
-        <div className="mt-3 space-y-1">
+        <div className="mt-3 space-y-1.5">
           {order.lineItems.map((li, i) => (
-            <p key={i} className="text-xs text-slate-400 truncate">
-              {li.quantity}× {li.title}
-              {!li.listingId && <span className="text-slate-600"> (sistem dışı)</span>}
-            </p>
+            <div key={i} className="flex items-center gap-2 min-w-0">
+              <p className="text-xs text-slate-400 truncate flex-1">
+                {li.quantity}× {li.title}
+                {!li.listingId && <span className="text-slate-600"> (sistem dışı)</span>}
+              </p>
+              {li.aliId && (
+                <a
+                  href={`https://www.aliexpress.com/item/${li.aliId}.html`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] font-bold rounded-lg px-2.5 py-1.5 flex-shrink-0 transition-opacity hover:opacity-80"
+                  style={{ background: `${SHOPIFY_ACCENT}1a`, border: `1px solid ${SHOPIFY_ACCENT}33`, color: SHOPIFY_ACCENT }}
+                >
+                  AliExpress&apos;te Sipariş Ver <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
+            </div>
           ))}
         </div>
       )}
