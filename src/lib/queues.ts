@@ -255,6 +255,24 @@ export const shopifyPollOrdersQueue = createQueue<ShopifyPollOrdersJobData, void
   }
 );
 
+// ─── Meta Kampanya Senkronu (harcama/gösterim/tıklama metrikleri) ─────────────
+export interface MetaPollCampaignsJobData {
+  _trigger?: string;
+}
+
+export const metaPollCampaignsQueue = createQueue<MetaPollCampaignsJobData, void, string>(
+  "meta-poll-campaigns",
+  {
+    connection,
+    defaultJobOptions: {
+      attempts: 2,
+      backoff: { type: "fixed", delay: 5000 },
+      removeOnComplete: { count: 50 },
+      removeOnFail: { count: 100 },
+    },
+  }
+);
+
 // ─── AmazonBot Sipariş-Anı Doğrulama (canlı stok/fiyat kontrolü) ──────────────
 export interface AmazonVerifyOrderJobData {
   orderId: string;

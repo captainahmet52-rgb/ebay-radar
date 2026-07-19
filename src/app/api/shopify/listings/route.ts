@@ -13,12 +13,18 @@ export const GET = requireAuth(async (_req, { userId }) => {
       where: { userId },
       include: {
         product: { select: { title: true, aliId: true, imageUrl: true, aliStockStatus: true } },
-        shopifyAccount: { select: { shopDomain: true } },
+        shopifyAccount: { select: { shopDomain: true, metaAccount: { select: { id: true } } } },
       },
       orderBy: { createdAt: "desc" },
       take: 100,
     }),
   ]);
 
-  return NextResponse.json({ total, listings });
+  return NextResponse.json({
+    total,
+    listings: listings.map((l) => ({
+      ...l,
+      shopifyAccount: { shopDomain: l.shopifyAccount.shopDomain, metaConnected: Boolean(l.shopifyAccount.metaAccount) },
+    })),
+  });
 });

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  Loader2, Clapperboard, Megaphone, Copy, Check, ChevronDown, Package,
+  Loader2, Clapperboard, Megaphone, Copy, Check, ChevronDown, Package, Rocket,
 } from "lucide-react";
 import { PageHeader, InfoCard, StatusBadge, SHOPIFY_ACCENT } from "@/components/shopify/shared";
 import type { CampaignDraft } from "@/lib/campaign-draft";
@@ -15,7 +15,7 @@ interface ListingRow {
   currentQty: number;
   lastError: string | null;
   product: { title: string | null; aliId: string; imageUrl: string | null; aliStockStatus: string };
-  shopifyAccount: { shopDomain: string };
+  shopifyAccount: { shopDomain: string; metaConnected: boolean };
 }
 
 export default function ShopifyProductsPage() {
@@ -138,7 +138,7 @@ function ListingCard({ listing }: { listing: ListingRow }) {
         {draftErr && <p className="text-xs text-red-400 self-center">{draftErr}</p>}
       </div>
 
-      {draft && open && <DraftView draft={draft} />}
+      {draft && open && <DraftView draft={draft} listingId={listing.id} metaConnected={listing.shopifyAccount.metaConnected} />}
     </div>
   );
 }
@@ -160,7 +160,35 @@ function CopyBtn({ text }: { text: string }) {
   );
 }
 
-function DraftView({ draft }: { draft: CampaignDraft }) {
+function DraftView({ draft, listingId, metaConnected }: { draft: CampaignDraft; listingId: string; metaConnected: boolean }) {
+  const [launching, setLaunching] = useState(false);
+  const [launched, setLaunched] = useState(false);
+  const [launchErr, setLaunchErr] = useState("");
+
+  async function launchOnMeta() {
+    setLaunching(true); setLaunchErr("");
+    try {
+      const res = await fetch("/api/shopify/meta/campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingId,
+          headline: draft.headline,
+          primaryText: draft.primaryTexts[0],
+          dailyBudgetUsd: draft.dailyBudgetSuggestionUsd,
+          audienceSuggestions: draft.audienceSuggestions,
+        }),
+      });
+      const j = await res.json();
+      if (!res.ok) { setLaunchErr(j.error ?? "Kampanya oluşturulamadı"); return; }
+      setLaunched(true);
+    } catch {
+      setLaunchErr("Bağlantı hatası — tekrar dene");
+    } finally {
+      setLaunching(false);
+    }
+  }
+
   return (
     <div className="border-t border-white/5 p-4 space-y-4 text-sm">
       {/* Aşama 1: AI'ın ürün araştırması */}
@@ -177,14 +205,14 @@ function DraftView({ draft }: { draft: CampaignDraft }) {
         </p>
       </div>
 
-      {/* Aşama 2: kampanya taslağı — kopyala → Meta Ads Manager'a yapıştır */}
+      {/* Aşama 2: kampanya taslağı */}
       <Field label="Kampanya adı" value={draft.campaignName} />
       <Field label="Başlık (headline)" value={draft.headline} />
       {draft.primaryTexts.map((t, i) => (
         <Field key={i} label={`Reklam metni ${i + 1}`} value={t} multiline />
       ))}
       <div>
-        <p className="text-[10.5px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">Hedef kitle önerileri (Meta'da arat)</p>
+        <p className="text-[10.5px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">Hedef kitle önerileri</p>
         <div className="flex flex-wrap gap-1.5">
           {draft.audienceSuggestions.map((a) => (
             <span key={a} className="text-[11px] rounded-full px-2.5 py-1 bg-white/5 border border-white/10 text-slate-300">
@@ -195,8 +223,37 @@ function DraftView({ draft }: { draft: CampaignDraft }) {
       </div>
       <p className="text-xs text-slate-400">
         Önerilen günlük bütçe: <span className="font-bold text-white">${draft.dailyBudgetSuggestionUsd}/gün</span>
-        <span className="text-slate-600"> — taslağı kopyala, Meta Ads Manager'da kampanya oluştururken yapıştır.</span>
       </p>
+
+      {/* Meta'da gerçek kampanya oluşturma — her zaman PAUSED, harcama başlamaz */}
+      {metaConnected ? (
+        launched ? (
+          <div className="rounded-xl p-3.5 flex items-center gap-2" style={{ background: `${SHOPIFY_ACCENT}0d`, border: `1px solid ${SHOPIFY_ACCENT}26` }}>
+            <Check className="h-4 w-4" style={{ color: SHOPIFY_ACCENT }} />
+            <p className="text-xs text-slate-300">
+              Kampanya Meta&apos;da oluşturuldu (duraklatılmış) —{" "}
+              <a href="/shopify/meta" className="underline" style={{ color: SHOPIFY_ACCENT }}>Meta Reklamları</a>&apos;ndan aktive et.
+            </p>
+          </div>
+        ) : (
+          <div>
+            <button
+              onClick={launchOnMeta}
+              disabled={launching}
+              className="inline-flex items-center gap-1.5 text-xs font-bold rounded-lg px-3.5 py-2.5 text-black disabled:opacity-50"
+              style={{ background: SHOPIFY_ACCENT }}
+            >
+              {launching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
+              Meta&apos;da Kampanya Oluştur
+            </button>
+            {launchErr && <p className="text-xs text-red-400 mt-2">{launchErr}</p>}
+          </div>
+        )
+      ) : (
+        <p className="text-xs text-slate-500">
+          <a href="/shopify/meta" className="underline">Meta&apos;yı bağla</a> — bağlanınca bu taslaktan tek tıkla gerçek kampanya oluşturabilirsin.
+        </p>
+      )}
     </div>
   );
 }

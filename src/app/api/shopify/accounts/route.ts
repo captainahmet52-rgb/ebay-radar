@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { isShopifyConfigured } from "@/lib/shopify/oauth";
 import { isShopifyBillingEnabled, SHOPIFY_PLANS } from "@/lib/shopify/billing";
+import { isMetaConfigured } from "@/lib/meta/oauth";
 import { storeAccessState, trialDaysLeft } from "@/lib/store-access";
 
 /**
@@ -24,6 +25,7 @@ export const GET = requireAuth(async (_req, { userId }) => {
       feedToken: true,
       createdAt: true,
       _count: { select: { listings: true } },
+      metaAccount: { select: { businessName: true, adAccountId: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -33,11 +35,14 @@ export const GET = requireAuth(async (_req, { userId }) => {
     // Billing kapalıyken planlar UI'da GÖSTERİLMEZ (taslak fiyatlar sızmasın)
     billingEnabled: isShopifyBillingEnabled(),
     plans: isShopifyBillingEnabled() ? SHOPIFY_PLANS : [],
+    metaConfigured: isMetaConfigured(),
     accounts: accounts.map((a) => ({
       ...a,
       accessState: storeAccessState(a),
       trialDaysLeft: trialDaysLeft(a.trialEndsAt),
       listingCount: a._count.listings,
+      metaConnected: Boolean(a.metaAccount),
+      metaBusinessName: a.metaAccount?.businessName ?? null,
     })),
   });
 });

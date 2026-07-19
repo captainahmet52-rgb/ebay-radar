@@ -39,6 +39,8 @@ model User {
   shopifyListings      ShopifyListing[]
   shopifyOrders        ShopifyOrder[]
   ugcVideoJobs         UgcVideoJob[]
+  metaAccounts         MetaAccount[]
+  metaCampaigns        MetaCampaign[]
 
   // Ön ödemeli kredi cüzdanı (takip kodu çevirme vb. mikro-ücretler buradan düşer)
   creditBalanceUsd     Float    @default(0)
@@ -613,11 +615,66 @@ model ShopifyAccount {
   uninstalledAt        DateTime?
   createdAt            DateTime  @default(now())
 
-  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  listings ShopifyListing[]
-  orders   ShopifyOrder[]
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listings    ShopifyListing[]
+  orders      ShopifyOrder[]
+  metaAccount MetaAccount?
 
   @@index([userId])
+}
+
+// ─── Meta (Facebook/Instagram) Reklam Entegrasyonu ─────────────────────────────
+// Şirket kuruldu (2026-07-18) → Meta Marketing API (ads_management) artık
+// kullanılabilir. Her Shopify mağazası kendi Meta Business bağlantısına sahiptir.
+model MetaAccount {
+  id                   String    @id @default(cuid())
+  userId               String
+  shopifyAccountId     String    @unique
+  // Uzun ömürlü (60 gün) kullanıcı erişim token'ı — ŞİFRELİ, düz metin ASLA
+  accessTokenEncrypted String    @db.Text
+  tokenExpiresAt       DateTime
+  adAccountId          String    // "act_XXXXXXXXX"
+  businessName         String?
+  pageId               String?   // reklam kreatifi için Facebook Page ID
+  createdAt            DateTime  @default(now())
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shopifyAccount ShopifyAccount @relation(fields: [shopifyAccountId], references: [id], onDelete: Cascade)
+  campaigns      MetaCampaign[]
+
+  @@index([userId])
+}
+
+// AI kampanya taslağından Meta'da GERÇEK oluşturulan kampanyalar.
+// Güvenlik: her zaman PAUSED oluşturulur — harcama kullanıcının bilinçli
+// "Aktif Et" tıklamasıyla başlar, asla otomatik değil.
+model MetaCampaign {
+  id             String    @id @default(cuid())
+  userId         String
+  metaAccountId  String
+  listingId      String
+  metaCampaignId String
+  metaAdSetId    String
+  metaAdId       String
+  name           String
+  // PAUSED | ACTIVE | ARCHIVED | error
+  status         String    @default("PAUSED")
+  dailyBudgetUsd Float
+  headline       String?
+  primaryText    String?   @db.Text
+  spendUsd       Float     @default(0)
+  impressions    Int       @default(0)
+  clicks         Int       @default(0)
+  lastSyncAt     DateTime?
+  lastError      String?
+  createdAt      DateTime  @default(now())
+
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  metaAccount MetaAccount    @relation(fields: [metaAccountId], references: [id], onDelete: Cascade)
+  listing     ShopifyListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([metaAccountId])
 }
 
 // Kullanıcının Shopify listelemeleri — ORTAK DEPO (AmazonDepotProduct) ürününün
@@ -643,6 +700,7 @@ model ShopifyListing {
   shopifyAccount ShopifyAccount     @relation(fields: [shopifyAccountId], references: [id], onDelete: Cascade)
   product        AmazonDepotProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
   ugcVideos      UgcVideoJob[]
+  metaCampaigns  MetaCampaign[]
 
   @@unique([shopifyAccountId, productId])
   @@index([userId])

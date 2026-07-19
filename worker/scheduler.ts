@@ -26,6 +26,7 @@ import {
   retierProductsQueue,
   scraperUsageCheckQueue,
   shopifyPollOrdersQueue,
+  metaPollCampaignsQueue,
 } from "@/lib/queues";
 
 export async function setupScheduler(): Promise<void> {
@@ -115,6 +116,15 @@ export async function setupScheduler(): Promise<void> {
     { repeat: { every: 30 * 60 * 1000 } }
   );
   console.log("[scheduler] shopify-poll-orders kuruldu: her 30 dakika");
+
+  // ── meta-poll-campaigns: her 30 dakika (harcama/gösterim/tıklama senkronu) ───
+  await clearRepeatableJobs(metaPollCampaignsQueue, "meta-poll-campaigns");
+  await metaPollCampaignsQueue.add(
+    "meta-poll-campaigns",
+    {},
+    { repeat: { every: 30 * 60 * 1000 } }
+  );
+  console.log("[scheduler] meta-poll-campaigns kuruldu: her 30 dakika");
 
   // NOT: amazon-depot-watchdog KALDIRILDI — depo doldurma Radar'ın zamanlanmış
   // taramasıyla olur (yerelden radar tetiklemesi yok).
