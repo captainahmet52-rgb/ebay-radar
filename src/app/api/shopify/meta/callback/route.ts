@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { absoluteUrl, SITE } from "@/lib/site";
 import { prisma } from "@/lib/prisma";
 import { encryptToken } from "@/lib/crypto";
 import { auth } from "@/lib/auth";
@@ -18,7 +19,7 @@ import {
  */
 export async function GET(req: NextRequest) {
   const fail = (code: string) =>
-    NextResponse.redirect(new URL(`/shopify/meta?error=${code}`, req.url));
+    NextResponse.redirect(absoluteUrl(`/shopify/meta?error=${code}`));
 
   try {
     if (!isMetaConfigured()) return fail("not_configured");
@@ -45,8 +46,7 @@ export async function GET(req: NextRequest) {
     });
     if (!shopifyAccount) return fail("not_found");
 
-    const origin = new URL(req.url).origin;
-    const redirectUri = process.env.META_REDIRECT_URI || `${origin}/api/shopify/meta/callback`;
+    const redirectUri = process.env.META_REDIRECT_URI || `${SITE.url}/api/shopify/meta/callback`;
     const { token, expiresAt } = await exchangeCodeForLongLivedToken(code, redirectUri);
 
     const adAccounts = await getAdAccounts(token);
@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.redirect(new URL("/shopify/meta?connected=1", req.url));
+    return NextResponse.redirect(absoluteUrl("/shopify/meta?connected=1"));
   } catch (err) {
     console.error("[shopify/meta/callback]", err instanceof Error ? err.message : err);
     return fail("server_error");

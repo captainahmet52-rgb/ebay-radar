@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { absoluteUrl } from "@/lib/site";
 import { exchangeCodeForTokens } from "@/lib/ebay/oauth";
 import { encryptToken } from "@/lib/crypto";
 import { prisma } from "@/lib/prisma";
@@ -79,40 +80,30 @@ export async function GET(req: NextRequest) {
     const state = searchParams.get("state"); // imzalı state
 
     if (!code || !state) {
-      return NextResponse.redirect(
-        new URL("/dashboard/settings?error=missing_params", req.url)
-      );
+      return NextResponse.redirect(absoluteUrl("/dashboard/settings?error=missing_params"));
     }
 
     // CSRF: state imzalı + kısa ömürlü olmalı. Geçersiz/expired ise reddet.
     const verified = verifyState(state);
     if (!verified) {
-      return NextResponse.redirect(
-        new URL("/dashboard/settings?error=invalid_state", req.url)
-      );
+      return NextResponse.redirect(absoluteUrl("/dashboard/settings?error=invalid_state"));
     }
 
     // TEK KULLANIM: aynı state (nonce) ikinci kez oynatılamaz — çalınmış state'in
     // 10 dakikalık pencere içinde tekrar kullanılmasını (replay) engeller.
     const fresh = await consumeOnce(`oauth-state:${verified.nonce}`, OAUTH_STATE_MAX_AGE_MS);
     if (!fresh) {
-      return NextResponse.redirect(
-        new URL("/dashboard/settings?error=state_reused", req.url)
-      );
+      return NextResponse.redirect(absoluteUrl("/dashboard/settings?error=state_reused"));
     }
 
     // Hesabı bağlayacağımız userId DAİMA mevcut oturumdan gelir; state yalnız
     // CSRF koruması içindir. Oturum yoksa veya state ile eşleşmiyorsa reddet.
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.redirect(
-        new URL("/dashboard/settings?error=not_authenticated", req.url)
-      );
+      return NextResponse.redirect(absoluteUrl("/dashboard/settings?error=not_authenticated"));
     }
     if (session.user.id !== verified.userId) {
-      return NextResponse.redirect(
-        new URL("/dashboard/settings?error=state_mismatch", req.url)
-      );
+      return NextResponse.redirect(absoluteUrl("/dashboard/settings?error=state_mismatch"));
     }
     const ownerUserId = session.user.id;
 
@@ -122,9 +113,7 @@ export async function GET(req: NextRequest) {
       select: { id: true, trialEndsAt: true, referralRewardDays: true },
     });
     if (!user) {
-      return NextResponse.redirect(
-        new URL("/dashboard/settings?error=invalid_state", req.url)
-      );
+      return NextResponse.redirect(absoluteUrl("/dashboard/settings?error=invalid_state"));
     }
 
     // Code → tokens
@@ -133,9 +122,7 @@ export async function GET(req: NextRequest) {
       tokens = await exchangeCodeForTokens(code);
     } catch (err) {
       console.error("[ebay/callback] Token değişimi başarısız:", err);
-      return NextResponse.redirect(
-        new URL("/dashboard/settings?error=token_exchange", req.url)
-      );
+      return NextResponse.redirect(absoluteUrl("/dashboard/settings?error=token_exchange"));
     }
 
     // eBay Identity API'den gerçek (immutable) kullanıcı ID'sini + pazarı al.
@@ -145,9 +132,7 @@ export async function GET(req: NextRequest) {
       identity = await fetchEbayIdentity(tokens.accessToken);
     } catch (err) {
       console.error("[ebay/callback] Identity fetch başarısız:", err);
-      return NextResponse.redirect(
-        new URL("/dashboard/settings?error=identity_fetch", req.url)
-      );
+      return NextResponse.redirect(absoluteUrl("/dashboard/settings?error=identity_fetch"));
     }
 
     // Token'ları şifrele — düz metin DB'ye asla yazılmaz.
@@ -235,13 +220,9 @@ export async function GET(req: NextRequest) {
       console.error("[ebay/callback] otomatik ilan içe aktarma başlatılamadı:", err);
     }
 
-    return NextResponse.redirect(
-      new URL("/dashboard/settings?success=ebay_connected", req.url)
-    );
+    return NextResponse.redirect(absoluteUrl("/dashboard/settings?success=ebay_connected"));
   } catch (err) {
     console.error("[ebay/callback GET]", err);
-    return NextResponse.redirect(
-      new URL("/dashboard/settings?error=server_error", req.url)
-    );
+    return NextResponse.redirect(absoluteUrl("/dashboard/settings?error=server_error"));
   }
 }

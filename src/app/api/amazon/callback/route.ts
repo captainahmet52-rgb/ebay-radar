@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { absoluteUrl } from "@/lib/site";
 import { prisma } from "@/lib/prisma";
 import { encryptToken } from "@/lib/crypto";
 import { auth } from "@/lib/auth";
@@ -19,20 +20,20 @@ export async function GET(req: NextRequest) {
   const state = searchParams.get("state"); // imzalı state (userId + region)
 
   if (!code || !state) {
-    return NextResponse.redirect(new URL("/amazon/stores?error=missing_params", req.url));
+    return NextResponse.redirect(absoluteUrl("/amazon/stores?error=missing_params"));
   }
 
   // CSRF: state imzalı + kısa ömürlü olmalı. Geçersiz/expired ise reddet.
   const verified = verifyState(state);
   if (!verified) {
-    return NextResponse.redirect(new URL("/amazon/stores?error=invalid_state", req.url));
+    return NextResponse.redirect(absoluteUrl("/amazon/stores?error=invalid_state"));
   }
 
   // TEK KULLANIM: aynı state (nonce) ikinci kez oynatılamaz — çalınmış state'in
   // 10 dakikalık pencere içinde tekrar kullanılmasını (replay) engeller.
   const fresh = await consumeOnce(`oauth-state:${verified.nonce}`, OAUTH_STATE_MAX_AGE_MS);
   if (!fresh) {
-    return NextResponse.redirect(new URL("/amazon/stores?error=state_reused", req.url));
+    return NextResponse.redirect(absoluteUrl("/amazon/stores?error=state_reused"));
   }
 
   const region = verified.region === "eu" ? "eu" : "na";
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest) {
   // kullanıcıya izin ver. Oturum yoksa veya farklıysa reddet (state replay koruması).
   const session = await auth();
   if (!session?.user?.id || session.user.id !== verified.userId) {
-    return NextResponse.redirect(new URL("/amazon/stores?error=state_mismatch", req.url));
+    return NextResponse.redirect(absoluteUrl("/amazon/stores?error=state_mismatch"));
   }
   const userId = verified.userId;
 
@@ -50,7 +51,7 @@ export async function GET(req: NextRequest) {
     select: { id: true, amazonTrialEndsAt: true },
   });
   if (!user) {
-    return NextResponse.redirect(new URL("/amazon/stores?error=invalid_state", req.url));
+    return NextResponse.redirect(absoluteUrl("/amazon/stores?error=invalid_state"));
   }
 
   const redirectUri = process.env.AMAZON_SPAPI_REDIRECT_URI ?? "";
@@ -109,9 +110,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.redirect(new URL("/amazon/stores?success=amazon_connected", req.url));
+    return NextResponse.redirect(absoluteUrl("/amazon/stores?success=amazon_connected"));
   } catch (err) {
     console.error("[amazon/callback]", err instanceof Error ? err.message : err);
-    return NextResponse.redirect(new URL("/amazon/stores?error=connect_failed", req.url));
+    return NextResponse.redirect(absoluteUrl("/amazon/stores?error=connect_failed"));
   }
 }

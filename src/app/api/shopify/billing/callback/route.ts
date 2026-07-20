@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { absoluteUrl } from "@/lib/site";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { decryptToken } from "@/lib/crypto";
@@ -16,7 +17,7 @@ import {
  */
 export async function GET(req: NextRequest) {
   const fail = (code: string) =>
-    NextResponse.redirect(new URL(`/shopify/stores?billing=${code}`, req.url));
+    NextResponse.redirect(absoluteUrl(`/shopify/stores?billing=${code}`));
 
   try {
     if (!isShopifyBillingEnabled()) return fail("disabled");
@@ -56,7 +57,7 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.redirect(new URL("/shopify/stores?billing=ok", req.url));
+    return NextResponse.redirect(absoluteUrl("/shopify/stores?billing=ok"));
   } catch (err) {
     console.error("[shopify/billing/callback]", err instanceof Error ? err.message : err);
     return fail("server_error");

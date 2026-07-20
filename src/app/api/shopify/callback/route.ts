@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { absoluteUrl, SITE } from "@/lib/site";
 import { prisma } from "@/lib/prisma";
 import { encryptToken } from "@/lib/crypto";
 import { auth } from "@/lib/auth";
@@ -22,7 +23,7 @@ import { registerShopifyWebhooks } from "@/lib/shopify/webhooks";
  */
 export async function GET(req: NextRequest) {
   const fail = (code: string) =>
-    NextResponse.redirect(new URL(`/shopify/stores?error=${code}`, req.url));
+    NextResponse.redirect(absoluteUrl(`/shopify/stores?error=${code}`));
 
   try {
     if (!isShopifyConfigured()) return fail("not_configured");
@@ -82,9 +83,9 @@ export async function GET(req: NextRequest) {
 
     // 6. Webhook abonelikleri (app/uninstalled + abonelik durumu) — best-effort:
     // başarısız olsa bile bağlantı tamamdır (siparişler polling ile zaten çekilir)
-    await registerShopifyWebhooks(shopDomain, accessToken, new URL(req.url).origin);
+    await registerShopifyWebhooks(shopDomain, accessToken, SITE.url);
 
-    return NextResponse.redirect(new URL("/shopify/stores?connected=1", req.url));
+    return NextResponse.redirect(absoluteUrl("/shopify/stores?connected=1"));
   } catch (err) {
     console.error("[shopify/callback]", err instanceof Error ? err.message : err);
     return fail("server_error");

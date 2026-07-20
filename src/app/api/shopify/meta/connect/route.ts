@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { absoluteUrl, SITE } from "@/lib/site";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { signState } from "@/lib/oauth-state";
@@ -16,12 +17,12 @@ export async function GET(req: NextRequest) {
 
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.redirect(new URL("/login", req.url));
+    return NextResponse.redirect(absoluteUrl("/login"));
   }
 
   const accountId = new URL(req.url).searchParams.get("accountId");
   if (!accountId) {
-    return NextResponse.redirect(new URL("/shopify/meta?error=missing_params", req.url));
+    return NextResponse.redirect(absoluteUrl("/shopify/meta?error=missing_params"));
   }
 
   const account = await prisma.shopifyAccount.findFirst({
@@ -29,12 +30,11 @@ export async function GET(req: NextRequest) {
     select: { id: true },
   });
   if (!account) {
-    return NextResponse.redirect(new URL("/shopify/meta?error=not_found", req.url));
+    return NextResponse.redirect(absoluteUrl("/shopify/meta?error=not_found"));
   }
 
   const state = signState({ userId: session.user.id, nonce: randomBytes(16).toString("hex"), region: accountId });
-  const origin = new URL(req.url).origin;
-  const redirectUri = process.env.META_REDIRECT_URI || `${origin}/api/shopify/meta/callback`;
+  const redirectUri = process.env.META_REDIRECT_URI || `${SITE.url}/api/shopify/meta/callback`;
   const authorizeUrl = buildAuthorizeUrl(state, redirectUri);
 
   return NextResponse.redirect(authorizeUrl);
