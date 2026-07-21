@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { SITE } from "@/lib/site";
 import { requireAuth } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { decryptToken } from "@/lib/crypto";
@@ -58,8 +59,9 @@ export const POST = requireAuth(async (req, { userId }) => {
   }
 
   try {
-    const origin = new URL(req.url).origin;
-    const returnUrl = `${origin}/api/shopify/billing/callback?accountId=${account.id}&plan=${plan.id}`;
+    // Proxy arkasında req.url origin'i 0.0.0.0:3000'e çözülebiliyor — Shopify'a
+    // kayıt edilen dönüş adresi HER ZAMAN sabit site adresinden kurulur.
+    const returnUrl = `${SITE.url}/api/shopify/billing/callback?accountId=${account.id}&plan=${plan.id}`;
     const confirmationUrl = await createAppSubscription(
       account.shopDomain,
       decryptToken(account.accessTokenEncrypted),

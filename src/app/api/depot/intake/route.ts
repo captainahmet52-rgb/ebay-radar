@@ -28,8 +28,10 @@ const IntakeProductSchema = z.object({
   sourceKeyword: z.string().nullable().optional(),
 });
 
+// Gövde zarfı gevşek doğrulanır; ürünler TEK TEK doğrulanır — 500 ürünlük
+// partide tek bozuk kayıt (ör. geçersiz imageUrl) tüm partiyi düşürmesin.
 const IntakeBodySchema = z.object({
-  products: z.array(IntakeProductSchema).min(1).max(500),
+  products: z.array(z.unknown()).min(1).max(500),
 });
 
 type IntakeProduct = z.infer<typeof IntakeProductSchema>;
@@ -64,7 +66,22 @@ export const POST = requireCron(async (req) => {
     );
   }
 
-  const products = parsed.data.products;
+  const products: IntakeProduct[] = [];
+  let skipped = 0;
+  for (const raw of parsed.data.products) {
+    const item = IntakeProductSchema.safeParse(raw);
+    if (item.success) products.push(item.data);
+    else {
+      skipped++;
+      console.warn("[depot/intake] geçersiz ürün atlandı:", JSON.stringify(item.error.flatten().fieldErrors));
+    }
+  }
+  if (products.length === 0) {
+    return NextResponse.json(
+      { error: "Partideki hiçbir ürün şemayı geçemedi", skipped },
+      { status: 400 }
+    );
+  }
 
   // Hangi ASIN'ler zaten depoda — findUnique döngüsü DEĞİL. IN(...) parçalanır ki
   // parti büyüse bile Postgres parametre sınırına (~65535) takılmasın.
@@ -92,5 +109,5 @@ export const POST = requireCron(async (req) => {
     );
   }
 
-  return NextResponse.json({ ok: true, created: newProducts.length, updated: updateProducts.length });
+  return NextResponse.json({ ok: true, created: newProducts.length, updated: updateProducts.length, skipped });
 });
