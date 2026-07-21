@@ -11,13 +11,13 @@ import { addDays, STORE_TRIAL_DAYS } from "@/lib/store-access";
 import { REFERRAL_MAX_BONUS_PER_STORE } from "@/lib/referral";
 import { listingImportQueue } from "@/lib/queues";
 
-// getApiBaseUrl is used to build the Identity API URL.
-// isSandbox / getApiBaseUrl are module-private in oauth.ts so we read the
-// same env variable directly here instead of duplicating the export.
+// Commerce Identity API'si diğer eBay REST API'lerinden farklı olarak "apiz"
+// gateway'inde yaşıyor — "api.ebay.com/commerce/identity/..." hep 404 döner.
+// (apiz.ebay.com / apiz.sandbox.ebay.com curl ile doğrulandı, 2026-07-21.)
 function getIdentityApiBaseUrl(): string {
   return process.env.EBAY_SANDBOX === "true"
-    ? "https://api.sandbox.ebay.com"
-    : "https://api.ebay.com";
+    ? "https://apiz.sandbox.ebay.com"
+    : "https://apiz.ebay.com";
 }
 
 /**
