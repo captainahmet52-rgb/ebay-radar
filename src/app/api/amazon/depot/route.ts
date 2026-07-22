@@ -12,11 +12,15 @@ import { isAliExpressConfigured } from "@/lib/aliexpress";
  * sayısı gibi iç radar istihbaratını içerir; bu yüzden sadece admin görebilir.
  */
 export const GET = requireAdmin(async () => {
+  // Shopify izi (ABD viral sinyalinden) burada gösterilmez — bu ekran Amazon
+  // oto-yükleme/SP-API adayları içindir (2026-07-22 ayrımı).
+  const where = { sourceChannel: "amazon" };
   const [total, active, paused, products] = await Promise.all([
-    prisma.amazonDepotProduct.count(),
-    prisma.amazonDepotProduct.count({ where: { status: "active" } }),
-    prisma.amazonDepotProduct.count({ where: { status: "paused" } }),
+    prisma.amazonDepotProduct.count({ where }),
+    prisma.amazonDepotProduct.count({ where: { ...where, status: "active" } }),
+    prisma.amazonDepotProduct.count({ where: { ...where, status: "paused" } }),
     prisma.amazonDepotProduct.findMany({
+      where,
       orderBy: [{ radarScore: "desc" }, { createdAt: "desc" }],
       take: 100,
     }),

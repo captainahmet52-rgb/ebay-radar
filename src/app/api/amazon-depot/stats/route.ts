@@ -11,10 +11,14 @@ import { requireCron } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 
 export const GET = requireCron(async () => {
+  // SADECE Amazon izi sayılır — Shopify izi (ABD viral sinyalinden) ayrı bir
+  // depo/kapasite kavramı, Amazon hedefini (AMAZON_DEPOT_TARGET) etkilememeli
+  // (2026-07-22 ayrımı).
+  const where = { status: "active", sourceChannel: "amazon" };
   const [total, available] = await Promise.all([
-    prisma.amazonDepotProduct.count({ where: { status: "active" } }),
+    prisma.amazonDepotProduct.count({ where }),
     prisma.amazonDepotProduct.count({
-      where: { status: "active", listings: { none: {} } },
+      where: { ...where, listings: { none: {} } },
     }),
   ]);
   return NextResponse.json({ total, available });

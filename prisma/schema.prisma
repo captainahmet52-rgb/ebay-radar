@@ -511,17 +511,24 @@ model AmazonDepotProduct {
   pollTier           String    @default("normal")
   // active | paused | rejected
   status             String    @default("active")
+  // amazon = Amazon SP-API oto-yükleme + admin Amazon deposu adayı (statik
+  // keyword + Amazon rakip fiyat kontrolünden geçmiş) | shopify = SADECE
+  // Shopify deposunda görünür, Amazon'a hiç yüklenmez (ABD viral sinyalinden
+  // bulunan ürünler — Radar'ın 2026-07-22 ayrımı, bkz. urun-radari/CLAUDE.md)
+  sourceChannel      String    @default("amazon")
   lastScrapedAt      DateTime?
   createdAt          DateTime  @default(now())
 
   listings AmazonListing[]
 
-  // ORTAK DEPO: aynı ürün Shopify kanalına da yüklenebilir (stok takibi ürün
-  // başına TEK sefer yapılır, yüklendiği her kanala yansır)
+  // Tablo hâlâ tek/paylaşılan ama sourceChannel'a göre görünüm ayrılıyor:
+  // Amazon admin/oto-yükleme SADECE sourceChannel="amazon" görür, Shopify
+  // seçim ekranı SADECE sourceChannel="shopify" görür (2026-07-22 ayrımı).
   shopifyListings ShopifyListing[]
 
   @@index([status])
   @@index([pollTier])
+  @@index([sourceChannel])
 }
 
 // ─── Kullanıcı Amazon listelemeleri (hangi ürün hangi hesapta/pazarda) ────────

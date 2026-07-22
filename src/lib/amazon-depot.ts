@@ -27,6 +27,10 @@ export interface AmazonDepotIntakeItem {
   amazonSellerCount?: number | null;
   amazonSoldByAmazon?: boolean;
   radarScore: number;
+  // amazon = Amazon SP-API oto-yükleme adayı | shopify = SADECE Shopify
+  // deposunda görünür, Amazon'a hiç yüklenmez. Eski Radar payload'ları bu
+  // alanı göndermeyebilir — "amazon" varsayılır (önceki davranışla aynı).
+  sourceChannel?: "amazon" | "shopify";
 }
 
 /**
@@ -53,6 +57,7 @@ export async function upsertAmazonDepotProducts(
       amazonSellerCount: it.amazonSellerCount ?? null,
       amazonSoldByAmazon: it.amazonSoldByAmazon ?? false,
       radarScore: it.radarScore,
+      sourceChannel: it.sourceChannel ?? "amazon",
       lastScrapedAt: new Date(),
     };
     await prisma.amazonDepotProduct.upsert({

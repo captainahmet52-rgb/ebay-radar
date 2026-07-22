@@ -18,6 +18,10 @@ export const GET = requireAuth(async (req) => {
   const where = {
     status: "active",
     brandSafe: true,
+    // NOT: Amazon izi de burada görünür — bu ekran genel ürün deposu (hem
+    // Amazon hem Shopify izi burada listelenebilir olarak kalır); dışlanan
+    // TEK yön Amazon oto-yükleme/admin ekranının Shopify izini görmemesi
+    // (bkz. amazon-auto-upload.ts + api/amazon/depot, 2026-07-22 ayrımı).
     ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
   };
 

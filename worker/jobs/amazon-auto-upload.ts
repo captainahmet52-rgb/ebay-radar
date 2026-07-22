@@ -62,6 +62,9 @@ async function uploadForUser(userId: string, log: (m: string) => void): Promise<
       where: {
         status: "active",
         brandSafe: true,
+        // Shopify izi (ABD viral sinyalinden, Amazon kontrolünden geçmemiş)
+        // Amazon'a asla oto-yüklenmez — bkz. urun-radari CLAUDE.md 2026-07-22.
+        sourceChannel: "amazon",
         aliCostUsd: { gte: user.amazonUploadMinCostUsd, lte: user.amazonUploadMaxCostUsd },
         listings: { none: { amazonAccountId: account.id } },
       },

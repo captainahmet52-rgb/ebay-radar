@@ -24,6 +24,7 @@ const ItemSchema = z.object({
   amazonSellerCount: z.number().int().min(0).nullable().optional(),
   amazonSoldByAmazon: z.boolean().optional(),
   radarScore: z.number().min(0).max(100),
+  sourceChannel: z.enum(["amazon", "shopify"]).optional(),
 });
 
 const BodySchema = z.object({
