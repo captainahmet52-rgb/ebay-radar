@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_COMP_UNTIL } from "@/lib/store-access";
-import { getPlan } from "@/lib/plans";
+import { getPlan, PLANS, type PlanId } from "@/lib/plans";
 import { z } from "zod";
 
-// Admin comp (ücretsiz süresiz) mağazaya verilen paket — en üst limit (patron yetkisi).
-const COMP_PLAN = "enterprise";
+// Admin bir plan seçmezse (ör. eski istemci) geriye dönük varsayılan — en üst limit.
+const DEFAULT_COMP_PLAN: PlanId = "enterprise";
+const PLAN_IDS = Object.keys(PLANS) as [PlanId, ...PlanId[]];
 
 /**
  * GET /api/admin/user-stores
@@ -25,6 +26,8 @@ export const GET = requireAdmin(async () => {
       trialEndsAt: true,
       paidUntil: true,
       createdAt: true,
+      plan: true,
+      productLimit: true,
       user: { select: { id: true, email: true, plan: true } },
     },
   });
@@ -34,11 +37,16 @@ export const GET = requireAdmin(async () => {
 const patchSchema = z.object({
   accountId: z.string().min(1),
   isActive: z.boolean(),
+  // Admin IBAN/manuel ödeme aldığı müşteriye hangi paketi vereceğini seçer —
+  // boş bırakılırsa (eski istemci) en üst pakete düşülür (patron yetkisi).
+  plan: z.enum(PLAN_IDS).optional(),
 });
 
 /**
  * PATCH /api/admin/user-stores
- * Admin override: herhangi bir kullanıcının mağazasını ödemesiz aktif/pasif yapar.
+ * Admin override: herhangi bir kullanıcının mağazasını ödemesiz aktif/pasif yapar
+ * VE mağazanın paketini (ürün limitini) belirler — kullanıcı IBAN'dan ödeme
+ * yaptıysa admin burada hangi pakete karşılık geldiğini seçer.
  * Plan limiti KONTROL EDİLMEZ — patron yetkisi.
  */
 export const PATCH = requireAdmin(async (req) => {
@@ -48,15 +56,17 @@ export const PATCH = requireAdmin(async (req) => {
     return NextResponse.json({ error: "Geçersiz veri", details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { accountId, isActive } = parsed.data;
+  const { accountId, isActive, plan } = parsed.data;
   const account = await prisma.ebayAccount.findUnique({ where: { id: accountId }, select: { id: true } });
   if (!account) {
     return NextResponse.json({ error: "Mağaza bulunamadı" }, { status: 404 });
   }
 
+  const resolvedPlan = plan ?? DEFAULT_COMP_PLAN;
+
   // Admin aktivasyonu = ücretsiz süresiz erişim (comp). paidUntil uzak geleceğe
   // set edilir ki freeze-stores worker'ı dondurmasın. Pasifleştirince temizlenir.
-  // PAKET = MAĞAZA: comp mağazaya en üst paket + ürün limiti yazılır (patron yetkisi).
+  // PAKET = MAĞAZA: seçilen paket + ona ait ürün limiti burada yazılır.
   await prisma.ebayAccount.update({
     where: { id: accountId },
     data: {
@@ -64,10 +74,10 @@ export const PATCH = requireAdmin(async (req) => {
       activatedAt: isActive ? new Date() : null,
       paidUntil: isActive ? ADMIN_COMP_UNTIL : null,
       ...(isActive
-        ? { plan: COMP_PLAN, productLimit: getPlan(COMP_PLAN)?.productLimit ?? 10000 }
+        ? { plan: resolvedPlan, productLimit: getPlan(resolvedPlan)?.productLimit ?? 10000 }
         : {}),
     },
   });
 
-  return NextResponse.json({ ok: true, isActive });
+  return NextResponse.json({ ok: true, isActive, plan: isActive ? resolvedPlan : undefined });
 });

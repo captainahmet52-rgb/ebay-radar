@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import useSWR from "swr";
+import { PLAN_LIST, PRO_PLUS_PLANS, type PlanId } from "@/lib/plans";
 
 interface UserStore {
   id: string;
@@ -9,8 +10,13 @@ interface UserStore {
   isActive: boolean;
   activatedAt: string | null;
   createdAt: string;
+  plan: string;
+  productLimit: number;
   user: { id: string; email: string; plan: string };
 }
+
+// Aktifleştir/paket değiştir dropdown'unda gösterilen seçenekler (ana grid + Pro+).
+const PLAN_OPTIONS = [...PLAN_LIST, ...PRO_PLUS_PLANS];
 
 const fetcher = (url: string) =>
   fetch(url).then((r) => r.json()) as Promise<{ data: UserStore[] }>;
@@ -26,6 +32,9 @@ export default function AdminUserStoresPage() {
   const { data, mutate, isLoading } = useSWR("/api/admin/user-stores", fetcher);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  // Satır başına seçili paket — dropdown'da değiştirilince burada tutulur,
+  // sunucudan yeni veri gelince (mutate) hâlâ boşsa mağazanın gerçek planına düşer.
+  const [selectedPlan, setSelectedPlan] = useState<Record<string, PlanId>>({});
 
   const stores = data?.data ?? [];
   const filtered = q
@@ -36,13 +45,17 @@ export default function AdminUserStoresPage() {
       )
     : stores;
 
-  async function toggle(id: string, isActive: boolean) {
+  function planFor(s: UserStore): PlanId {
+    return selectedPlan[s.id] ?? (s.plan as PlanId);
+  }
+
+  async function patch(id: string, isActive: boolean, plan: PlanId) {
     setBusyId(id);
     try {
       const res = await fetch("/api/admin/user-stores", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accountId: id, isActive }),
+        body: JSON.stringify({ accountId: id, isActive, plan }),
       });
       if (res.ok) mutate();
       else {
@@ -54,13 +67,26 @@ export default function AdminUserStoresPage() {
     }
   }
 
+  function toggle(s: UserStore) {
+    return patch(s.id, !s.isActive, planFor(s));
+  }
+
+  function changePlan(s: UserStore, plan: PlanId) {
+    setSelectedPlan((prev) => ({ ...prev, [s.id]: plan }));
+    // Zaten aktif bir mağazanın paketini hemen uygula (upgrade/downgrade).
+    // Henüz aktif değilse sadece seçimi hatırla — Aktifleştir'e basınca uygulanır.
+    if (s.isActive) void patch(s.id, true, plan);
+  }
+
   const activeCount = stores.filter((s) => s.isActive).length;
 
   return (
     <div className="max-w-5xl">
       <h1 className="text-xl font-bold mb-1">Müşteri Mağazaları</h1>
       <p className="text-sm text-slate-400 mb-4">
-        Kullanıcı eBay mağazalarını ödemesiz aktifleştir/pasifleştir (patron yetkisi — plan limiti yok).
+        Kullanıcı eBay mağazalarını ödemesiz aktifleştir/pasifleştir, hangi paketi
+        kullanacağını seç (patron yetkisi — plan limiti yok; IBAN'dan ödeme alınan
+        müşteriler için buradan paket ata).
       </p>
 
       <div className="flex items-center gap-3 mb-4">
@@ -98,7 +124,20 @@ export default function AdminUserStoresPage() {
                   <td className="px-4 py-3 text-slate-300">{s.user.email}</td>
                   <td className="px-4 py-3 text-white font-medium">{s.ebayUserId}</td>
                   <td className="px-4 py-3 text-slate-400">{marketLabel(s.marketplace)}</td>
-                  <td className="px-4 py-3 text-slate-400 capitalize">{s.user.plan}</td>
+                  <td className="px-4 py-3">
+                    <select
+                      value={planFor(s)}
+                      onChange={(e) => changePlan(s, e.target.value as PlanId)}
+                      disabled={busyId === s.id}
+                      className="bg-slate-800 border border-slate-700/50 rounded-lg px-2 py-1 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500/50 disabled:opacity-50"
+                    >
+                      {PLAN_OPTIONS.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.productLimit.toLocaleString("tr-TR")} ürün)
+                        </option>
+                      ))}
+                    </select>
+                  </td>
                   <td className="px-4 py-3">
                     {s.isActive ? (
                       <span className="text-xs font-medium px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-400">
@@ -112,7 +151,7 @@ export default function AdminUserStoresPage() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <button
-                      onClick={() => toggle(s.id, !s.isActive)}
+                      onClick={() => toggle(s)}
                       disabled={busyId === s.id}
                       className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 ${
                         s.isActive
