@@ -361,7 +361,7 @@ export default function LandingPage() {
             },
             {
               name: "eBay", href: "/dashboard", color: "#3b82f6",
-              video: null,
+              video: "/videos/ebay-logo.mp4",
               desc: "Otomatik listele, akıllı fiyatla, kargo takibini sisteme bırak.",
               feats: ["Oto-listeleme", "Akıllı fiyat", "Takip kodu"],
             },
