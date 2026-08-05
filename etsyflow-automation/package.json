@@ -1,0 +1,19 @@
+{
+  "name": "etsyflow-automation",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.0",
+    "apify-client": "^2.9.0",
+    "axios": "^1.15.2",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "openai": "^6.34.0",
+    "pdfkit": "^0.18.0",
+    "sharp": "^0.33.5"
+  }
+}

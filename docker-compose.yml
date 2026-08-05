@@ -147,6 +147,22 @@ services:
     networks:
       - ebay_net
 
+  # ── EtsyFlow Otomasyon Motoru ────────────────────────────────────────────────
+  # Ayrı bir SaaS (Etsy ürün üretim otomasyonu) — eskiden Render.com'daydı, artık
+  # aynı VPS'te bu repoyla birlikte deploy ediliyor. Kendi Supabase'ine bağlanır,
+  # EBAY PROJE'nin postgres/redis'ine hiç dokunmaz — sadece deploy akışını paylaşır.
+  etsyflow-automation:
+    build:
+      context: ./etsyflow-automation
+      dockerfile: Dockerfile
+    container_name: etsyflow_automation
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+    networks:
+      - ebay_net
+
   # ── Günlük Yedek (PostgreSQL) ──────────────────────────────────────────────
   # Script container'a GÖMÜLÜ (dış dosya mount'u yok — Coolify'da tek-dosya bind çalışmıyor).
   # Yedekler kalıcı named volume'da (backups_data). Her gün 03:00'te pg_dump + gzip, 30 gün saklar.
