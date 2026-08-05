@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 // Forced redeploy trigger - 2026-04-26
 import { createClient } from '@supabase/supabase-js';
+import ws from 'ws';
 import { runTrendAnalysis, ensureTrendForCategory } from './trend/runner.js';
 import { produceSingleSidedKeychain } from './punch-needle/single-sided-keychain.js';
 import { producePillowcase } from './punch-needle/pillowcase.js';
@@ -40,7 +41,7 @@ const GLOBAL_REFERENCE_IMAGE = null;
 
 console.log('📍 URL:', supabaseUrl ? `${supabaseUrl.substring(0, 15)}...` : 'YOK!');
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(supabaseUrl, supabaseKey, { realtime: { transport: ws } });
 
 const AUTOMATION_MAP = {
     'Punch Needle': {

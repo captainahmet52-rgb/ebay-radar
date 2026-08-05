@@ -1,9 +1,11 @@
 import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
+import ws from 'ws';
 
 const supabase = createClient(
     process.env.VITE_SUPABASE_URL,
-    process.env.VITE_SUPABASE_ANON_KEY
+    process.env.VITE_SUPABASE_ANON_KEY,
+    { realtime: { transport: ws } }
 );
 
 export async function uploadTrendInsight(trendData, category, subCategory, expiresInDays = 7) {

@@ -5,12 +5,15 @@ import path from 'path';
 import axios from 'axios';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
+import ws from 'ws';
 import { markDesignAsUsed } from './trend/uploader.js';
 
-// Supabase Bağlantısı
+// Supabase Bağlantısı — Node 20'de native WebSocket yok, realtime-js'e "ws" paketini
+// elle vermek gerekiyor (aksi halde createClient constructor'da çöküyor).
 const supabase = createClient(
     process.env.VITE_SUPABASE_URL,
-    process.env.VITE_SUPABASE_ANON_KEY
+    process.env.VITE_SUPABASE_ANON_KEY,
+    { realtime: { transport: ws } }
 );
 
 // OpenAI Bağlantısı
