@@ -22,6 +22,10 @@ import { produce3DToothbrushHolder } from './3d-print/toothbrush-holder.js';
 import { produce3DPhoneStand } from './3d-print/phone-stand.js';
 import { produce3DDeskOrganizer } from './3d-print/desk-organizer.js';
 import { produce3DCarFreshener } from './3d-print/car-freshener.js';
+// "Mum tutucu" dosyası var olmasına rağmen haritaya hiç bağlanmamıştı — bu
+// yüzden bu alt kategoriyi seçen mağazalar için üretim sessizce atlanıyordu
+// (denetim bulgusu, 2026-08-06). Artık bağlı.
+import { produce3DCandleHolder } from './3d-print/candle-holder.js';
 import { produceTshirt } from './tshirt/pod-design.js';
 import { produceGlassClock } from './glass-clock/interior-design.js';
 import { generateAmigurumiPattern } from './digital-pattern/amigurumi.js';
@@ -64,7 +68,8 @@ const AUTOMATION_MAP = {
         'Diş fırçalığı':   produce3DToothbrushHolder,
         'Telefon standı':  produce3DPhoneStand,
         'Masa organizeri': produce3DDeskOrganizer,
-'Araba parfümü':   produce3DCarFreshener,
+        'Mum tutucu':      produce3DCandleHolder,
+        'Araba parfümü':   produce3DCarFreshener,
     },
     'Tshirt': {
         'POD tasarımları': produceTshirt,

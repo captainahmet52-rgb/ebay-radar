@@ -24,8 +24,13 @@ export interface EtsyProduct {
   description: string | null;
   tags: string[] | null;
   currency: string;
+  price: number | null;
+  category: string | null;
+  sub_category: string | null;
   images: string[] | null;
   status: string; // active | pending | error | draft
+  /** Eklenti yükleme kuyruğu durumu: waiting | processing | uploading | uploaded | cancelled */
+  upload_status: string | null;
   etsy_listing_id: string | null;
   source_url: string | null;
   created_at: string;
