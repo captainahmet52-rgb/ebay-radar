@@ -1,270 +1,165 @@
 "use client";
 
-import Link from "next/link";
-import {
-  Store, Package, ShoppingBag, AlertTriangle, ArrowRight, Grid3X3, Wrench, Plus, Check,
-} from "lucide-react";
-import { EtsyReady, useEtsyData } from "@/components/etsy/shared";
-import { StatsCard } from "@/components/etsy/ui";
-import { cn } from "@/lib/utils";
-import type { EtsyOverview } from "@/types/etsyflow";
+import { Package, Store, ShoppingCart, Clock, CheckCircle2 } from "lucide-react";
+import { EtsyReady } from "@/components/etsy/shared";
+import { PageHeader, Stat, Card, Empty } from "@/components/etsy/shared";
+import type { EtsyOverview, EtsyStore } from "@/types/etsyflow";
 
-/** listflow.pro "Kontrol Merkezi" sayfası — gerçek EtsyFlow verisiyle. */
+const PLACEHOLDER =
+  "data:image/svg+xml;base64," +
+  (typeof window === "undefined"
+    ? Buffer.from(
+        '<svg width="36" height="36" xmlns="http://www.w3.org/2000/svg"><rect width="36" height="36" fill="#1e293b"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" fill="#475569" font-size="9" font-family="sans-serif">?</text></svg>'
+      ).toString("base64")
+    : btoa(
+        '<svg width="36" height="36" xmlns="http://www.w3.org/2000/svg"><rect width="36" height="36" fill="#1e293b"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" fill="#475569" font-size="9" font-family="sans-serif">?</text></svg>'
+      ));
+
+function findStore(stores: EtsyStore[], id: string) {
+  return stores.find((s) => s.id === id);
+}
+
+/** EtsyFlow'un kendi DashboardHome.jsx'i baz alındı (KODLAR/etsyflow-project). */
 export default function EtsyDashboardPage() {
-  const { email } = useEtsyData();
-
   return (
     <EtsyReady>
-      {(data) => {
-        const activeStores = data.stores.filter((s) => s.status === "active").length;
+      {(data: EtsyOverview) => {
         const waiting = data.products.filter((p) => p.upload_status === "waiting").length;
         const uploaded = data.products.filter((p) => p.upload_status === "uploaded").length;
-        const newOrders = data.orders.filter((o) => o.status === "new").length;
-        const inactiveStores = data.stores.length - activeStores;
-
-        const checklist = buildChecklist(data);
-        const completedCount = checklist.filter((i) => i.completed).length;
-        const firstName = (email ?? "").split("@")[0];
+        const activeStores = data.stores.filter((s) => s.status === "active").length;
+        const thisMonthOrders = data.orders.length;
 
         return (
-          <div className="p-6 max-w-7xl mx-auto">
-            {/* Başlık */}
-            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-8">
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xs font-medium text-[#6b6b80] uppercase tracking-wider border border-[#1e1e2e] px-2 py-0.5 rounded-md">
-                    KONTROL MERKEZİ
-                  </span>
-                  <span className="text-xs font-medium text-[#10b981] bg-[#10b981]/10 border border-[#10b981]/20 px-2 py-0.5 rounded-md">
-                    CANLI
-                  </span>
-                </div>
-                <h1 className="text-2xl font-bold text-white mb-1">
-                  Tekrar hoş geldin{firstName ? `, ${firstName}` : ""}.
-                </h1>
-                <p className="text-[#a0a0b0] text-sm max-w-xl">
-                  Mağazanı tek ekrandan yönet ve sıradaki kritik adımı anında gör.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-2 lg:items-end">
-                <div className="flex items-center gap-2 bg-[#12121a] border border-[#1e1e2e] rounded-lg px-4 py-2">
-                  <div className="w-2 h-2 rounded-full bg-[#10b981] animate-pulse" />
-                  <span className="text-xs text-[#a0a0b0]">MAĞAZA SAĞLIĞI:</span>
-                  <span className="text-xs font-bold text-[#10b981]">
-                    {activeStores}/{data.stores.length}
-                  </span>
-                  <span className="text-xs text-[#6b6b80]">Yayına hazır aktif mağaza</span>
-                </div>
-                <div className="flex items-center gap-2 bg-[#12121a] border border-[#1e1e2e] rounded-lg px-4 py-2">
-                  <span className="text-xs text-[#a0a0b0]">YÜKLEME KUYRUĞU:</span>
-                  <span className="text-xs font-bold text-white">{waiting}</span>
-                  <span className="text-xs text-[#6b6b80]">Eklenti için hazır ürün</span>
-                </div>
-              </div>
-            </div>
+          <div>
+            <PageHeader title="Anasayfa" />
 
             {/* İstatistikler */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              <StatsCard
-                title="MAĞAZALAR"
-                value={data.stores.length}
-                subtitle={data.stores.length === 0 ? "Henüz mağaza eklenmedi" : `${activeStores} aktif`}
-                icon={Store}
-                iconColor="text-[#8b5cf6]"
-                accentColor="bg-[#8b5cf6]/10"
-              />
-              <StatsCard
-                title="ÜRÜNLER"
-                value={data.products.length}
-                subtitle={data.products.length === 0 ? "Henüz ürün üretilmedi" : `${uploaded} Etsy'de yayında`}
-                icon={Package}
-                iconColor="text-[#06b6d4]"
-                accentColor="bg-[#06b6d4]/10"
-              />
-              <StatsCard
-                title="SİPARİŞLER"
-                value={data.orders.length}
-                subtitle={`${newOrders} yeni sipariş`}
-                icon={ShoppingBag}
-                iconColor="text-[#10b981]"
-                accentColor="bg-[#10b981]/10"
-              />
-              <StatsCard
-                title="DİKKAT"
-                value={inactiveStores}
-                subtitle={inactiveStores === 0 ? "Her şey yolunda" : `${inactiveStores} pasif mağaza`}
-                icon={AlertTriangle}
-                iconColor="text-yellow-400"
-                accentColor="bg-yellow-400/10"
-              />
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 mb-6">
+              <Stat icon={Package} label="Toplam Ürün" value={data.products.length} />
+              <Stat icon={Store} label="Aktif Mağaza" value={activeStores} />
+              <Stat icon={ShoppingCart} label="Bu Ay Sipariş" value={thisMonthOrders} />
+              <Stat icon={Clock} label="Yükleme Bekleyen" value={waiting} />
+              <Stat icon={CheckCircle2} label="Etsy'ye Yüklenen" value={uploaded} />
             </div>
 
-            {/* Ana içerik */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              {/* Yapılacaklar */}
-              <div className="bg-[#12121a] border border-[#1e1e2e] rounded-xl p-6">
-                <h2 className="text-base font-semibold text-white mb-1">
-                  Seni ileri taşıyacak sonraki adımlar
-                </h2>
-                <div className="flex items-center gap-2 mb-6">
-                  <div className="flex-1 bg-[#1e1e2e] rounded-full h-1.5">
-                    <div
-                      className="bg-gradient-to-r from-[#06b6d4] to-[#8b5cf6] h-1.5 rounded-full transition-all duration-500"
-                      style={{ width: `${(completedCount / checklist.length) * 100}%` }}
-                    />
-                  </div>
-                  <span className="text-xs text-[#6b6b80] flex-shrink-0">
-                    {completedCount}/{checklist.length}
-                  </span>
-                </div>
-                <div>
-                  {checklist.map((item, idx) => (
-                    <ChecklistRow key={item.label} {...item} isLast={idx === checklist.length - 1} />
-                  ))}
-                </div>
-              </div>
-
-              {/* Mağaza durumu */}
-              <div className="bg-[#12121a] border border-[#1e1e2e] rounded-xl p-6">
-                <h2 className="text-base font-semibold text-white mb-1">Mağazalarının bugünkü durumu</h2>
-                <p className="text-xs text-[#6b6b80] mb-5">Tüm mağazalarının anlık otomasyon durumu</p>
-                {data.stores.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <div className="w-10 h-10 rounded-full bg-[#1e1e2e] flex items-center justify-center mb-3">
-                      <Store className="w-5 h-5 text-[#6b6b80]" />
-                    </div>
-                    <p className="text-sm text-[#6b6b80] mb-3">Henüz mağaza eklenmedi.</p>
-                    <Link
-                      href="/etsy/stores"
-                      className="inline-flex items-center gap-1.5 text-xs text-[#8b5cf6] hover:text-[#a78bfa] transition-colors"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Mağaza ekle
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-3">
-                    {data.stores.map((store) => {
-                      const cfg =
-                        store.status === "active"
-                          ? { label: "AKTİF", cls: "bg-[#10b981]/10 text-[#10b981] border-[#10b981]/20" }
-                          : { label: "PASİF", cls: "bg-red-400/10 text-red-400 border-red-400/20" };
-                      const productCount = data.products.filter((p) => p.store_id === store.id).length;
-                      return (
-                        <div
-                          key={store.id}
-                          className="flex items-center justify-between py-3 px-4 bg-[#0a0a0f] rounded-lg border border-[#1e1e2e]"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-[#8b5cf6]/10 flex items-center justify-center">
-                              <ShoppingBag className="w-4 h-4 text-[#8b5cf6]" />
-                            </div>
-                            <div>
-                              <div className="text-sm font-medium text-white">{store.name}</div>
-                              <div className="text-xs text-[#6b6b80]">
-                                {store.category ?? "—"}
-                                {store.sub_category ? ` · ${store.sub_category}` : ""} · {productCount} ürün
-                              </div>
-                            </div>
-                          </div>
-                          <span className={cn("text-xs font-medium px-2 py-0.5 rounded-md border", cfg.cls)}>
-                            {cfg.label}
-                          </span>
+            {/* Mağaza Depoları */}
+            {data.stores.length > 0 && (
+              <Card pad="p-5">
+                <h3 className="text-sm font-bold text-[#f1f5f9] mb-3">Mağaza Depoları</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {data.stores.map((store) => {
+                    const storeProducts = data.products.filter((p) => p.store_id === store.id);
+                    const storeWaiting = storeProducts.filter((p) => p.upload_status === "waiting").length;
+                    const storeUploaded = storeProducts.filter((p) => p.upload_status === "uploaded").length;
+                    return (
+                      <div key={store.id} className="bg-[#0a0e1a] border border-[#1e293b] rounded-xl p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-bold text-[#f1f5f9]">{store.name}</span>
+                          {store.client_id && (
+                            <span className="text-[10px] font-mono text-[#d4a054]/70">{store.client_id}</span>
+                          )}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
+                        <div className="flex gap-4 text-xs">
+                          <div>
+                            <span className="text-[#64748b]">Toplam </span>
+                            <span className="font-bold text-[#e2e8f0]">{storeProducts.length}</span>
+                          </div>
+                          <div>
+                            <span className="text-[#64748b]">Bekleyen </span>
+                            <span className="font-bold text-yellow-400">{storeWaiting}</span>
+                          </div>
+                          <div>
+                            <span className="text-[#64748b]">Yüklenen </span>
+                            <span className="font-bold text-green-400">{storeUploaded}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            )}
 
-            {/* Hızlı bağlantılar */}
-            <div className="bg-[#12121a] border border-[#1e1e2e] rounded-xl p-6">
-              <h2 className="text-base font-semibold text-white mb-4">Hızlı Bağlantılar</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <QuickLink href="/etsy/kategoriler" icon={Grid3X3} label="Kategorileri İncele" color="#8b5cf6" />
-                <QuickLink href="/etsy/stores" icon={Wrench} label="Mağazaları Yönet" color="#06b6d4" />
-                <QuickLink href="/etsy/products" icon={Package} label="Ürün Kuyruğunu Aç" color="#10b981" />
-              </div>
+            {/* İki kolon */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+              {/* Son Ürünler */}
+              <Card pad="p-5">
+                <h3 className="text-sm font-bold text-[#f1f5f9] mb-4">Son Ürünler</h3>
+                {data.products.length === 0 ? (
+                  <Empty text="Henüz ürün yok." />
+                ) : (
+                  data.products.slice(0, 5).map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex justify-between items-center py-2.5 border-b border-[#1e293b]/30 last:border-0"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={p.images?.[0] || PLACEHOLDER}
+                          alt=""
+                          className="w-9 h-9 rounded-lg object-cover bg-[#1e293b] flex-shrink-0 border border-[#334155]"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = PLACEHOLDER;
+                          }}
+                        />
+                        <div className="min-w-0">
+                          <div className="font-medium text-xs text-[#f1f5f9] truncate max-w-[180px]">{p.title}</div>
+                          <div className="text-[11px] text-[#64748b]">
+                            {findStore(data.stores, p.store_id)?.name || "—"}
+                          </div>
+                        </div>
+                      </div>
+                      <span
+                        className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border flex-shrink-0 ${
+                          p.upload_status === "uploaded"
+                            ? "text-green-400 border-green-400/30"
+                            : p.status === "error"
+                              ? "text-red-400 border-red-400/30"
+                              : "text-yellow-400 border-yellow-400/30"
+                        }`}
+                      >
+                        {p.upload_status === "uploaded" ? "Yüklendi" : p.status === "error" ? "Hata" : "Bekliyor"}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </Card>
+
+              {/* Son Siparişler */}
+              <Card pad="p-5">
+                <h3 className="text-sm font-bold text-[#f1f5f9] mb-4">Son Siparişler</h3>
+                {data.orders.length === 0 ? (
+                  <Empty text="Henüz sipariş yok." />
+                ) : (
+                  data.orders.slice(0, 5).map((o) => (
+                    <div
+                      key={o.id}
+                      className="flex justify-between items-center py-2.5 border-b border-[#1e293b]/30 last:border-0"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-9 h-9 rounded-lg bg-[#1e293b] flex items-center justify-center text-[10px] text-[#94a3b8] font-mono shrink-0">
+                          #{o.etsy_order_id?.slice(-4) || "—"}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-medium text-xs text-[#f1f5f9] truncate">{o.buyer_name || "Müşteri"}</div>
+                          <div className="text-[11px] text-[#64748b]">{findStore(data.stores, o.store_id)?.name}</div>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className="font-bold text-xs text-[#d4a054]">
+                          {o.total ? `${o.total} ${o.currency || "TRY"}` : "—"}
+                        </div>
+                        <div className="text-[10px] text-[#64748b]">{o.status}</div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </Card>
             </div>
           </div>
         );
       }}
     </EtsyReady>
-  );
-}
-
-function buildChecklist(data: EtsyOverview) {
-  const hasStore = data.stores.length > 0;
-  const hasProduct = data.products.length > 0;
-  const hasUploaded = data.products.some((p) => p.upload_status === "uploaded");
-  const hasOrder = data.orders.length > 0;
-  return [
-    { label: "İlk mağazanı oluştur", completed: hasStore, href: "/etsy/stores", buttonLabel: "MAĞAZALARA GİT" },
-    { label: "Otomasyon ilk ürününü üretsin", completed: hasProduct, href: "/etsy/products", buttonLabel: "ÜRÜNLERİ AÇ" },
-    { label: "Eklentiyle Etsy'ye yükle", completed: hasUploaded, href: "/etsy/products", buttonLabel: "KUYRUĞU GÖR" },
-    { label: "İlk siparişini al", completed: hasOrder, href: "/etsy/orders", buttonLabel: "SİPARİŞLERİ AÇ" },
-  ];
-}
-
-function ChecklistRow({
-  label, completed, href, buttonLabel, isLast,
-}: {
-  label: string; completed: boolean; href: string; buttonLabel: string; isLast?: boolean;
-}) {
-  return (
-    <div className="flex items-start gap-3 relative">
-      {!isLast && (
-        <div className="absolute left-4 top-8 w-px bg-[#1e1e2e]" style={{ height: "calc(100% - 8px)" }} />
-      )}
-      <div
-        className={cn(
-          "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 border-2 z-10",
-          completed ? "bg-[#10b981] border-[#10b981]" : "bg-[#12121a] border-[#1e1e2e]"
-        )}
-      >
-        {completed ? (
-          <Check className="w-4 h-4 text-white" />
-        ) : (
-          <div className="w-2 h-2 rounded-full bg-[#6b6b80]" />
-        )}
-      </div>
-      <div className="flex-1 flex items-center justify-between pb-4 min-w-0">
-        <span className={cn("text-sm font-medium", completed ? "text-[#6b6b80] line-through" : "text-white")}>
-          {label}
-        </span>
-        <Link
-          href={href}
-          className="ml-3 flex-shrink-0 text-xs font-medium text-[#8b5cf6] hover:text-[#a78bfa] border border-[#8b5cf6]/30 hover:border-[#8b5cf6]/60 px-2.5 py-1 rounded-md transition-all duration-150 whitespace-nowrap"
-        >
-          {buttonLabel}
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-function QuickLink({
-  href, icon: Icon, label, color,
-}: {
-  href: string; icon: React.ElementType; label: string; color: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="flex items-center justify-between p-4 bg-[#0a0a0f] border border-[#1e1e2e] rounded-lg transition-all duration-150 group hover:border-[#8b5cf6]/50"
-    >
-      <div className="flex items-center gap-3">
-        <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center"
-          style={{ background: `${color}1a` }}
-        >
-          <Icon className="w-4 h-4" style={{ color }} />
-        </div>
-        <span className="text-sm font-medium text-white">{label}</span>
-      </div>
-      <ArrowRight className="w-4 h-4 text-[#6b6b80] group-hover:text-[#8b5cf6] transition-colors" />
-    </Link>
   );
 }

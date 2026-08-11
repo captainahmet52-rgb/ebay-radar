@@ -1,70 +1,156 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Package, ShoppingBag, Info, X, Power, Loader2 } from "lucide-react";
-import { EtsyReady, useEtsyData } from "@/components/etsy/shared";
-import { Badge, Button, Input, Modal, Select, ListflowHeader } from "@/components/etsy/ui";
+import { Trash2, Copy, Check, Loader2 } from "lucide-react";
+import { EtsyReady, useEtsyData, PageHeader, Empty } from "@/components/etsy/shared";
 import { ETSY_CATALOG, ETSY_CURRENCIES, findCatalogCategory } from "@/lib/etsy-catalog";
 import type { EtsyStore } from "@/types/etsyflow";
 
-/** listflow.pro "Etsy Otomasyon → Mağaza Yönetimi" sayfası — gerçek CRUD. */
+/** EtsyFlow'un kendi Stores.jsx'i (KODLAR/etsyflow-project) baz alındı — ödeme/Pinterest/özel ürün modalları hariç. */
 export default function EtsyStoresPage() {
   const { reload } = useEtsyData();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState("");
+  const [subCategory, setSubCategory] = useState("");
+  const [currency, setCurrency] = useState<(typeof ETSY_CURRENCIES)[number]>("TRY");
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const subCategories = findCatalogCategory(category)?.subCategories ?? [];
+  const inputCls =
+    "w-full px-3.5 py-2.5 bg-[#0a0e1a] border border-[#1e293b] rounded-lg text-[#e2e8f0] text-sm outline-none focus:border-[#d4a054]/50 transition";
+
+  async function handleSave() {
+    if (!name.trim()) return setMessage({ type: "error", text: "Mağaza adı boş olamaz." });
+    if (!category) return setMessage({ type: "error", text: "Kategori seçmelisiniz." });
+    if (!subCategory) return setMessage({ type: "error", text: "Alt kategori seçmelisiniz." });
+
+    setSaving(true);
+    try {
+      const res = await fetch("/api/etsy/stores", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), category, sub_category: subCategory, currency }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error ?? "Eklenemedi");
+      }
+      setName("");
+      setCategory("");
+      setSubCategory("");
+      setCurrency("TRY");
+      setShowForm(false);
+      setMessage({ type: "success", text: `"${name.trim()}" eklendi. Otomasyon ilk denetimde üretime başlayacak.` });
+      reload();
+    } catch (e) {
+      setMessage({ type: "error", text: e instanceof Error ? e.message : "Eklenemedi" });
+    } finally {
+      setSaving(false);
+      setTimeout(() => setMessage(null), 5000);
+    }
+  }
 
   return (
     <EtsyReady>
       {(data) => (
-        <div className="p-6 max-w-7xl mx-auto">
-          <ListflowHeader
-            eyebrow="ETSY OTOMASYON"
-            title="Mağaza Yönetimi"
-            subtitle="Mağazanı ekle, otomasyon dakikalar içinde üretime başlasın."
-            right={
-              <Button variant="primary" onClick={() => setIsModalOpen(true)} className="flex-shrink-0">
-                <Plus className="w-4 h-4" />
-                YENİ MAĞAZA EKLE
-              </Button>
-            }
-          />
+        <div>
+          <PageHeader title="Mağazalarım" />
 
-          {/* Bilgi şeridi */}
-          <div className="flex flex-wrap gap-4 mb-8">
-            <div className="flex items-center gap-2 bg-[#12121a] border border-[#1e1e2e] rounded-lg px-4 py-2.5">
-              <div className="w-2 h-2 rounded-full bg-[#10b981] animate-pulse" />
-              <span className="text-xs text-[#6b6b80]">OTOMASYON:</span>
-              <span className="text-xs font-medium text-[#10b981]">
-                {data.stores.filter((s) => s.status === "active").length} mağazada aktif
-              </span>
+          {message && (
+            <div
+              className={`mb-4 px-4 py-3 rounded-lg text-sm font-medium ${
+                message.type === "success"
+                  ? "bg-green-500/10 border border-green-500/30 text-green-400"
+                  : "bg-red-500/10 border border-red-500/30 text-red-400"
+              }`}
+            >
+              {message.text}
             </div>
-            <div className="flex items-center gap-2 bg-[#12121a] border border-[#1e1e2e] rounded-lg px-4 py-2.5">
-              <Package className="w-3.5 h-3.5 text-[#6b6b80]" />
-              <span className="text-xs text-[#6b6b80]">ÜRÜNLER:</span>
-              <span className="text-xs font-medium text-white">{data.products.length}</span>
-              <span className="text-xs text-[#6b6b80]">Toplam üretim</span>
-            </div>
-          </div>
+          )}
 
-          {/* Mağaza gridi */}
-          <h2 className="text-sm font-semibold text-[#a0a0b0] uppercase tracking-wider mb-4">
-            MAĞAZALARIM
-          </h2>
-          {data.stores.length === 0 ? (
-            <div className="border-2 border-dashed border-[#1e1e2e] rounded-xl py-16 px-6 flex flex-col items-center justify-center text-center">
-              <div className="w-14 h-14 rounded-full bg-[#1e1e2e] flex items-center justify-center mb-4">
-                <Package className="w-7 h-7 text-[#6b6b80]" />
+          <button
+            className="bg-gradient-to-r from-[#d4a054] to-[#c08430] text-[#0a0e1a] px-5 py-2.5 rounded-xl text-sm font-bold mb-5 hover:opacity-90 transition"
+            onClick={() => setShowForm((v) => !v)}
+          >
+            {showForm ? "✕ Kapat" : "+ Mağaza Ekle"}
+          </button>
+
+          {showForm && (
+            <div className="bg-[#111827] border border-[#1e293b] rounded-xl p-5 mb-5">
+              <h3 className="text-sm font-bold text-[#f1f5f9] mb-4">Yeni Mağaza Ekle</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-[#94a3b8] mb-1.5">Mağaza İsmi *</label>
+                  <input className={inputCls} placeholder="Mağaza adı" value={name} onChange={(e) => setName(e.target.value)} />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#94a3b8] mb-1.5">Kategori *</label>
+                  <select
+                    className={inputCls + " cursor-pointer"}
+                    value={category}
+                    onChange={(e) => {
+                      setCategory(e.target.value);
+                      setSubCategory("");
+                    }}
+                  >
+                    <option value="">Kategori Seçin</option>
+                    {ETSY_CATALOG.map((c) => (
+                      <option key={c.name} value={c.name}>
+                        {c.icon} {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#94a3b8] mb-1.5">Alt Kategori *</label>
+                  <select
+                    className={inputCls + " cursor-pointer disabled:opacity-50"}
+                    value={subCategory}
+                    onChange={(e) => setSubCategory(e.target.value)}
+                    disabled={!category}
+                  >
+                    <option value="">Alt Kategori Seçin</option>
+                    {subCategories.map((sc) => (
+                      <option key={sc} value={sc}>
+                        {sc}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#94a3b8] mb-1.5">Para Birimi</label>
+                  <select
+                    className={inputCls + " cursor-pointer"}
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value as (typeof ETSY_CURRENCIES)[number])}
+                  >
+                    {ETSY_CURRENCIES.map((c) => (
+                      <option key={c} value={c}>
+                        {c === "TRY" ? "TRY (₺)" : "USD ($)"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <h3 className="text-base font-semibold text-white mb-2">Henüz mağaza eklenmedi.</h3>
-              <p className="text-sm text-[#6b6b80] max-w-sm mb-6">
-                İlk mağazanı ekle — kategorisini seç, otomasyon senin yerine üretsin.
-              </p>
-              <Button variant="primary" onClick={() => setIsModalOpen(true)}>
-                <Plus className="w-4 h-4" />
-                İlk Mağazanı Ekle
-              </Button>
+              <button
+                className="bg-gradient-to-r from-[#d4a054] to-[#c08430] text-[#0a0e1a] px-5 py-2.5 rounded-xl text-sm font-bold mt-4 hover:opacity-90 transition disabled:opacity-50"
+                onClick={handleSave}
+                disabled={saving}
+              >
+                {saving ? "Kaydediliyor..." : "Mağazayı Kaydet"}
+              </button>
             </div>
+          )}
+
+          {data.stores.length === 0 ? (
+            <Empty text="Henüz mağaza yok." />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {data.stores.map((store) => (
                 <StoreCard
                   key={store.id}
@@ -75,22 +161,17 @@ export default function EtsyStoresPage() {
               ))}
             </div>
           )}
-
-          <AddStoreModal
-            isOpen={isModalOpen}
-            onClose={() => setIsModalOpen(false)}
-            onSuccess={() => {
-              setIsModalOpen(false);
-              reload();
-            }}
-          />
         </div>
       )}
     </EtsyReady>
   );
 }
 
-// ─── Mağaza kartı ───────────────────────────────────────────────────────────
+const statusColors: Record<string, string> = {
+  active: "text-green-400 border-green-400/30",
+  inactive: "text-[#94a3b8] border-[#334155]",
+  paused: "text-yellow-400 border-yellow-400/30",
+};
 
 function StoreCard({
   store,
@@ -102,12 +183,11 @@ function StoreCard({
   onChanged: () => void;
 }) {
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const isActive = store.status === "active";
 
   async function toggleStatus() {
     setBusy(true);
-    setError(null);
     try {
       const res = await fetch(`/api/etsy/stores/${store.id}`, {
         method: "PATCH",
@@ -120,16 +200,15 @@ function StoreCard({
       }
       onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "İşlem başarısız");
+      window.alert(e instanceof Error ? e.message : "İşlem başarısız");
     } finally {
       setBusy(false);
     }
   }
 
-  async function removeStore() {
+  async function remove() {
     if (!window.confirm(`"${store.name}" mağazasını silmek istediğine emin misin?`)) return;
     setBusy(true);
-    setError(null);
     try {
       const res = await fetch(`/api/etsy/stores/${store.id}`, { method: "DELETE" });
       if (!res.ok) {
@@ -138,230 +217,81 @@ function StoreCard({
       }
       onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Silinemedi");
+      window.alert(e instanceof Error ? e.message : "Silinemedi");
       setBusy(false);
     }
+  }
+
+  function copyClientId() {
+    if (!store.client_id) return;
+    navigator.clipboard.writeText(store.client_id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   const icon = findCatalogCategory(store.category ?? "")?.icon ?? "🛍️";
 
   return (
-    <div className="relative bg-[#12121a] border border-[#1e1e2e] rounded-xl p-5 flex flex-col gap-4 hover:border-[#8b5cf6]/30 transition-all duration-200">
-      <button
-        onClick={removeStore}
-        disabled={busy}
-        title="Mağazayı sil"
-        className="absolute top-3 right-3 w-6 h-6 rounded-full bg-[#1e1e2e] hover:bg-red-500/20 flex items-center justify-center text-[#6b6b80] hover:text-red-400 transition-all disabled:opacity-50"
-      >
-        <X className="w-3.5 h-3.5" />
-      </button>
-
-      {/* Başlık */}
-      <div className="flex items-start justify-between pr-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#8b5cf6]/10 flex items-center justify-center text-lg">
-            {icon}
-          </div>
-          <div>
-            <div className="text-sm font-semibold text-white">{store.name}</div>
-            <div className="text-xs text-[#6b6b80]">
-              {store.category ?? "—"}
-              {store.sub_category ? ` · ${store.sub_category}` : ""}
-            </div>
-          </div>
+    <div className="bg-[#111827] border border-[#1e293b] rounded-xl p-5">
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="text-lg font-bold text-[#f1f5f9] flex items-center gap-2">
+          <span>{icon}</span> {store.name}
+        </h3>
+        <div className="flex items-center gap-2">
+          <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${statusColors[store.status] ?? statusColors.active}`}>
+            {store.status === "active" ? "Aktif" : store.status === "paused" ? "Durduruldu" : "Pasif"}
+          </span>
+          <button
+            onClick={remove}
+            disabled={busy}
+            className="p-1.5 rounded-lg text-xs border text-red-400 border-red-400/30 hover:bg-red-400/10 transition disabled:opacity-50"
+            title="Mağazayı Sil"
+          >
+            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+          </button>
         </div>
-        <Badge variant="muted">{store.currency}</Badge>
       </div>
 
-      {/* Ürün sayısı */}
-      <div className="bg-[#0a0a0f] border border-[#1e1e2e] rounded-lg px-4 py-3">
-        <div className="text-xs text-[#6b6b80] uppercase tracking-wider mb-1">ÜRETİLEN ÜRÜN</div>
-        <div className="text-2xl font-bold text-white">{productCount}</div>
+      <div className="text-xs text-[#64748b] mb-3">
+        {store.category ?? "—"}
+        {store.sub_category ? ` · ${store.sub_category}` : ""} · {store.currency}
       </div>
 
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {store.client_id ? (
+        <div className="bg-[#0a0e1a] border border-[#d4a054]/20 rounded-xl p-3 mb-3">
+          <div className="text-[10px] font-semibold text-[#64748b] uppercase tracking-wider mb-1">Client ID</div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-lg font-black font-mono text-[#d4a054] tracking-widest">{store.client_id}</span>
+            <button
+              onClick={copyClientId}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition flex items-center gap-1 ${
+                copied ? "text-green-400 border-green-400/30 bg-green-400/10" : "text-[#94a3b8] border-[#334155] hover:text-[#d4a054] hover:border-[#d4a054]/30"
+              }`}
+            >
+              {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+              {copied ? "Kopyalandı" : "Kopyala"}
+            </button>
+          </div>
+          <div className="text-[10px] text-[#475569] mt-1.5 text-center">Chrome eklentisine bu ID&apos;yi girin</div>
+        </div>
+      ) : (
+        <div className="bg-[#0a0e1a] border border-[#1e293b] rounded-xl p-3 mb-3 text-xs text-[#64748b] text-center">
+          Client ID atanıyor...
+        </div>
+      )}
 
-      {/* Alt aksiyon */}
-      <div className="flex items-center justify-between gap-3">
-        <Badge variant={isActive ? "success" : "danger"}>
-          <span className="w-1.5 h-1.5 rounded-full bg-current inline-block" />
-          {isActive ? "AKTİF" : "PASİF"}
-        </Badge>
+      <div className="flex items-center justify-between pt-3 border-t border-[#1e293b]">
+        <div className="text-xs text-[#64748b]">
+          Üretilen ürün: <span className="font-bold text-[#e2e8f0]">{productCount}</span>
+        </div>
         <button
           onClick={toggleStatus}
           disabled={busy}
-          className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-[#1e1e2e] text-[#a0a0b0] hover:text-white hover:border-[#8b5cf6] transition-all disabled:opacity-50"
+          className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#1e293b] text-[#94a3b8] hover:text-[#e2e8f0] hover:border-[#334155] transition disabled:opacity-50"
         >
-          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Power className="w-3.5 h-3.5" />}
           {isActive ? "Durdur" : "Başlat"}
         </button>
       </div>
     </div>
-  );
-}
-
-// ─── Mağaza ekleme modali (listflow AddStoreModal, gerçek katalog + API) ────
-
-function AddStoreModal({
-  isOpen,
-  onClose,
-  onSuccess,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-}) {
-  const [storeName, setStoreName] = useState("");
-  const [category, setCategory] = useState("");
-  const [subCategory, setSubCategory] = useState("");
-  const [currency, setCurrency] = useState<(typeof ETSY_CURRENCIES)[number]>("USD");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const subCategories = findCatalogCategory(category)?.subCategories ?? [];
-
-  function handleClose() {
-    setStoreName("");
-    setCategory("");
-    setSubCategory("");
-    setCurrency("USD");
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!storeName.trim() || !category || !subCategory) {
-      setError("Mağaza adı, kategori ve alt kategori zorunlu.");
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/etsy/stores", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: storeName.trim(), category, sub_category: subCategory, currency }),
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j.error ?? "Mağaza eklenemedi");
-      }
-      handleClose();
-      onSuccess();
-    } catch (e2) {
-      setError(e2 instanceof Error ? e2.message : "Mağaza eklenemedi");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <Modal isOpen={isOpen} onClose={handleClose} size="md">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        {/* Başlık */}
-        <div className="flex flex-col items-center text-center gap-3 pb-4 border-b border-[#1e1e2e]">
-          <div className="w-12 h-12 rounded-xl bg-[#8b5cf6]/10 border border-[#8b5cf6]/20 flex items-center justify-center">
-            <ShoppingBag className="w-6 h-6 text-[#8b5cf6]" />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-white">Mağaza Kaydı</h2>
-            <p className="text-xs text-[#6b6b80] mt-0.5">
-              Kaydı tamamla, otomasyon ilk denetimde üretime başlasın.
-            </p>
-          </div>
-        </div>
-
-        <Input
-          label="MAĞAZA ADI"
-          type="text"
-          placeholder="Örn: WoodDesignTR"
-          value={storeName}
-          onChange={(e) => setStoreName(e.target.value)}
-          required
-        />
-
-        <Select
-          label="ANA KATEGORİ"
-          value={category}
-          onChange={(e) => {
-            setCategory(e.target.value);
-            setSubCategory("");
-          }}
-          required
-        >
-          <option value="">Kategori seçin...</option>
-          {ETSY_CATALOG.map((cat) => (
-            <option key={cat.name} value={cat.name}>
-              {cat.icon} {cat.name}
-            </option>
-          ))}
-        </Select>
-
-        {category && (
-          <div className="flex flex-col gap-1.5">
-            <Select
-              label="ALT KATEGORİ (ÜRETİM HATTI)"
-              value={subCategory}
-              onChange={(e) => setSubCategory(e.target.value)}
-              required
-            >
-              <option value="">Alt kategori seçin...</option>
-              {subCategories.map((sc) => (
-                <option key={sc} value={sc}>
-                  {sc}
-                </option>
-              ))}
-            </Select>
-            <p className="text-xs text-[#06b6d4] flex items-center gap-1">
-              <Info className="w-3 h-3" />
-              Otomasyon bu üretim hattı için görsel + başlık + açıklama üretir
-            </p>
-          </div>
-        )}
-
-        {/* Para birimi */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-[#a0a0b0] uppercase tracking-wider">
-            MAĞAZA PARA BİRİMİ
-          </label>
-          <div className="flex rounded-lg border border-[#1e1e2e] overflow-hidden">
-            {ETSY_CURRENCIES.map((c, i) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setCurrency(c)}
-                className={`flex-1 py-2.5 text-sm font-medium transition-all duration-150 ${
-                  i > 0 ? "border-l border-[#1e1e2e]" : ""
-                } ${
-                  currency === c ? "bg-[#8b5cf6] text-white" : "bg-[#0a0a0f] text-[#6b6b80] hover:text-white"
-                }`}
-              >
-                {c === "USD" ? "$ DOLAR" : "₺ TÜRK LİRASI"}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {error && <p className="text-xs text-red-400">{error}</p>}
-
-        <div className="bg-[#8b5cf6]/5 border border-[#8b5cf6]/20 rounded-lg p-3 flex gap-2">
-          <Info className="w-4 h-4 text-[#8b5cf6] flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-[#a0a0b0] leading-relaxed">
-            Mağaza eklenince otomasyon kaydı otomatik oluşturulur — motor ilk 30 saniyelik
-            denetiminde mağazanı görüp üretime başlar.
-          </p>
-        </div>
-
-        <div className="flex gap-3 pt-2 border-t border-[#1e1e2e]">
-          <Button type="button" variant="secondary" className="flex-1" onClick={handleClose}>
-            VAZGEÇ
-          </Button>
-          <Button type="submit" variant="primary" className="flex-1" loading={loading}>
-            MAĞAZAYI EKLE
-          </Button>
-        </div>
-      </form>
-    </Modal>
   );
 }

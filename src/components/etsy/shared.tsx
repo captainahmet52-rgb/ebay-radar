@@ -6,8 +6,9 @@ import {
 import { AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import type { EtsyOverview } from "@/types/etsyflow";
 
-export const ETSY_ACCENT = "#f97316";
-export const ETSY_ACCENT2 = "#ea580c";
+// etsyflow-project'in kendi marka rengi (tailwind.config.js brand-400/brand-500)
+export const ETSY_ACCENT = "#d4a054";
+export const ETSY_ACCENT2 = "#c08430";
 
 // ─── Veri katmanı (tek fetch, tüm sayfalar paylaşır) ────────────────────────
 
@@ -141,8 +142,7 @@ export function Stat({
 export function Card({ children, pad = "p-4" }: { children: ReactNode; pad?: string }) {
   return (
     <div
-      className={`rounded-xl ${pad} transition-colors hover:border-orange-500/25`}
-      style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)" }}
+      className={`rounded-xl ${pad} transition-colors bg-[#111827] border border-[#1e293b] hover:border-[#334155]`}
     >
       {children}
     </div>
@@ -151,10 +151,7 @@ export function Card({ children, pad = "p-4" }: { children: ReactNode; pad?: str
 
 export function Empty({ text }: { text: string }) {
   return (
-    <p
-      className="text-slate-500 text-sm py-10 text-center rounded-xl"
-      style={{ background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)" }}
-    >
+    <p className="text-[#64748b] text-sm py-10 text-center rounded-xl bg-[#0c1322] border border-[#1e293b]">
       {text}
     </p>
   );

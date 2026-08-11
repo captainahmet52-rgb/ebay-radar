@@ -12,6 +12,8 @@ export interface EtsyStore {
   sub_category: string | null;
   currency: string;
   status: string; // active | inactive | paused
+  /** Chrome eklentisine girilen eşleştirme kodu (varsa) */
+  client_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -46,6 +48,7 @@ export interface EtsyOrder {
   buyer_name: string | null;
   buyer_email: string | null;
   currency: string;
+  total: number | null;
   status: string; // new | preparing | shipped | delivered | cancelled
   shipping_info: unknown;
   created_at: string;

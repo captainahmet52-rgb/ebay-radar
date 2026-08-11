@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * listflow.pro tasarım sistemi — Etsy paneli UI kiti.
- * Renk dili: zemin #0a0a0f · panel #12121a · çizgi #1e1e2e · mor #8b5cf6 ·
- * camgöbeği #06b6d4 · yeşil #10b981. (listflow.pro reposundan porte edildi.)
+ * EtsyFlow'un kendi tasarım sistemi (KODLAR/etsyflow-project'ten porte edildi,
+ * listflow.pro DEĞİL — o ayrı bir referanstı, kullanılmadı).
+ * Renk dili: zemin #0a0e1a · panel #111827 · çizgi #1e293b · altın #d4a054.
  */
 
 import { cn } from "@/lib/utils";
@@ -16,21 +16,20 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import type { LucideIcon } from "lucide-react";
 
 // ─── Badge ──────────────────────────────────────────────────────────────────
 
-type BadgeVariant = "default" | "success" | "warning" | "danger" | "purple" | "cyan" | "turbo" | "muted";
+type BadgeVariant = "default" | "success" | "warning" | "danger" | "brand" | "purple" | "blue" | "muted";
 
 const BADGE_STYLES: Record<BadgeVariant, string> = {
-  default: "bg-[#1e1e2e] text-[#a0a0b0] border border-[#2e2e4e]",
-  success: "bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/20",
-  warning: "bg-yellow-400/10 text-yellow-400 border border-yellow-400/20",
-  danger: "bg-red-400/10 text-red-400 border border-red-400/20",
-  purple: "bg-[#8b5cf6]/10 text-[#8b5cf6] border border-[#8b5cf6]/20",
-  cyan: "bg-[#06b6d4]/10 text-[#06b6d4] border border-[#06b6d4]/20",
-  turbo: "bg-gradient-to-r from-[#06b6d4] to-[#8b5cf6] text-white border-0",
-  muted: "bg-[#0d0d14] text-[#6b6b80] border border-[#1e1e2e]",
+  default: "bg-[#1e293b] text-[#94a3b8] border border-[#334155]",
+  success: "bg-green-400/10 text-green-400 border border-green-400/30",
+  warning: "bg-yellow-400/10 text-yellow-400 border border-yellow-400/30",
+  danger: "bg-red-400/10 text-red-400 border border-red-400/30",
+  brand: "bg-[#d4a054]/10 text-[#d4a054] border border-[#d4a054]/30",
+  purple: "bg-purple-400/10 text-purple-400 border border-purple-400/30",
+  blue: "bg-blue-400/10 text-blue-400 border border-blue-400/30",
+  muted: "bg-[#0c1322] text-[#475569] border border-[#1e293b]",
 };
 
 export function Badge({
@@ -42,7 +41,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium",
+        "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold",
         BADGE_STYLES[variant],
         className
       )}
@@ -55,21 +54,19 @@ export function Badge({
 
 // ─── Button ─────────────────────────────────────────────────────────────────
 
-type ButtonVariant = "primary" | "gradient" | "secondary" | "ghost" | "danger" | "cyan";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
 const BUTTON_STYLES: Record<ButtonVariant, string> = {
-  primary: "bg-[#8b5cf6] hover:bg-[#7c3aed] text-white border border-[#8b5cf6]",
-  gradient: "bg-gradient-to-r from-[#06b6d4] to-[#8b5cf6] hover:opacity-90 text-white border-0",
-  cyan: "bg-[#06b6d4] hover:bg-[#0891b2] text-white border border-[#06b6d4]",
-  secondary: "bg-transparent border border-[#1e1e2e] text-[#a0a0b0] hover:border-[#8b5cf6] hover:text-white",
-  ghost: "bg-transparent border-0 text-[#a0a0b0] hover:text-white hover:bg-[#12121a]",
+  primary: "bg-gradient-to-r from-[#d4a054] to-[#c08430] hover:opacity-90 text-[#0a0e1a] border-0",
+  secondary: "bg-[#1e293b] text-[#e2e8f0] hover:bg-[#334155] border border-[#334155]",
+  ghost: "bg-transparent border-0 text-[#94a3b8] hover:text-white hover:bg-[#111827]",
   danger: "bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30",
 };
 
 const BUTTON_SIZES = {
-  sm: "px-3 py-1.5 text-xs rounded-md",
-  md: "px-4 py-2 text-sm rounded-lg",
-  lg: "px-6 py-3 text-base rounded-lg",
+  sm: "px-3 py-1.5 text-xs rounded-lg",
+  md: "px-4 py-2.5 text-sm rounded-xl",
+  lg: "px-6 py-3.5 text-sm rounded-xl",
 };
 
 export function Button({
@@ -89,7 +86,7 @@ export function Button({
     <button
       disabled={disabled || loading}
       className={cn(
-        "inline-flex items-center justify-center gap-2 font-medium transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
+        "inline-flex items-center justify-center gap-2 font-bold transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
         BUTTON_STYLES[variant],
         BUTTON_SIZES[size],
         className
@@ -115,16 +112,16 @@ export function Input({
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <label htmlFor={inputId} className="text-xs font-medium text-[#a0a0b0] uppercase tracking-wider">
+        <label htmlFor={inputId} className="text-xs font-semibold text-[#94a3b8]">
           {label}
         </label>
       )}
       <input
         id={inputId}
         className={cn(
-          "w-full bg-[#0a0a0f] border border-[#1e1e2e] rounded-lg px-4 py-2.5 text-sm text-white placeholder:text-[#6b6b80]",
-          "focus:outline-none focus:border-[#8b5cf6] focus:ring-1 focus:ring-[#8b5cf6]/50 transition-all duration-200",
-          error && "border-red-500/50 focus:border-red-500 focus:ring-red-500/20",
+          "w-full bg-[#0a0e1a] border border-[#1e293b] rounded-lg px-3.5 py-2.5 text-sm text-[#e2e8f0] placeholder:text-[#475569]",
+          "focus:outline-none focus:border-[#d4a054]/50 transition-colors duration-200",
+          error && "border-red-500/50 focus:border-red-500",
           className
         )}
         {...props}
@@ -134,7 +131,7 @@ export function Input({
   );
 }
 
-// ─── Select (listflow form select stili) ────────────────────────────────────
+// ─── Select ─────────────────────────────────────────────────────────────────
 
 export function Select({
   label,
@@ -144,13 +141,11 @@ export function Select({
 }: React.SelectHTMLAttributes<HTMLSelectElement> & { label?: string }) {
   return (
     <div className="flex flex-col gap-1.5">
-      {label && (
-        <label className="text-xs font-medium text-[#a0a0b0] uppercase tracking-wider">{label}</label>
-      )}
+      {label && <label className="text-xs font-semibold text-[#94a3b8]">{label}</label>}
       <select
         className={cn(
-          "w-full bg-[#0a0a0f] border border-[#1e1e2e] rounded-lg px-4 py-2.5 text-sm text-white",
-          "focus:outline-none focus:border-[#8b5cf6] transition-all duration-200",
+          "w-full bg-[#0a0e1a] border border-[#1e293b] rounded-lg px-3.5 py-2.5 text-sm text-[#e2e8f0] cursor-pointer",
+          "focus:outline-none focus:border-[#d4a054]/50 transition-colors duration-200",
           className
         )}
         {...props}
@@ -197,20 +192,20 @@ export function Modal({
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-[#0a0e1a]/80 backdrop-blur-sm" onClick={onClose} />
       <div
         className={cn(
-          "relative w-full bg-[#12121a] border border-[#1e1e2e] rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto",
+          "relative w-full bg-[#0c1322] border border-[#1e293b] rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto",
           MODAL_SIZES[size]
         )}
       >
         <div className="flex items-center justify-between px-6 pt-6">
-          {title && <h2 className="text-lg font-semibold text-white">{title}</h2>}
+          {title && <h2 className="text-lg font-extrabold text-[#f8fafc]">{title}</h2>}
           <button
             onClick={onClose}
-            className="ml-auto text-[#6b6b80] hover:text-white transition-colors p-1 rounded-md hover:bg-[#1e1e2e]"
+            className="ml-auto w-8 h-8 flex items-center justify-center rounded-lg bg-[#111827] border border-[#1e293b] text-[#94a3b8] hover:text-white transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
         <div className="p-6">{children}</div>
@@ -220,64 +215,6 @@ export function Modal({
   );
 }
 
-// ─── StatsCard ──────────────────────────────────────────────────────────────
-
-export function StatsCard({
-  title,
-  value,
-  subtitle,
-  icon: Icon,
-  iconColor = "text-[#8b5cf6]",
-  accentColor = "bg-[#8b5cf6]/10",
-}: {
-  title: string;
-  value: string | number;
-  subtitle?: string;
-  icon: LucideIcon;
-  iconColor?: string;
-  accentColor?: string;
-}) {
-  return (
-    <div className="bg-[#12121a] border border-[#1e1e2e] rounded-xl p-5 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-[#6b6b80] uppercase tracking-wider">{title}</span>
-        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", accentColor)}>
-          <Icon className={cn("w-4 h-4", iconColor)} />
-        </div>
-      </div>
-      <div>
-        <div className="text-2xl font-bold text-white">{value}</div>
-        {subtitle && <div className="text-xs text-[#6b6b80] mt-1">{subtitle}</div>}
-      </div>
-    </div>
-  );
-}
-
-// ─── Sayfa başlığı (listflow eyebrow + başlık kalıbı) ───────────────────────
-
-export function ListflowHeader({
-  eyebrow,
-  title,
-  subtitle,
-  right,
-}: {
-  eyebrow: string;
-  title: string;
-  subtitle?: string;
-  right?: ReactNode;
-}) {
-  return (
-    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-xs font-medium text-[#6b6b80] uppercase tracking-wider border border-[#1e1e2e] px-2 py-0.5 rounded-md">
-            {eyebrow}
-          </span>
-        </div>
-        <h1 className="text-2xl font-bold text-white mb-1">{title}</h1>
-        {subtitle && <p className="text-sm text-[#a0a0b0]">{subtitle}</p>}
-      </div>
-      {right}
-    </div>
-  );
-}
+// StatsCard ve PageHeader artık burada değil — tekrar etmesin diye
+// `@/components/etsy/shared` içindeki Stat / PageHeader kullanılıyor
+// (ETSY_ACCENT = "#d4a054" olarak güncellendi, tek kaynak orası).

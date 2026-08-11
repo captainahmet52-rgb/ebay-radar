@@ -1,94 +1,115 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { ChevronRight, Factory, Package, ArrowRight } from "lucide-react";
+import { useEffect, useState } from "react";
 import { EtsyReady } from "@/components/etsy/shared";
-import { Badge } from "@/components/etsy/ui";
 import { ETSY_CATALOG } from "@/lib/etsy-catalog";
 import { cn } from "@/lib/utils";
 import type { EtsyProduct } from "@/types/etsyflow";
+import type { CatalogPricingResponse } from "@/app/api/etsy/catalog-pricing/route";
 
-/**
- * listflow.pro "Kategoriler / Üretim Hatları" sayfası — sol panel kategori
- * listesi, sağ panel o kategorinin üretim hatları. Sayılar gerçek üretimden.
- */
+const ETSY_FEE_RATE = 0.15;
+
+// Referans görseller — henüz gerçek ürün üretilmemişken fallback (etsyflow-project/Categories.jsx'ten)
+const REF: Record<string, string> = {
+  "Crochet:Anahtarlık": "https://i.imgur.com/Unl1YIx.png",
+  "Crochet:Amigurumi": "https://i.imgur.com/piIES0A.jpeg",
+  "Crochet:Dönence": "https://i.imgur.com/OhQUVC0.png",
+  "Punch Needle:Tek Taraflı Anahtarlık": "https://i.imgur.com/BylRW0J.jpeg",
+  "Punch Needle:Broş": "https://i.imgur.com/U6fV6RE.jpeg",
+  "Punch Needle:Bardak altlığı": "https://i.imgur.com/jlSdh1P.jpeg",
+  "Punch Needle:Mousepad": "https://i.imgur.com/ksxNcs6.jpeg",
+  "Punch Needle:Yastık kılıfı": "https://i.imgur.com/U8xprZx.jpeg",
+  "3D:Figure": "https://i.imgur.com/W6wWsmS.png",
+  "3D:Anahtarlık": "https://i.imgur.com/gximM00.jpeg",
+  "3D:Kalemlik": "https://i.imgur.com/sBDDfOy.png",
+  "3D:Saksı": "https://i.imgur.com/WxPvkv3.png",
+  "3D:Diş fırçalığı": "https://i.imgur.com/5j2BqFX.png",
+  "3D:Telefon standı": "https://i.imgur.com/AXITfpc.png",
+  "3D:Araba parfümü": "https://i.imgur.com/5cQEEh0.png",
+  "Tshirt:POD tasarımları": "https://i.imgur.com/I8XJvng.png",
+  "Cam Saat:Farklı temalı iç tasarımlar": "https://i.imgur.com/VeEmrsh.jpeg",
+  "Metal Wall Art:Metal Pano": "https://i.imgur.com/RHuivHX.jpeg",
+};
+
+/** EtsyFlow'un kendi Katalog sayfası (KODLAR/etsyflow-project/src/pages/dashboard/Categories.jsx) baz alındı. */
 export default function EtsyKategorilerPage() {
   const [activeName, setActiveName] = useState(ETSY_CATALOG[0].name);
+  const [pricing, setPricing] = useState<CatalogPricingResponse | null>(null);
   const activeCategory = ETSY_CATALOG.find((c) => c.name === activeName) ?? ETSY_CATALOG[0];
+
+  useEffect(() => {
+    fetch("/api/etsy/catalog-pricing")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setPricing(d))
+      .catch(() => setPricing(null));
+  }, []);
 
   return (
     <EtsyReady>
       {(data) => {
-        const producedIn = (category: string, sub: string) =>
+        const productsIn = (category: string, sub: string) =>
           data.products.filter((p) => p.category === category && p.sub_category === sub);
 
         return (
-          <div className="flex min-h-screen">
-            {/* Sol panel — kategori listesi */}
-            <div className="w-[220px] flex-shrink-0 bg-[#0d0d14] border-r border-[#1e1e2e] flex flex-col">
-              <div className="px-4 py-5 border-b border-[#1e1e2e]">
-                <h2 className="text-xs font-semibold text-[#6b6b80] uppercase tracking-wider">
-                  ÜRETİM HATLARI
-                </h2>
-              </div>
-              <nav className="flex-1 overflow-y-auto py-2">
-                {ETSY_CATALOG.map((cat) => (
+          <div className="flex -m-6 lg:-m-8 min-h-[calc(100vh-0px)]">
+            {/* İç Sidebar */}
+            <aside className="w-[200px] flex-shrink-0 border-r border-[#1e293b] pt-5 pb-6 px-3">
+              <p className="text-[10px] font-bold text-[#475569] uppercase tracking-widest mb-3 px-2">
+                Alt Kategoriler
+              </p>
+              {ETSY_CATALOG.map((cat) => {
+                const active = activeName === cat.name;
+                return (
                   <button
                     key={cat.name}
                     onClick={() => setActiveName(cat.name)}
                     className={cn(
-                      "w-full flex items-center justify-between px-4 py-2.5 text-sm transition-all duration-200 group",
-                      activeName === cat.name
-                        ? "bg-[#8b5cf6]/10 text-[#8b5cf6] border-r-2 border-[#8b5cf6]"
-                        : "text-[#a0a0b0] hover:text-white hover:bg-[#1e1e2e]/40"
+                      "flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-sm font-medium transition mb-0.5 text-left",
+                      active
+                        ? "bg-[#d4a054]/10 text-[#d4a054] border-l-2 border-[#d4a054]"
+                        : "text-[#94a3b8] hover:text-[#e2e8f0] hover:bg-[#111827]"
                     )}
                   >
-                    <span className="flex items-center gap-2.5 min-w-0">
-                      <span
-                        className={cn(
-                          "text-base flex-shrink-0 transition-transform duration-200",
-                          activeName === cat.name ? "scale-110" : "group-hover:scale-110"
-                        )}
-                      >
-                        {cat.icon}
-                      </span>
-                      <span className="truncate text-left">{cat.name}</span>
+                    <span className="truncate flex items-center gap-1.5">
+                      <span>{cat.icon}</span>
+                      {cat.name}
                     </span>
-                    <ChevronRight
+                    <span
                       className={cn(
-                        "w-3.5 h-3.5 flex-shrink-0 transition-all duration-200",
-                        activeName === cat.name
-                          ? "text-[#8b5cf6] translate-x-0.5"
-                          : "text-[#1e1e2e] group-hover:text-[#6b6b80]"
+                        "text-[11px] font-bold px-1.5 py-0.5 rounded-full ml-2 flex-shrink-0",
+                        active ? "bg-[#d4a054] text-[#0a0e1a]" : "bg-[#1e293b] text-[#64748b]"
                       )}
-                    />
+                    >
+                      {cat.subCategories.length}
+                    </span>
                   </button>
+                );
+              })}
+            </aside>
+
+            {/* Ana İçerik */}
+            <div className="flex-1 pt-5 pb-8 px-6 overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-[#64748b]">Talep Üzerine Üretim</span>
+                  <span className="text-[#334155]">›</span>
+                  <span className="font-semibold text-[#f1f5f9]">{activeCategory.name}</span>
+                </div>
+                <span className="text-xs text-[#64748b] bg-[#111827] border border-[#1e293b] px-3 py-1 rounded-full">
+                  {activeCategory.subCategories.length} ürün tipi
+                </span>
+              </div>
+
+              <div key={activeName} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {activeCategory.subCategories.map((sub) => (
+                  <ProductCard
+                    key={sub}
+                    category={activeCategory.name}
+                    sub={sub}
+                    products={productsIn(activeCategory.name, sub)}
+                    pricing={pricing}
+                  />
                 ))}
-              </nav>
-            </div>
-
-            {/* Sağ panel — üretim hatları */}
-            <div className="flex-1 overflow-y-auto">
-              <div className="p-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-2xl">{activeCategory.icon}</span>
-                  <h1 className="text-xl font-bold text-white">{activeCategory.name}</h1>
-                </div>
-                <p className="text-xs text-[#6b6b80] mb-6 uppercase tracking-wider">
-                  {activeCategory.subCategories.length} ÜRETİM HATTI • {activeCategory.description}
-                </p>
-
-                <div key={activeName} className="flex flex-col gap-4">
-                  {activeCategory.subCategories.map((sub) => (
-                    <ProductionLineCard
-                      key={sub}
-                      category={activeCategory.name}
-                      sub={sub}
-                      products={producedIn(activeCategory.name, sub)}
-                    />
-                  ))}
-                </div>
               </div>
             </div>
           </div>
@@ -98,80 +119,134 @@ export default function EtsyKategorilerPage() {
   );
 }
 
-function ProductionLineCard({
+function ProductCard({
   category,
   sub,
   products,
+  pricing,
 }: {
   category: string;
   sub: string;
   products: EtsyProduct[];
+  pricing: CatalogPricingResponse | null;
 }) {
-  const uploaded = products.filter((p) => p.upload_status === "uploaded").length;
-  const waiting = products.filter((p) => p.upload_status === "waiting").length;
-  const lastProduced = products.length
-    ? new Date(
-        Math.max(...products.map((p) => new Date(p.created_at).getTime()))
-      ).toLocaleDateString("tr-TR")
-    : null;
+  const key = `${category}:${sub}`;
+  const refImg = REF[key] ?? null;
+  const img1 = products[0]?.images?.[0] ?? refImg;
+  const img2 = products[1]?.images?.[0] ?? refImg;
+
+  const entry = pricing?.prices[key];
+  const hasSalePrice = typeof entry?.salePrice === "number";
+  const hasCost = typeof entry?.cost === "number";
+  const salePrice = entry?.salePrice ?? 0;
+  const cost = entry?.cost ?? 0;
+  const etsyFee = +(salePrice * ETSY_FEE_RATE).toFixed(2);
+  const netProfit = +(salePrice - cost - etsyFee).toFixed(2);
 
   return (
-    <div className="bg-[#0a0a0f] border border-[#1e1e2e] rounded-xl overflow-hidden hover:border-[#8b5cf6]/30 transition-all duration-200">
-      {/* Başlık */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e1e2e]">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#8b5cf6]/10 flex items-center justify-center">
-            <Factory className="w-4 h-4 text-[#8b5cf6]" />
+    <div className="bg-[#111827] border border-[#1e293b] rounded-2xl overflow-hidden flex flex-col hover:border-[#334155] transition-colors">
+      {/* Görseller */}
+      <div className="relative grid grid-cols-2 h-44">
+        <ImageSlot src={img1} label="Satış" />
+        <ImageSlot src={img2} label="Üretim" />
+        {products.length > 0 && (
+          <div className="absolute bottom-0 left-0 right-0 bg-[#0c1322]/85 backdrop-blur-sm py-1.5 px-3 flex items-center gap-1.5">
+            <span className="text-[#c08430] text-xs">◈</span>
+            <span className="text-[11px] text-[#94a3b8] font-medium">Örnek Ürünler</span>
+            <span className="text-[11px] text-[#d4a054] font-bold">({products.length})</span>
           </div>
-          <div className="text-sm font-semibold text-white">{sub}</div>
-        </div>
-        <Badge variant="success">HAT AKTİF</Badge>
+        )}
       </div>
 
-      {/* Metrikler */}
-      <div className="px-5 py-4">
-        <div className="grid grid-cols-4 gap-3 mb-4">
-          <Metric label="ÜRETİLEN" value={String(products.length)} />
-          <Metric label="ETSY'DE" value={String(uploaded)} valueClass="text-[#10b981]" />
-          <Metric label="KUYRUKTA" value={String(waiting)} valueClass="text-yellow-400" />
-          <Metric label="SON ÜRETİM" value={lastProduced ?? "—"} />
+      {/* Bilgi */}
+      <div className="p-4 flex flex-col gap-3 flex-1">
+        <div>
+          <p className="text-sm font-bold text-[#f8fafc] leading-snug">{sub}</p>
+          <p className="text-[11px] text-[#64748b] mt-0.5 flex items-center gap-1">
+            <span className="text-[#c08430] text-[9px]">◆</span>
+            {category}
+          </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex-1 flex items-center gap-3 bg-[#12121a] rounded-lg px-4 py-2.5 border border-[#1e1e2e]">
-            <Package className="w-4 h-4 text-[#6b6b80]" />
-            <p className="text-xs text-[#a0a0b0]">
-              {products.length === 0
-                ? "Bu hatta henüz üretim yok — mağaza açınca otomasyon başlar."
-                : `Bu hat için otomasyon ${products.length} ürün üretti.`}
-            </p>
+        {/* Fiyat tablosu */}
+        {hasSalePrice ? (
+          <div className="bg-[#0c1322] rounded-xl p-3 space-y-1.5">
+            <PriceRow label="Satış Fiyatı" value={`₺${salePrice.toFixed(2)}`} bold />
+            <PriceRow label="Maliyet" value={hasCost ? `₺${cost.toFixed(2)}` : "Girilmedi"} muted={!hasCost} />
+            <PriceRow label="Kargo" value="Hedefe göre değişir" muted italic />
+            <PriceRow label={`Etsy (${(ETSY_FEE_RATE * 100).toFixed(0)}%)`} value={`₺${etsyFee.toFixed(2)}`} />
           </div>
-          <Link
-            href="/etsy/stores"
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#06b6d4]/10 hover:bg-[#06b6d4]/20 border border-[#06b6d4]/30 text-[#06b6d4] text-xs font-medium rounded-lg transition-all duration-150 whitespace-nowrap"
-          >
-            <ArrowRight className="w-3.5 h-3.5" />
-            BU HATTA MAĞAZA AÇ
-          </Link>
-        </div>
+        ) : (
+          <div className="bg-[#0c1322] rounded-xl p-3 text-xs text-[#64748b] text-center py-4">
+            Fiyat henüz admin panelden girilmedi.
+          </div>
+        )}
+
+        {/* Net Kazanç */}
+        {hasSalePrice && hasCost && (
+          <div className="mt-auto bg-emerald-950/40 border border-emerald-900/40 rounded-xl px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-emerald-400 text-sm font-bold">↗</span>
+              <span className="text-[11px] font-bold text-emerald-500 uppercase tracking-wide">Net Kazanç</span>
+            </div>
+            <span className="text-emerald-400 text-base font-extrabold">₺{netProfit.toFixed(2)}</span>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function Metric({
+function ImageSlot({ src, label }: { src: string | null; label: string }) {
+  return (
+    <div className="relative overflow-hidden bg-[#1e293b] border-r border-[#334155] last:border-r-0">
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt={label} className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center">
+          <span className="text-[#334155] text-2xl">◈</span>
+        </div>
+      )}
+      <span
+        className={cn(
+          "absolute top-2 left-2 text-[10px] font-semibold px-2 py-0.5 rounded-full",
+          label === "Satış"
+            ? "bg-[#d4a054]/25 text-[#e8b56a] border border-[#d4a054]/40"
+            : "bg-[#111827]/80 text-[#94a3b8] border border-[#334155]/60"
+        )}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function PriceRow({
   label,
   value,
-  valueClass = "text-white",
+  bold = false,
+  italic = false,
+  muted = false,
 }: {
   label: string;
   value: string;
-  valueClass?: string;
+  bold?: boolean;
+  italic?: boolean;
+  muted?: boolean;
 }) {
   return (
-    <div>
-      <div className="text-[10px] text-[#6b6b80] uppercase tracking-wider mb-1">{label}</div>
-      <div className={cn("text-sm font-semibold", valueClass)}>{value}</div>
+    <div className="flex items-center justify-between gap-2">
+      <span className={cn("text-xs", bold ? "text-[#cbd5e1] font-medium" : "text-[#475569]")}>{label}</span>
+      <span
+        className={cn(
+          "text-xs",
+          bold ? "text-[#f1f5f9] font-semibold" : muted ? "text-[#475569]" : "text-[#64748b]",
+          italic && "italic"
+        )}
+      >
+        {value}
+      </span>
     </div>
   );
 }
