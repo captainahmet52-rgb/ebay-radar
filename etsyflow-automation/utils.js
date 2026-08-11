@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import ws from 'ws';
 import { markDesignAsUsed } from './trend/uploader.js';
+import { fetchRadarIdea } from './radar-idea-client.js';
 
 // Supabase Bağlantısı — Node 20'de native WebSocket yok, realtime-js'e "ws" paketini
 // elle vermek gerekiyor (aksi halde createClient constructor'da çöküyor).
@@ -26,15 +27,27 @@ const openai = new OpenAI({
  * Uyumluluk: (category, subCategory, existingIdeas, customDetails, referenceImage)
  */
 export async function generateProductIdea(category, subCategory, existingIdeas = [], customDetails = '', referenceImage = null) {
+    // 📡 ÖNCE RADAR'A SOR: Radar'ın Etsy Fikir Motoru bu alt kategori için
+    // eşleştirilmişse (bkz. radar-category-map.js) ve ulaşılabilirse, gerçek
+    // talep sinyaline dayalı fikrini kullan. Eşleşme yoksa / Radar kapalıysa /
+    // istek başarısız olursa aşağıdaki GPT akışına düşülür — üretim buna asla
+    // bağımlı kalmaz.
+    const radarIdea = await fetchRadarIdea(category, subCategory);
+    if (radarIdea) return radarIdea;
+
     console.log(`💡 [${subCategory}] için fikir üretiliyor... (Hafıza + Trend kontrol ediliyor)`);
     
     // 🔥 HAFIZA: Bu alt kategoride daha önce üretilen TÜM ürünleri çek — hiçbiri tekrar edilmesin
     try {
+        // Son 60 ürünle sınırlı — mağaza büyüdükçe prompt sınırsız büyüyüp
+        // maliyeti/yavaşlığı artırmasın. En yeni ürünler tekrar riskini en çok
+        // taşıyanlar olduğu için son N yeterli koruma sağlıyor.
         const { data: allProducts } = await supabase
             .from('products')
             .select('title')
             .eq('sub_category', subCategory)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .limit(60);
 
         if (allProducts && allProducts.length > 0) {
             const allTitles = allProducts.map(p => p.title).filter(Boolean);
@@ -318,13 +331,21 @@ export async function generateProductImages(ideaDetails, masterPrompts, referenc
         const clonePrompt = `Edit this image: keep the product — ${ideaDetails} — completely unchanged. Do not alter its shape, color, material, texture, or any detail. Only change the background and scene to: ${scene}.`;
 
         console.log(`📸 ${i + 1}. görsel klonlanıyor... (FLUX.1-Kontext-Pro I2I)`);
-        const url = await generateKontextImage(imageUrls[0], clonePrompt, baseSeed + i, headers);
+        let url = await generateKontextImage(imageUrls[0], clonePrompt, baseSeed + i, headers);
+
+        if (!url) {
+            // İlk deneme başarısız oldu — aynı ürünle 3 kere karşılaşmasın diye
+            // farklı bir seed ile bir kere daha dene.
+            console.warn(`⚠️ ${i + 1}. görsel klonlanamadı, farklı seed ile tekrar deneniyor...`);
+            await new Promise(r => setTimeout(r, 2000));
+            url = await generateKontextImage(imageUrls[0], clonePrompt, baseSeed + i + 1000, headers);
+        }
 
         if (url) {
             imageUrls.push(url);
             console.log(`✅ ${i + 1}. görsel başarıyla klonlandı.`);
         } else {
-            console.warn(`⚠️ ${i + 1}. görsel klonlanamadı, 1. görsel kopyalanıyor...`);
+            console.warn(`⚠️ ${i + 1}. görsel iki denemede de üretilemedi, 1. görsel kopyalanıyor (ürün aynı fotoğrafı ${i + 1} kere gösterecek).`);
             imageUrls.push(imageUrls[0]);
         }
     }
@@ -361,14 +382,18 @@ export async function generateProductSEO(ideaSubject, category, subCategory, sto
     Category: ${category}
     Sub-Category: ${subCategory}
 
-    IMPORTANT: Do NOT use any Markdown formatting like **, #, or -. Use only plain text for the description. 
+    ETSY HARD LIMITS — the listing will be rejected if these are violated:
+    - "title": maximum 140 characters TOTAL (count carefully, stay a few characters under to be safe).
+    - "tags": exactly 13 tags, each tag maximum 20 characters, all lowercase, no special characters.
+
+    IMPORTANT: Do NOT use any Markdown formatting like **, #, or -. Use only plain text for the description.
     Separate sections with double newlines.
 
     Return JSON:
     {
-        "title": "...",
+        "title": "... (<=140 characters)",
         "description": "...",
-        "tags": ["..."],
+        "tags": ["... (13 tags, each <=20 characters)"],
         "suggested_price": ${suggestedPrice}
     }`;
 
@@ -378,7 +403,22 @@ export async function generateProductSEO(ideaSubject, category, subCategory, sto
         response_format: { type: "json_object" }
     });
 
-    return JSON.parse(response.choices[0].message.content);
+    const result = JSON.parse(response.choices[0].message.content);
+
+    // Güvenlik ağı: AI limitleri kaçırırsa listing Etsy'de reddedilmesin diye
+    // burada da sertçe kırpıyoruz — prompt talimatına güvenmek tek başına yeterli değil.
+    if (typeof result.title === 'string' && result.title.length > 140) {
+        console.warn(`⚠️ Başlık ${result.title.length} karakterdi, 140'a kırpıldı.`);
+        result.title = result.title.slice(0, 140).trim();
+    }
+    if (Array.isArray(result.tags)) {
+        result.tags = result.tags
+            .filter(t => typeof t === 'string' && t.trim().length > 0)
+            .map(t => t.trim().slice(0, 20))
+            .slice(0, 13);
+    }
+
+    return result;
 }
 
 /**
@@ -472,10 +512,31 @@ export async function generateSingleImage(prompt) {
     return images[0];
 }
 
-export async function generatePatternText(productIdea, category, subCategory) {
+export async function generatePatternText(productIdea, designDetails = '') {
+    // Bu metin pazarlama kopyası değil — müşterinin parayla indirdiği asıl ürün.
+    // Eksik/genel bir tarif doğrudan iade/kötü yorum riski demek, o yüzden burada
+    // gerçek bir kroşe/örgü tarifinde olması gereken her bölüm zorunlu tutuluyor.
+    const prompt = `You are a professional crochet/knitting pattern designer writing a pattern that a customer will pay for and follow at home. Be precise and complete — a vague pattern leads to refunds and bad reviews.
+
+Design: ${productIdea}
+${designDetails ? `Visual details: ${designDetails}` : ''}
+
+Write a complete, usable pattern with ALL of the following sections, in this order:
+
+1. MATERIALS — exact yarn weight (e.g. worsted/DK/sport), estimated yardage, hook or needle size (e.g. US G/4mm), and any extra supplies (stuffing, safety eyes, stitch markers, yarn needle).
+2. GAUGE — approximate stitches per 10cm/4in so the finished size comes out right.
+3. FINISHED SIZE — approximate dimensions of the completed item.
+4. ABBREVIATIONS — every stitch abbreviation used in the pattern, spelled out (e.g. "sc = single crochet", "inc = increase", "dec = decrease").
+5. SKILL LEVEL — beginner, intermediate, or advanced, with a one-line reason.
+6. INSTRUCTIONS — numbered, step-by-step rows or rounds with stitch counts at the end of each round (e.g. "Round 3: (sc 2, inc) x6 [24 sts]"). Be specific enough that someone could actually follow along and produce the item.
+7. ASSEMBLY / FINISHING — how to sew pieces together, weave in ends, attach any extra parts, and block if needed.
+8. TIPS — 1-2 practical tips specific to this design (e.g. tricky part, color-change advice).
+
+Do NOT use Markdown formatting (no **, #, -). Plain text only, with clear section headers in capital letters and blank lines between sections.`;
+
     const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
-        messages: [{ role: "system", content: `Create a DIY pattern for ${productIdea}` }],
+        messages: [{ role: "system", content: prompt }],
     });
     return response.choices[0].message.content;
 }
