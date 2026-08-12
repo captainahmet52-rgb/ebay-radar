@@ -101,7 +101,7 @@ export default function EtsyOrdersPage() {
                     className={cn(
                       "px-3 py-1.5 rounded-lg text-xs font-semibold transition",
                       filterStatus === f.key
-                        ? "bg-[#d4a054]/20 text-[#d4a054] border border-[#d4a054]/30"
+                        ? "bg-[#f1641e]/20 text-[#f1641e] border border-[#f1641e]/30"
                         : "bg-[#111827] text-[#94a3b8] border border-[#1e293b] hover:text-[#e2e8f0] hover:border-[#334155]"
                     )}
                   >
@@ -120,7 +120,7 @@ export default function EtsyOrdersPage() {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Sipariş, alıcı, mağaza ara..."
-                    className="bg-[#0a0e1a] border border-[#1e293b] rounded-lg px-3 py-1.5 text-xs text-[#e2e8f0] placeholder-[#475569] focus:outline-none focus:border-[#d4a054]/50 w-[180px] pl-8 transition"
+                    className="bg-[#0a0e1a] border border-[#1e293b] rounded-lg px-3 py-1.5 text-xs text-[#e2e8f0] placeholder-[#475569] focus:outline-none focus:border-[#f1641e]/50 w-[180px] pl-8 transition"
                   />
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-[#475569]" />
                 </div>
@@ -128,7 +128,7 @@ export default function EtsyOrdersPage() {
                 <select
                   value={filterStore}
                   onChange={(e) => setFilterStore(e.target.value)}
-                  className="bg-[#111827] border border-[#1e293b] rounded-lg pl-3 pr-8 py-1.5 text-xs text-[#e2e8f0] focus:outline-none focus:border-[#d4a054]/50 transition cursor-pointer"
+                  className="bg-[#111827] border border-[#1e293b] rounded-lg pl-3 pr-8 py-1.5 text-xs text-[#e2e8f0] focus:outline-none focus:border-[#f1641e]/50 transition cursor-pointer"
                 >
                   <option value="all">🏢 Tüm Mağazalar</option>
                   {data.stores.map((s) => (
@@ -140,7 +140,7 @@ export default function EtsyOrdersPage() {
 
                 <button
                   onClick={reload}
-                  className="px-3 py-1.5 rounded-lg text-xs text-[#94a3b8] hover:text-[#d4a054] border border-[#1e293b] hover:border-[#d4a054]/30 transition shrink-0"
+                  className="px-3 py-1.5 rounded-lg text-xs text-[#94a3b8] hover:text-[#f1641e] border border-[#1e293b] hover:border-[#f1641e]/30 transition shrink-0"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                 </button>
@@ -192,7 +192,7 @@ export default function EtsyOrdersPage() {
                             </td>
                             <td className="px-4 py-3 text-sm text-[#94a3b8] whitespace-nowrap">{maskBuyer(o.buyer_name)}</td>
                             <td className="px-4 py-3 whitespace-nowrap">
-                              <span className="text-sm font-bold text-[#d4a054]">{formatTotal(o.total, o.currency)}</span>
+                              <span className="text-sm font-bold text-[#f1641e]">{formatTotal(o.total, o.currency)}</span>
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <span className={cn("text-[11px] font-semibold px-2.5 py-1 rounded-full border", st.color, st.border, st.bg)}>
@@ -260,7 +260,7 @@ export default function EtsyOrdersPage() {
                       </div>
                       <div className="bg-[#111827] rounded-xl p-4 border border-[#1e293b]">
                         <div className="text-[10px] text-[#64748b] uppercase tracking-wider mb-1">Tutar</div>
-                        <div className="text-lg font-black text-[#d4a054]">{formatTotal(selected.total, selected.currency)}</div>
+                        <div className="text-lg font-black text-[#f1641e]">{formatTotal(selected.total, selected.currency)}</div>
                       </div>
                     </div>
 

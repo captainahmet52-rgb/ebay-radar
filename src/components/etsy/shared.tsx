@@ -6,9 +6,9 @@ import {
 import { AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import type { EtsyOverview } from "@/types/etsyflow";
 
-// etsyflow-project'in kendi marka rengi (tailwind.config.js brand-400/brand-500)
-export const ETSY_ACCENT = "#d4a054";
-export const ETSY_ACCENT2 = "#c08430";
+// Etsy'nin kendi marka turuncusu — panel rengi bağlı olduğu platforma göre belirlenir
+export const ETSY_ACCENT = "#f1641e";
+export const ETSY_ACCENT2 = "#d65212";
 
 // ─── Veri katmanı (tek fetch, tüm sayfalar paylaşır) ────────────────────────
 
@@ -72,7 +72,7 @@ export function EtsyReady({ children }: { children: (data: EtsyOverview) => Reac
   if (state.kind === "not-configured") {
     return (
       <InfoCard
-        title="EtsyFlow bağlantısı kurulmadı"
+        title="Etsy bağlantısı kurulmadı"
         text="Sunucuda ETSYFLOW_SUPABASE_SERVICE_KEY tanımlanmalı. Anahtar girilince panel otomatik çalışır."
       />
     );

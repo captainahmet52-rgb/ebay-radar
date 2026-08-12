@@ -56,7 +56,7 @@ export default function EtsyDashboardPage() {
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm font-bold text-[#f1f5f9]">{store.name}</span>
                           {store.client_id && (
-                            <span className="text-[10px] font-mono text-[#d4a054]/70">{store.client_id}</span>
+                            <span className="text-[10px] font-mono text-[#f1641e]/70">{store.client_id}</span>
                           )}
                         </div>
                         <div className="flex gap-4 text-xs">
@@ -147,7 +147,7 @@ export default function EtsyDashboardPage() {
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <div className="font-bold text-xs text-[#d4a054]">
+                        <div className="font-bold text-xs text-[#f1641e]">
                           {o.total ? `${o.total} ${o.currency || "TRY"}` : "—"}
                         </div>
                         <div className="text-[10px] text-[#64748b]">{o.status}</div>

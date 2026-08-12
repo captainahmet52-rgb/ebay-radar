@@ -8,10 +8,11 @@ import {
   LayoutDashboard, Grid3X3, Store, Package, ClipboardList, Home, Loader2,
   LogOut, Menu, X,
 } from "lucide-react";
-import { EtsyDataProvider } from "@/components/etsy/shared";
+import { EtsyDataProvider, ETSY_ACCENT } from "@/components/etsy/shared";
+import { LogoMark } from "@/components/logo";
 import { cn } from "@/lib/utils";
 
-/** EtsyFlow'un kendi paneli (KODLAR/etsyflow-project/src/components/Sidebar.jsx) baz alındı. */
+/** Sayfa yapısı EtsyFlow'un kendi paneli (KODLAR/etsyflow-project/src/components/Sidebar.jsx) baz alındı; marka Lean Automation'a uyarlandı. */
 const NAV = [
   { href: "/etsy", label: "Anasayfa", icon: LayoutDashboard, exact: true },
   { href: "/etsy/kategoriler", label: "Katalog", icon: Grid3X3 },
@@ -35,7 +36,7 @@ export default function EtsyLayout({ children }: { children: React.ReactNode }) 
   if (status !== "authenticated") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0a0e1a]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#d4a054]" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#f1641e]" />
       </div>
     );
   }
@@ -48,9 +49,15 @@ export default function EtsyLayout({ children }: { children: React.ReactNode }) 
   const sidebarContent = (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <Link href="/etsy" className="flex items-center gap-2 px-5 py-6 mb-2">
-        <span className="text-[#d4a054] text-2xl font-black">◆</span>
-        <span className="text-xl font-extrabold text-[#f8fafc] tracking-tight">EtsyFlow</span>
+      <Link href="/etsy" className="flex items-center gap-2.5 px-5 py-6 mb-2">
+        <LogoMark size={32} className="flex-shrink-0" />
+        <div className="leading-none">
+          <p className="text-sm font-black text-[#f8fafc] flex items-center gap-1.5">
+            Lean Automation
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: ETSY_ACCENT }} />
+          </p>
+          <p className="text-[10px] text-[#64748b] mt-1">Etsy Paneli</p>
+        </div>
       </Link>
 
       {/* Ana Sayfa (leanautomation.pro'ya dön) */}
@@ -75,7 +82,7 @@ export default function EtsyLayout({ children }: { children: React.ReactNode }) 
             className={cn(
               "flex items-center px-5 py-2.5 text-sm font-medium w-full text-left transition",
               active
-                ? "bg-[#d4a054]/10 text-[#d4a054] font-semibold border-r-2 border-[#d4a054]"
+                ? "bg-[#f1641e]/10 text-[#f1641e] font-semibold border-r-2 border-[#f1641e]"
                 : "text-[#94a3b8] hover:text-[#e2e8f0] hover:bg-[#111827]"
             )}
           >
@@ -131,7 +138,13 @@ export default function EtsyLayout({ children }: { children: React.ReactNode }) 
         </aside>
 
         {/* İçerik */}
-        <main className="lg:ml-[220px] min-h-screen p-6 lg:p-8">{children}</main>
+        <main className="relative lg:ml-[220px] min-h-screen p-6 lg:p-8">
+          <div
+            className="fixed top-0 right-0 w-[45vw] h-[45vh] pointer-events-none -z-0"
+            style={{ background: `radial-gradient(ellipse at top right, ${ETSY_ACCENT}14 0%, transparent 65%)` }}
+          />
+          <div className="relative z-10">{children}</div>
+        </main>
       </div>
     </EtsyDataProvider>
   );

@@ -70,7 +70,7 @@ export default function EtsyProductsPage() {
               <div className="relative w-full sm:w-72">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#475569]" />
                 <input
-                  className="w-full pl-9 pr-3.5 py-2.5 bg-[#0a0e1a] border border-[#1e293b] rounded-lg text-[#e2e8f0] text-sm outline-none focus:border-[#d4a054]/50 transition"
+                  className="w-full pl-9 pr-3.5 py-2.5 bg-[#0a0e1a] border border-[#1e293b] rounded-lg text-[#e2e8f0] text-sm outline-none focus:border-[#f1641e]/50 transition"
                   placeholder="Ürün ara..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
@@ -93,7 +93,7 @@ export default function EtsyProductsPage() {
                       filter === id
                         ? id === "failed"
                           ? "bg-red-400/15 text-red-300 border-red-400/40"
-                          : "bg-[#d4a054]/15 text-[#e8b56a] border-[#d4a054]/40"
+                          : "bg-[#f1641e]/15 text-[#ff8a50] border-[#f1641e]/40"
                         : "bg-[#0c1322] text-[#94a3b8] border-[#1e293b] hover:text-[#e2e8f0] hover:border-[#334155]"
                     )}
                   >
@@ -212,7 +212,7 @@ function ProductCard({
         "flex flex-col rounded-2xl border overflow-hidden transition-all duration-300 group",
         isFailed
           ? "border-red-500/30 bg-red-500/5 hover:border-red-500/50"
-          : "border-[#1e293b] bg-[#0c1322]/40 hover:border-[#d4a054]/30 hover:bg-[#111827]/60"
+          : "border-[#1e293b] bg-[#0c1322]/40 hover:border-[#f1641e]/30 hover:bg-[#111827]/60"
       )}
     >
       <button onClick={onOpen} className="aspect-[4/5] bg-[#1e293b] overflow-hidden relative border-b border-[#1e293b]/50 text-left">
@@ -249,7 +249,7 @@ function ProductCard({
           {store?.name && (
             <div className="text-right flex flex-col">
               <span className="text-[9px] text-[#64748b] font-black uppercase tracking-tighter mb-0.5">Mağaza</span>
-              <span className="text-[11px] font-bold text-[#d4a054]/80">{store.name}</span>
+              <span className="text-[11px] font-bold text-[#f1641e]/80">{store.name}</span>
             </div>
           )}
         </div>
@@ -347,11 +347,11 @@ function ProductDetailModal({
 
           <div className="w-full lg:w-1/2 p-8 overflow-y-auto">
             <div className="mb-6">
-              <div className="text-[10px] text-[#d4a054] font-black uppercase tracking-[0.2em] mb-2">Ürün Detayları</div>
+              <div className="text-[10px] text-[#f1641e] font-black uppercase tracking-[0.2em] mb-2">Ürün Detayları</div>
               <h2 className="text-xl font-black text-white leading-tight mb-4">{product.title}</h2>
               <div className="flex items-center gap-4">
-                <div className="bg-[#d4a054]/10 border border-[#d4a054]/20 px-4 py-2 rounded-2xl">
-                  <div className="text-[9px] text-[#d4a054] font-black uppercase tracking-tighter">Fiyat</div>
+                <div className="bg-[#f1641e]/10 border border-[#f1641e]/20 px-4 py-2 rounded-2xl">
+                  <div className="text-[9px] text-[#f1641e] font-black uppercase tracking-tighter">Fiyat</div>
                   <div className="text-lg font-black text-white">{formatPrice(product)}</div>
                 </div>
                 {store?.name && (
@@ -404,7 +404,7 @@ function ProductDetailModal({
                   href={`https://www.etsy.com/listing/${product.etsy_listing_id}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex-1 py-4 bg-[#d4a054] text-[#0a0e1a] text-center text-xs font-black rounded-2xl hover:bg-[#e8b56a] transition-all"
+                  className="flex-1 py-4 bg-[#f1641e] text-[#0a0e1a] text-center text-xs font-black rounded-2xl hover:bg-[#ff8a50] transition-all"
                 >
                   Etsy&apos;de Görüntüle ↗
                 </a>

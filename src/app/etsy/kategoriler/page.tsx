@@ -66,7 +66,7 @@ export default function EtsyKategorilerPage() {
                     className={cn(
                       "flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-sm font-medium transition mb-0.5 text-left",
                       active
-                        ? "bg-[#d4a054]/10 text-[#d4a054] border-l-2 border-[#d4a054]"
+                        ? "bg-[#f1641e]/10 text-[#f1641e] border-l-2 border-[#f1641e]"
                         : "text-[#94a3b8] hover:text-[#e2e8f0] hover:bg-[#111827]"
                     )}
                   >
@@ -77,7 +77,7 @@ export default function EtsyKategorilerPage() {
                     <span
                       className={cn(
                         "text-[11px] font-bold px-1.5 py-0.5 rounded-full ml-2 flex-shrink-0",
-                        active ? "bg-[#d4a054] text-[#0a0e1a]" : "bg-[#1e293b] text-[#64748b]"
+                        active ? "bg-[#f1641e] text-[#0a0e1a]" : "bg-[#1e293b] text-[#64748b]"
                       )}
                     >
                       {cat.subCategories.length}
@@ -151,9 +151,9 @@ function ProductCard({
         <ImageSlot src={img2} label="Üretim" />
         {products.length > 0 && (
           <div className="absolute bottom-0 left-0 right-0 bg-[#0c1322]/85 backdrop-blur-sm py-1.5 px-3 flex items-center gap-1.5">
-            <span className="text-[#c08430] text-xs">◈</span>
+            <span className="text-[#d65212] text-xs">◈</span>
             <span className="text-[11px] text-[#94a3b8] font-medium">Örnek Ürünler</span>
-            <span className="text-[11px] text-[#d4a054] font-bold">({products.length})</span>
+            <span className="text-[11px] text-[#f1641e] font-bold">({products.length})</span>
           </div>
         )}
       </div>
@@ -163,7 +163,7 @@ function ProductCard({
         <div>
           <p className="text-sm font-bold text-[#f8fafc] leading-snug">{sub}</p>
           <p className="text-[11px] text-[#64748b] mt-0.5 flex items-center gap-1">
-            <span className="text-[#c08430] text-[9px]">◆</span>
+            <span className="text-[#d65212] text-[9px]">◆</span>
             {category}
           </p>
         </div>
@@ -212,7 +212,7 @@ function ImageSlot({ src, label }: { src: string | null; label: string }) {
         className={cn(
           "absolute top-2 left-2 text-[10px] font-semibold px-2 py-0.5 rounded-full",
           label === "Satış"
-            ? "bg-[#d4a054]/25 text-[#e8b56a] border border-[#d4a054]/40"
+            ? "bg-[#f1641e]/25 text-[#ff8a50] border border-[#f1641e]/40"
             : "bg-[#111827]/80 text-[#94a3b8] border border-[#334155]/60"
         )}
       >

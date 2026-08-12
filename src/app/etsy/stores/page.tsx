@@ -19,7 +19,7 @@ export default function EtsyStoresPage() {
 
   const subCategories = findCatalogCategory(category)?.subCategories ?? [];
   const inputCls =
-    "w-full px-3.5 py-2.5 bg-[#0a0e1a] border border-[#1e293b] rounded-lg text-[#e2e8f0] text-sm outline-none focus:border-[#d4a054]/50 transition";
+    "w-full px-3.5 py-2.5 bg-[#0a0e1a] border border-[#1e293b] rounded-lg text-[#e2e8f0] text-sm outline-none focus:border-[#f1641e]/50 transition";
 
   async function handleSave() {
     if (!name.trim()) return setMessage({ type: "error", text: "Mağaza adı boş olamaz." });
@@ -71,7 +71,7 @@ export default function EtsyStoresPage() {
           )}
 
           <button
-            className="bg-gradient-to-r from-[#d4a054] to-[#c08430] text-[#0a0e1a] px-5 py-2.5 rounded-xl text-sm font-bold mb-5 hover:opacity-90 transition"
+            className="bg-gradient-to-r from-[#f1641e] to-[#d65212] text-[#0a0e1a] px-5 py-2.5 rounded-xl text-sm font-bold mb-5 hover:opacity-90 transition"
             onClick={() => setShowForm((v) => !v)}
           >
             {showForm ? "✕ Kapat" : "+ Mağaza Ekle"}
@@ -138,7 +138,7 @@ export default function EtsyStoresPage() {
                 </div>
               </div>
               <button
-                className="bg-gradient-to-r from-[#d4a054] to-[#c08430] text-[#0a0e1a] px-5 py-2.5 rounded-xl text-sm font-bold mt-4 hover:opacity-90 transition disabled:opacity-50"
+                className="bg-gradient-to-r from-[#f1641e] to-[#d65212] text-[#0a0e1a] px-5 py-2.5 rounded-xl text-sm font-bold mt-4 hover:opacity-90 transition disabled:opacity-50"
                 onClick={handleSave}
                 disabled={saving}
               >
@@ -258,14 +258,14 @@ function StoreCard({
       </div>
 
       {store.client_id ? (
-        <div className="bg-[#0a0e1a] border border-[#d4a054]/20 rounded-xl p-3 mb-3">
+        <div className="bg-[#0a0e1a] border border-[#f1641e]/20 rounded-xl p-3 mb-3">
           <div className="text-[10px] font-semibold text-[#64748b] uppercase tracking-wider mb-1">Client ID</div>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-lg font-black font-mono text-[#d4a054] tracking-widest">{store.client_id}</span>
+            <span className="text-lg font-black font-mono text-[#f1641e] tracking-widest">{store.client_id}</span>
             <button
               onClick={copyClientId}
               className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition flex items-center gap-1 ${
-                copied ? "text-green-400 border-green-400/30 bg-green-400/10" : "text-[#94a3b8] border-[#334155] hover:text-[#d4a054] hover:border-[#d4a054]/30"
+                copied ? "text-green-400 border-green-400/30 bg-green-400/10" : "text-[#94a3b8] border-[#334155] hover:text-[#f1641e] hover:border-[#f1641e]/30"
               }`}
             >
               {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
