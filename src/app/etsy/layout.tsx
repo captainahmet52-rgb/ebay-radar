@@ -35,7 +35,7 @@ export default function EtsyLayout({ children }: { children: React.ReactNode }) 
 
   if (status !== "authenticated") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0e1a]">
+      <div className="min-h-screen flex items-center justify-center bg-[#0c0a09]">
         <Loader2 className="h-8 w-8 animate-spin text-[#f1641e]" />
       </div>
     );
@@ -52,23 +52,23 @@ export default function EtsyLayout({ children }: { children: React.ReactNode }) 
       <Link href="/etsy" className="flex items-center gap-2.5 px-5 py-6 mb-2">
         <LogoMark size={32} className="flex-shrink-0" />
         <div className="leading-none">
-          <p className="text-sm font-black text-[#f8fafc] flex items-center gap-1.5">
+          <p className="text-sm font-black text-[#fafaf9] flex items-center gap-1.5">
             Lean Automation
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: ETSY_ACCENT }} />
           </p>
-          <p className="text-[10px] text-[#64748b] mt-1">Etsy Paneli</p>
+          <p className="text-[10px] text-[#78716c] mt-1">Etsy Paneli</p>
         </div>
       </Link>
 
       {/* Ana Sayfa (leanautomation.pro'ya dön) */}
       <Link
         href="/"
-        className="flex items-center px-5 py-2.5 text-sm font-medium text-[#64748b] hover:text-[#e2e8f0] hover:bg-[#111827] transition"
+        className="flex items-center px-5 py-2.5 text-sm font-medium text-[#78716c] hover:text-[#d6d3d1] hover:bg-[#1c1917] transition"
       >
         <Home className="mr-2.5 w-4 h-4" /> Ana Sayfa
       </Link>
 
-      <div className="mx-5 my-2 border-t border-[#1e293b]" />
+      <div className="mx-5 my-2 border-t border-[#292524]" />
 
       {/* Navigasyon */}
       {NAV.map((item) => {
@@ -83,7 +83,7 @@ export default function EtsyLayout({ children }: { children: React.ReactNode }) 
               "flex items-center px-5 py-2.5 text-sm font-medium w-full text-left transition",
               active
                 ? "bg-[#f1641e]/10 text-[#f1641e] font-semibold border-r-2 border-[#f1641e]"
-                : "text-[#94a3b8] hover:text-[#e2e8f0] hover:bg-[#111827]"
+                : "text-[#a8a29e] hover:text-[#d6d3d1] hover:bg-[#1c1917]"
             )}
           >
             <Icon className="mr-2.5 w-4 h-4 flex-shrink-0" />
@@ -95,8 +95,8 @@ export default function EtsyLayout({ children }: { children: React.ReactNode }) 
       <div className="flex-1" />
 
       {/* Kullanıcı + Çıkış */}
-      <div className="px-5 py-3 border-t border-[#1e293b]">
-        <div className="text-xs text-[#64748b] truncate mb-2">{email}</div>
+      <div className="px-5 py-3 border-t border-[#292524]">
+        <div className="text-xs text-[#78716c] truncate mb-2">{email}</div>
         <button
           onClick={() => signOut({ callbackUrl: "/" })}
           className="flex items-center text-sm font-medium text-red-400 hover:bg-red-400/5 -mx-2 px-2 py-1.5 rounded-lg transition w-full text-left"
@@ -109,11 +109,11 @@ export default function EtsyLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <EtsyDataProvider email={email || null}>
-      <div className="min-h-screen bg-[#0a0e1a] text-[#e2e8f0]">
+      <div className="min-h-screen bg-[#0c0a09] text-[#d6d3d1]">
         {/* Mobil menü butonu */}
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
-          className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-[#111827] border border-[#1e293b] rounded-lg text-[#94a3b8] hover:text-white"
+          className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-[#1c1917] border border-[#292524] rounded-lg text-[#a8a29e] hover:text-white"
         >
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
@@ -123,14 +123,14 @@ export default function EtsyLayout({ children }: { children: React.ReactNode }) 
         )}
 
         {/* Masaüstü sidebar */}
-        <aside className="hidden lg:flex w-[220px] bg-[#0c1322] border-r border-[#1e293b] flex-col fixed left-0 top-0 bottom-0 z-40 overflow-y-auto">
+        <aside className="hidden lg:flex w-[220px] bg-[#0c0a09] border-r border-[#292524] flex-col fixed left-0 top-0 bottom-0 z-40 overflow-y-auto">
           {sidebarContent}
         </aside>
 
         {/* Mobil sidebar */}
         <aside
           className={cn(
-            "lg:hidden fixed left-0 top-0 bottom-0 w-[220px] bg-[#0c1322] border-r border-[#1e293b] z-40 flex flex-col transition-transform duration-300",
+            "lg:hidden fixed left-0 top-0 bottom-0 w-[220px] bg-[#0c0a09] border-r border-[#292524] z-40 flex flex-col transition-transform duration-300",
             mobileOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >

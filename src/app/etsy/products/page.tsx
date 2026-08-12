@@ -11,7 +11,7 @@ const uploadBadge: Record<string, { label: string; cls: string }> = {
   processing: { label: "İşleniyor", cls: "text-blue-400 bg-blue-400/10 border-blue-400/30" },
   uploading: { label: "Yükleniyor", cls: "text-blue-400 bg-blue-400/10 border-blue-400/30" },
   uploaded: { label: "Yüklendi", cls: "text-green-400 bg-green-400/10 border-green-400/30" },
-  cancelled: { label: "İptal", cls: "text-[#64748b] bg-[#1e293b] border-[#334155]" },
+  cancelled: { label: "İptal", cls: "text-[#78716c] bg-[#292524] border-[#44403c]" },
 };
 
 type FilterKey = "all" | "waiting" | "uploaded" | "failed";
@@ -68,9 +68,9 @@ export default function EtsyProductsPage() {
             {/* Arama + Filtreler */}
             <div className="flex flex-wrap items-center gap-3 mb-5">
               <div className="relative w-full sm:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#475569]" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#57534e]" />
                 <input
-                  className="w-full pl-9 pr-3.5 py-2.5 bg-[#0a0e1a] border border-[#1e293b] rounded-lg text-[#e2e8f0] text-sm outline-none focus:border-[#f1641e]/50 transition"
+                  className="w-full pl-9 pr-3.5 py-2.5 bg-[#0c0a09] border border-[#292524] rounded-lg text-[#d6d3d1] text-sm outline-none focus:border-[#f1641e]/50 transition"
                   placeholder="Ürün ara..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
@@ -94,7 +94,7 @@ export default function EtsyProductsPage() {
                         ? id === "failed"
                           ? "bg-red-400/15 text-red-300 border-red-400/40"
                           : "bg-[#f1641e]/15 text-[#ff8a50] border-[#f1641e]/40"
-                        : "bg-[#0c1322] text-[#94a3b8] border-[#1e293b] hover:text-[#e2e8f0] hover:border-[#334155]"
+                        : "bg-[#0c0a09] text-[#a8a29e] border-[#292524] hover:text-[#d6d3d1] hover:border-[#44403c]"
                     )}
                   >
                     {label}
@@ -104,7 +104,7 @@ export default function EtsyProductsPage() {
             </div>
 
             {/* Ürün Listesi */}
-            <div className="bg-[#111827] border border-[#1e293b] rounded-xl p-4">
+            <div className="bg-[#1c1917] border border-[#292524] rounded-xl p-4">
               {data.products.length === 0 ? (
                 <Empty text="Henüz ürün yok." />
               ) : filtered.length === 0 ? (
@@ -212,10 +212,10 @@ function ProductCard({
         "flex flex-col rounded-2xl border overflow-hidden transition-all duration-300 group",
         isFailed
           ? "border-red-500/30 bg-red-500/5 hover:border-red-500/50"
-          : "border-[#1e293b] bg-[#0c1322]/40 hover:border-[#f1641e]/30 hover:bg-[#111827]/60"
+          : "border-[#292524] bg-[#0c0a09]/40 hover:border-[#f1641e]/30 hover:bg-[#1c1917]/60"
       )}
     >
-      <button onClick={onOpen} className="aspect-[4/5] bg-[#1e293b] overflow-hidden relative border-b border-[#1e293b]/50 text-left">
+      <button onClick={onOpen} className="aspect-[4/5] bg-[#292524] overflow-hidden relative border-b border-[#292524]/50 text-left">
         {product.images?.[0] ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -224,7 +224,7 @@ function ProductCard({
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
           />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center text-[#334155] gap-2">
+          <div className="w-full h-full flex flex-col items-center justify-center text-[#44403c] gap-2">
             <ImageOff className="w-6 h-6" />
             <span className="text-[10px] uppercase font-black tracking-widest opacity-50">Görsel Yok</span>
           </div>
@@ -237,18 +237,18 @@ function ProductCard({
       </button>
 
       <div className="p-4 flex flex-col flex-1">
-        <div className="text-[13px] text-[#f1f5f9] font-bold leading-snug line-clamp-2 h-9 mb-2">
+        <div className="text-[13px] text-[#f5f5f4] font-bold leading-snug line-clamp-2 h-9 mb-2">
           {product.title || "Başlıksız ürün"}
         </div>
 
         <div className="flex items-center justify-between mb-4 mt-auto">
           <div className="flex flex-col">
-            <span className="text-[9px] text-[#64748b] font-black uppercase tracking-tighter mb-0.5">Fiyat</span>
+            <span className="text-[9px] text-[#78716c] font-black uppercase tracking-tighter mb-0.5">Fiyat</span>
             <span className="text-sm font-black text-white">{formatPrice(product)}</span>
           </div>
           {store?.name && (
             <div className="text-right flex flex-col">
-              <span className="text-[9px] text-[#64748b] font-black uppercase tracking-tighter mb-0.5">Mağaza</span>
+              <span className="text-[9px] text-[#78716c] font-black uppercase tracking-tighter mb-0.5">Mağaza</span>
               <span className="text-[11px] font-bold text-[#f1641e]/80">{store.name}</span>
             </div>
           )}
@@ -257,7 +257,7 @@ function ProductCard({
         <div className="flex items-center gap-2 mt-auto">
           {busy ? (
             <div className="flex-1 flex items-center justify-center py-2.5">
-              <Loader2 className="w-4 h-4 animate-spin text-[#64748b]" />
+              <Loader2 className="w-4 h-4 animate-spin text-[#78716c]" />
             </div>
           ) : (
             <>
@@ -271,7 +271,7 @@ function ProductCard({
               )}
               <button
                 onClick={onOpen}
-                className="flex-1 py-2.5 bg-[#1e293b] border border-[#334155] text-[#e2e8f0] text-[11px] font-black rounded-xl hover:bg-[#334155] transition-all uppercase tracking-widest"
+                className="flex-1 py-2.5 bg-[#292524] border border-[#44403c] text-[#d6d3d1] text-[11px] font-black rounded-xl hover:bg-[#44403c] transition-all uppercase tracking-widest"
               >
                 Detaylar
               </button>
@@ -320,26 +320,26 @@ function ProductDetailModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-[#0a0e1a]/80 backdrop-blur-md" onClick={onClose} />
-      <div className="bg-[#111827] border border-[#1e293b] w-full max-w-4xl max-h-[90vh] rounded-3xl overflow-hidden relative shadow-2xl flex flex-col">
+      <div className="absolute inset-0 bg-[#0c0a09]/80 backdrop-blur-md" onClick={onClose} />
+      <div className="bg-[#1c1917] border border-[#292524] w-full max-w-4xl max-h-[90vh] rounded-3xl overflow-hidden relative shadow-2xl flex flex-col">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 w-10 h-10 bg-[#1e293b] hover:bg-red-500/20 hover:text-red-400 rounded-full flex items-center justify-center transition-all z-10"
+          className="absolute top-4 right-4 w-10 h-10 bg-[#292524] hover:bg-red-500/20 hover:text-red-400 rounded-full flex items-center justify-center transition-all z-10"
         >
           <X className="w-4 h-4" />
         </button>
 
         <div className="flex flex-col lg:flex-row h-full overflow-hidden">
-          <div className="w-full lg:w-1/2 bg-[#0a0e1a] border-r border-[#1e293b] overflow-y-auto p-6">
+          <div className="w-full lg:w-1/2 bg-[#0c0a09] border-r border-[#292524] overflow-y-auto p-6">
             <div className="space-y-4">
               {images.length === 0 ? (
-                <div className="aspect-square rounded-2xl border border-[#1e293b] flex items-center justify-center text-[#334155]">
+                <div className="aspect-square rounded-2xl border border-[#292524] flex items-center justify-center text-[#44403c]">
                   <ImageOff className="w-8 h-8" />
                 </div>
               ) : (
                 images.map((url, i) => (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img key={i} src={url} className="w-full rounded-2xl border border-[#1e293b] shadow-lg" alt={`Görsel ${i + 1}`} />
+                  <img key={i} src={url} className="w-full rounded-2xl border border-[#292524] shadow-lg" alt={`Görsel ${i + 1}`} />
                 ))
               )}
             </div>
@@ -355,9 +355,9 @@ function ProductDetailModal({
                   <div className="text-lg font-black text-white">{formatPrice(product)}</div>
                 </div>
                 {store?.name && (
-                  <div className="bg-[#1e293b] border border-[#334155] px-4 py-2 rounded-2xl">
-                    <div className="text-[9px] text-[#64748b] font-black uppercase tracking-tighter">Mağaza</div>
-                    <div className="text-sm font-bold text-[#f1f5f9]">{store.name}</div>
+                  <div className="bg-[#292524] border border-[#44403c] px-4 py-2 rounded-2xl">
+                    <div className="text-[9px] text-[#78716c] font-black uppercase tracking-tighter">Mağaza</div>
+                    <div className="text-sm font-bold text-[#f5f5f4]">{store.name}</div>
                   </div>
                 )}
               </div>
@@ -365,20 +365,20 @@ function ProductDetailModal({
 
             <div className="space-y-6">
               <div>
-                <div className="text-[10px] text-[#64748b] font-black uppercase tracking-widest mb-3 border-b border-[#1e293b] pb-2">
+                <div className="text-[10px] text-[#78716c] font-black uppercase tracking-widest mb-3 border-b border-[#292524] pb-2">
                   Açıklama
                 </div>
-                <div className="text-sm text-[#cbd5e1] leading-relaxed whitespace-pre-wrap">
+                <div className="text-sm text-[#d6d3d1] leading-relaxed whitespace-pre-wrap">
                   {product.description || "Bu ürün için açıklama bulunmuyor."}
                 </div>
               </div>
 
               {product.tags && product.tags.length > 0 && (
                 <div>
-                  <div className="text-[10px] text-[#64748b] font-black uppercase tracking-widest mb-3">Etiketler</div>
+                  <div className="text-[10px] text-[#78716c] font-black uppercase tracking-widest mb-3">Etiketler</div>
                   <div className="flex flex-wrap gap-2">
                     {product.tags.map((t) => (
-                      <span key={t} className="px-3 py-1 bg-[#1e293b] text-[#94a3b8] text-[10px] font-bold rounded-lg border border-[#334155]">
+                      <span key={t} className="px-3 py-1 bg-[#292524] text-[#a8a29e] text-[10px] font-bold rounded-lg border border-[#44403c]">
                         #{t.trim()}
                       </span>
                     ))}
@@ -387,13 +387,13 @@ function ProductDetailModal({
               )}
 
               <div className="grid grid-cols-2 gap-4 pt-4">
-                <div className="bg-[#0c1322] p-4 rounded-2xl border border-[#1e293b]">
-                  <div className="text-[9px] text-[#64748b] font-black uppercase">SKU / ID</div>
-                  <div className="text-xs font-mono text-[#94a3b8] mt-1 truncate">{product.id}</div>
+                <div className="bg-[#0c0a09] p-4 rounded-2xl border border-[#292524]">
+                  <div className="text-[9px] text-[#78716c] font-black uppercase">SKU / ID</div>
+                  <div className="text-xs font-mono text-[#a8a29e] mt-1 truncate">{product.id}</div>
                 </div>
-                <div className="bg-[#0c1322] p-4 rounded-2xl border border-[#1e293b]">
-                  <div className="text-[9px] text-[#64748b] font-black uppercase">Kategori</div>
-                  <div className="text-xs font-bold text-[#94a3b8] mt-1">{product.category ?? "—"}</div>
+                <div className="bg-[#0c0a09] p-4 rounded-2xl border border-[#292524]">
+                  <div className="text-[9px] text-[#78716c] font-black uppercase">Kategori</div>
+                  <div className="text-xs font-bold text-[#a8a29e] mt-1">{product.category ?? "—"}</div>
                 </div>
               </div>
             </div>
@@ -404,7 +404,7 @@ function ProductDetailModal({
                   href={`https://www.etsy.com/listing/${product.etsy_listing_id}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex-1 py-4 bg-[#f1641e] text-[#0a0e1a] text-center text-xs font-black rounded-2xl hover:bg-[#ff8a50] transition-all"
+                  className="flex-1 py-4 bg-[#f1641e] text-[#0c0a09] text-center text-xs font-black rounded-2xl hover:bg-[#ff8a50] transition-all"
                 >
                   Etsy&apos;de Görüntüle ↗
                 </a>
@@ -418,7 +418,7 @@ function ProductDetailModal({
               </button>
               <button
                 onClick={onClose}
-                className="py-4 px-5 bg-[#1e293b] text-[#cbd5e1] text-xs font-black rounded-2xl hover:bg-[#334155] transition-all"
+                className="py-4 px-5 bg-[#292524] text-[#d6d3d1] text-xs font-black rounded-2xl hover:bg-[#44403c] transition-all"
               >
                 Kapat
               </button>

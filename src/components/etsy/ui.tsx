@@ -3,7 +3,7 @@
 /**
  * Etsy paneli tasarım sistemi (KODLAR/etsyflow-project'ten porte edildi,
  * listflow.pro DEĞİL — o ayrı bir referanstı, kullanılmadı).
- * Renk dili: zemin #0a0e1a · panel #111827 · çizgi #1e293b · Etsy turuncusu #f1641e.
+ * Renk dili: zemin #0c0a09 · panel #1c1917 · çizgi #292524 · Etsy turuncusu #f1641e.
  */
 
 import { cn } from "@/lib/utils";
@@ -22,14 +22,14 @@ import { createPortal } from "react-dom";
 type BadgeVariant = "default" | "success" | "warning" | "danger" | "brand" | "purple" | "blue" | "muted";
 
 const BADGE_STYLES: Record<BadgeVariant, string> = {
-  default: "bg-[#1e293b] text-[#94a3b8] border border-[#334155]",
+  default: "bg-[#292524] text-[#a8a29e] border border-[#44403c]",
   success: "bg-green-400/10 text-green-400 border border-green-400/30",
   warning: "bg-yellow-400/10 text-yellow-400 border border-yellow-400/30",
   danger: "bg-red-400/10 text-red-400 border border-red-400/30",
   brand: "bg-[#f1641e]/10 text-[#f1641e] border border-[#f1641e]/30",
   purple: "bg-purple-400/10 text-purple-400 border border-purple-400/30",
   blue: "bg-blue-400/10 text-blue-400 border border-blue-400/30",
-  muted: "bg-[#0c1322] text-[#475569] border border-[#1e293b]",
+  muted: "bg-[#0c0a09] text-[#57534e] border border-[#292524]",
 };
 
 export function Badge({
@@ -57,9 +57,9 @@ export function Badge({
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
 const BUTTON_STYLES: Record<ButtonVariant, string> = {
-  primary: "bg-gradient-to-r from-[#f1641e] to-[#d65212] hover:opacity-90 text-[#0a0e1a] border-0",
-  secondary: "bg-[#1e293b] text-[#e2e8f0] hover:bg-[#334155] border border-[#334155]",
-  ghost: "bg-transparent border-0 text-[#94a3b8] hover:text-white hover:bg-[#111827]",
+  primary: "bg-gradient-to-r from-[#f1641e] to-[#d65212] hover:opacity-90 text-[#0c0a09] border-0",
+  secondary: "bg-[#292524] text-[#d6d3d1] hover:bg-[#44403c] border border-[#44403c]",
+  ghost: "bg-transparent border-0 text-[#a8a29e] hover:text-white hover:bg-[#1c1917]",
   danger: "bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30",
 };
 
@@ -112,14 +112,14 @@ export function Input({
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <label htmlFor={inputId} className="text-xs font-semibold text-[#94a3b8]">
+        <label htmlFor={inputId} className="text-xs font-semibold text-[#a8a29e]">
           {label}
         </label>
       )}
       <input
         id={inputId}
         className={cn(
-          "w-full bg-[#0a0e1a] border border-[#1e293b] rounded-lg px-3.5 py-2.5 text-sm text-[#e2e8f0] placeholder:text-[#475569]",
+          "w-full bg-[#0c0a09] border border-[#292524] rounded-lg px-3.5 py-2.5 text-sm text-[#d6d3d1] placeholder:text-[#57534e]",
           "focus:outline-none focus:border-[#f1641e]/50 transition-colors duration-200",
           error && "border-red-500/50 focus:border-red-500",
           className
@@ -141,10 +141,10 @@ export function Select({
 }: React.SelectHTMLAttributes<HTMLSelectElement> & { label?: string }) {
   return (
     <div className="flex flex-col gap-1.5">
-      {label && <label className="text-xs font-semibold text-[#94a3b8]">{label}</label>}
+      {label && <label className="text-xs font-semibold text-[#a8a29e]">{label}</label>}
       <select
         className={cn(
-          "w-full bg-[#0a0e1a] border border-[#1e293b] rounded-lg px-3.5 py-2.5 text-sm text-[#e2e8f0] cursor-pointer",
+          "w-full bg-[#0c0a09] border border-[#292524] rounded-lg px-3.5 py-2.5 text-sm text-[#d6d3d1] cursor-pointer",
           "focus:outline-none focus:border-[#f1641e]/50 transition-colors duration-200",
           className
         )}
@@ -192,18 +192,18 @@ export function Modal({
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-[#0a0e1a]/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-[#0c0a09]/80 backdrop-blur-sm" onClick={onClose} />
       <div
         className={cn(
-          "relative w-full bg-[#0c1322] border border-[#1e293b] rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto",
+          "relative w-full bg-[#0c0a09] border border-[#292524] rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto",
           MODAL_SIZES[size]
         )}
       >
         <div className="flex items-center justify-between px-6 pt-6">
-          {title && <h2 className="text-lg font-extrabold text-[#f8fafc]">{title}</h2>}
+          {title && <h2 className="text-lg font-extrabold text-[#fafaf9]">{title}</h2>}
           <button
             onClick={onClose}
-            className="ml-auto w-8 h-8 flex items-center justify-center rounded-lg bg-[#111827] border border-[#1e293b] text-[#94a3b8] hover:text-white transition-colors"
+            className="ml-auto w-8 h-8 flex items-center justify-center rounded-lg bg-[#1c1917] border border-[#292524] text-[#a8a29e] hover:text-white transition-colors"
           >
             <X className="w-4 h-4" />
           </button>

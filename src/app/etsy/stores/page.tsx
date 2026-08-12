@@ -19,7 +19,7 @@ export default function EtsyStoresPage() {
 
   const subCategories = findCatalogCategory(category)?.subCategories ?? [];
   const inputCls =
-    "w-full px-3.5 py-2.5 bg-[#0a0e1a] border border-[#1e293b] rounded-lg text-[#e2e8f0] text-sm outline-none focus:border-[#f1641e]/50 transition";
+    "w-full px-3.5 py-2.5 bg-[#0c0a09] border border-[#292524] rounded-lg text-[#d6d3d1] text-sm outline-none focus:border-[#f1641e]/50 transition";
 
   async function handleSave() {
     if (!name.trim()) return setMessage({ type: "error", text: "Mağaza adı boş olamaz." });
@@ -71,23 +71,23 @@ export default function EtsyStoresPage() {
           )}
 
           <button
-            className="bg-gradient-to-r from-[#f1641e] to-[#d65212] text-[#0a0e1a] px-5 py-2.5 rounded-xl text-sm font-bold mb-5 hover:opacity-90 transition"
+            className="bg-gradient-to-r from-[#f1641e] to-[#d65212] text-[#0c0a09] px-5 py-2.5 rounded-xl text-sm font-bold mb-5 hover:opacity-90 transition"
             onClick={() => setShowForm((v) => !v)}
           >
             {showForm ? "✕ Kapat" : "+ Mağaza Ekle"}
           </button>
 
           {showForm && (
-            <div className="bg-[#111827] border border-[#1e293b] rounded-xl p-5 mb-5">
-              <h3 className="text-sm font-bold text-[#f1f5f9] mb-4">Yeni Mağaza Ekle</h3>
+            <div className="bg-[#1c1917] border border-[#292524] rounded-xl p-5 mb-5">
+              <h3 className="text-sm font-bold text-[#f5f5f4] mb-4">Yeni Mağaza Ekle</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-[#94a3b8] mb-1.5">Mağaza İsmi *</label>
+                  <label className="block text-xs font-semibold text-[#a8a29e] mb-1.5">Mağaza İsmi *</label>
                   <input className={inputCls} placeholder="Mağaza adı" value={name} onChange={(e) => setName(e.target.value)} />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-[#94a3b8] mb-1.5">Kategori *</label>
+                  <label className="block text-xs font-semibold text-[#a8a29e] mb-1.5">Kategori *</label>
                   <select
                     className={inputCls + " cursor-pointer"}
                     value={category}
@@ -106,7 +106,7 @@ export default function EtsyStoresPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-[#94a3b8] mb-1.5">Alt Kategori *</label>
+                  <label className="block text-xs font-semibold text-[#a8a29e] mb-1.5">Alt Kategori *</label>
                   <select
                     className={inputCls + " cursor-pointer disabled:opacity-50"}
                     value={subCategory}
@@ -123,7 +123,7 @@ export default function EtsyStoresPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-[#94a3b8] mb-1.5">Para Birimi</label>
+                  <label className="block text-xs font-semibold text-[#a8a29e] mb-1.5">Para Birimi</label>
                   <select
                     className={inputCls + " cursor-pointer"}
                     value={currency}
@@ -138,7 +138,7 @@ export default function EtsyStoresPage() {
                 </div>
               </div>
               <button
-                className="bg-gradient-to-r from-[#f1641e] to-[#d65212] text-[#0a0e1a] px-5 py-2.5 rounded-xl text-sm font-bold mt-4 hover:opacity-90 transition disabled:opacity-50"
+                className="bg-gradient-to-r from-[#f1641e] to-[#d65212] text-[#0c0a09] px-5 py-2.5 rounded-xl text-sm font-bold mt-4 hover:opacity-90 transition disabled:opacity-50"
                 onClick={handleSave}
                 disabled={saving}
               >
@@ -169,7 +169,7 @@ export default function EtsyStoresPage() {
 
 const statusColors: Record<string, string> = {
   active: "text-green-400 border-green-400/30",
-  inactive: "text-[#94a3b8] border-[#334155]",
+  inactive: "text-[#a8a29e] border-[#44403c]",
   paused: "text-yellow-400 border-yellow-400/30",
 };
 
@@ -232,9 +232,9 @@ function StoreCard({
   const icon = findCatalogCategory(store.category ?? "")?.icon ?? "🛍️";
 
   return (
-    <div className="bg-[#111827] border border-[#1e293b] rounded-xl p-5">
+    <div className="bg-[#1c1917] border border-[#292524] rounded-xl p-5">
       <div className="flex justify-between items-center mb-3">
-        <h3 className="text-lg font-bold text-[#f1f5f9] flex items-center gap-2">
+        <h3 className="text-lg font-bold text-[#f5f5f4] flex items-center gap-2">
           <span>{icon}</span> {store.name}
         </h3>
         <div className="flex items-center gap-2">
@@ -252,42 +252,42 @@ function StoreCard({
         </div>
       </div>
 
-      <div className="text-xs text-[#64748b] mb-3">
+      <div className="text-xs text-[#78716c] mb-3">
         {store.category ?? "—"}
         {store.sub_category ? ` · ${store.sub_category}` : ""} · {store.currency}
       </div>
 
       {store.client_id ? (
-        <div className="bg-[#0a0e1a] border border-[#f1641e]/20 rounded-xl p-3 mb-3">
-          <div className="text-[10px] font-semibold text-[#64748b] uppercase tracking-wider mb-1">Client ID</div>
+        <div className="bg-[#0c0a09] border border-[#f1641e]/20 rounded-xl p-3 mb-3">
+          <div className="text-[10px] font-semibold text-[#78716c] uppercase tracking-wider mb-1">Client ID</div>
           <div className="flex items-center justify-between gap-2">
             <span className="text-lg font-black font-mono text-[#f1641e] tracking-widest">{store.client_id}</span>
             <button
               onClick={copyClientId}
               className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition flex items-center gap-1 ${
-                copied ? "text-green-400 border-green-400/30 bg-green-400/10" : "text-[#94a3b8] border-[#334155] hover:text-[#f1641e] hover:border-[#f1641e]/30"
+                copied ? "text-green-400 border-green-400/30 bg-green-400/10" : "text-[#a8a29e] border-[#44403c] hover:text-[#f1641e] hover:border-[#f1641e]/30"
               }`}
             >
               {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
               {copied ? "Kopyalandı" : "Kopyala"}
             </button>
           </div>
-          <div className="text-[10px] text-[#475569] mt-1.5 text-center">Chrome eklentisine bu ID&apos;yi girin</div>
+          <div className="text-[10px] text-[#57534e] mt-1.5 text-center">Chrome eklentisine bu ID&apos;yi girin</div>
         </div>
       ) : (
-        <div className="bg-[#0a0e1a] border border-[#1e293b] rounded-xl p-3 mb-3 text-xs text-[#64748b] text-center">
+        <div className="bg-[#0c0a09] border border-[#292524] rounded-xl p-3 mb-3 text-xs text-[#78716c] text-center">
           Client ID atanıyor...
         </div>
       )}
 
-      <div className="flex items-center justify-between pt-3 border-t border-[#1e293b]">
-        <div className="text-xs text-[#64748b]">
-          Üretilen ürün: <span className="font-bold text-[#e2e8f0]">{productCount}</span>
+      <div className="flex items-center justify-between pt-3 border-t border-[#292524]">
+        <div className="text-xs text-[#78716c]">
+          Üretilen ürün: <span className="font-bold text-[#d6d3d1]">{productCount}</span>
         </div>
         <button
           onClick={toggleStatus}
           disabled={busy}
-          className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#1e293b] text-[#94a3b8] hover:text-[#e2e8f0] hover:border-[#334155] transition disabled:opacity-50"
+          className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#292524] text-[#a8a29e] hover:text-[#d6d3d1] hover:border-[#44403c] transition disabled:opacity-50"
         >
           {isActive ? "Durdur" : "Başlat"}
         </button>

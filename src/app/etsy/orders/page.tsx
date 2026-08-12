@@ -72,7 +72,7 @@ export default function EtsyOrdersPage() {
 
             {/* İstatistik Kartları */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
-              <StatBox label="Toplam Sipariş" value={stats.total} valueCls="text-[#f8fafc]" sub="Tüm zamanlar" />
+              <StatBox label="Toplam Sipariş" value={stats.total} valueCls="text-[#fafaf9]" sub="Tüm zamanlar" />
               <StatBox label="🆕 Yeni" value={stats.new} valueCls="text-orange-400" sub="İşlem bekliyor" />
               <StatBox label="⏳ Hazırlanıyor" value={stats.preparing} valueCls="text-emerald-400" sub="Üretimde" />
               <StatBox label="📦 Kargoda" value={stats.shipped} valueCls="text-purple-400" sub="Yolda" />
@@ -102,12 +102,12 @@ export default function EtsyOrdersPage() {
                       "px-3 py-1.5 rounded-lg text-xs font-semibold transition",
                       filterStatus === f.key
                         ? "bg-[#f1641e]/20 text-[#f1641e] border border-[#f1641e]/30"
-                        : "bg-[#111827] text-[#94a3b8] border border-[#1e293b] hover:text-[#e2e8f0] hover:border-[#334155]"
+                        : "bg-[#1c1917] text-[#a8a29e] border border-[#292524] hover:text-[#d6d3d1] hover:border-[#44403c]"
                     )}
                   >
                     {f.label}
                     {f.count > 0 && (
-                      <span className="ml-1.5 px-1.5 py-0.5 bg-[#1e293b] rounded-full text-[10px] text-[#94a3b8]">{f.count}</span>
+                      <span className="ml-1.5 px-1.5 py-0.5 bg-[#292524] rounded-full text-[10px] text-[#a8a29e]">{f.count}</span>
                     )}
                   </button>
                 ))}
@@ -120,15 +120,15 @@ export default function EtsyOrdersPage() {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Sipariş, alıcı, mağaza ara..."
-                    className="bg-[#0a0e1a] border border-[#1e293b] rounded-lg px-3 py-1.5 text-xs text-[#e2e8f0] placeholder-[#475569] focus:outline-none focus:border-[#f1641e]/50 w-[180px] pl-8 transition"
+                    className="bg-[#0c0a09] border border-[#292524] rounded-lg px-3 py-1.5 text-xs text-[#d6d3d1] placeholder-[#57534e] focus:outline-none focus:border-[#f1641e]/50 w-[180px] pl-8 transition"
                   />
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-[#475569]" />
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-[#57534e]" />
                 </div>
 
                 <select
                   value={filterStore}
                   onChange={(e) => setFilterStore(e.target.value)}
-                  className="bg-[#111827] border border-[#1e293b] rounded-lg pl-3 pr-8 py-1.5 text-xs text-[#e2e8f0] focus:outline-none focus:border-[#f1641e]/50 transition cursor-pointer"
+                  className="bg-[#1c1917] border border-[#292524] rounded-lg pl-3 pr-8 py-1.5 text-xs text-[#d6d3d1] focus:outline-none focus:border-[#f1641e]/50 transition cursor-pointer"
                 >
                   <option value="all">🏢 Tüm Mağazalar</option>
                   {data.stores.map((s) => (
@@ -140,7 +140,7 @@ export default function EtsyOrdersPage() {
 
                 <button
                   onClick={reload}
-                  className="px-3 py-1.5 rounded-lg text-xs text-[#94a3b8] hover:text-[#f1641e] border border-[#1e293b] hover:border-[#f1641e]/30 transition shrink-0"
+                  className="px-3 py-1.5 rounded-lg text-xs text-[#a8a29e] hover:text-[#f1641e] border border-[#292524] hover:border-[#f1641e]/30 transition shrink-0"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                 </button>
@@ -148,14 +148,14 @@ export default function EtsyOrdersPage() {
             </div>
 
             {/* Tablo */}
-            <div className="bg-[#111827] border border-[#1e293b] rounded-xl overflow-hidden">
+            <div className="bg-[#1c1917] border border-[#292524] rounded-xl overflow-hidden">
               {filtered.length === 0 ? (
                 <div className="p-12 text-center">
                   <div className="text-4xl mb-3">🛒</div>
-                  <h3 className="text-[#e2e8f0] font-semibold mb-1">
+                  <h3 className="text-[#d6d3d1] font-semibold mb-1">
                     {search ? "Aramanızla eşleşen sipariş yok" : filterStatus === "all" ? "Henüz sipariş yok" : "Bu durumda sipariş yok"}
                   </h3>
-                  <p className="text-[#64748b] text-sm">
+                  <p className="text-[#78716c] text-sm">
                     {filterStatus === "all" && !search ? "Chrome eklentisi siparişleri otomatik çekecek." : "Başka bir filtre deneyin."}
                   </p>
                 </div>
@@ -167,7 +167,7 @@ export default function EtsyOrdersPage() {
                         {["Sipariş No", "Mağaza", "Alıcı", "Tutar", "Durum", "Tarih"].map((h) => (
                           <th
                             key={h}
-                            className="text-left px-4 py-3 text-[11px] font-semibold text-[#64748b] uppercase tracking-wider border-b border-[#1e293b] whitespace-nowrap"
+                            className="text-left px-4 py-3 text-[11px] font-semibold text-[#78716c] uppercase tracking-wider border-b border-[#292524] whitespace-nowrap"
                           >
                             {h}
                           </th>
@@ -181,16 +181,16 @@ export default function EtsyOrdersPage() {
                         return (
                           <tr
                             key={o.id}
-                            className="hover:bg-[#1e293b]/30 transition border-b border-[#1e293b]/40 last:border-0 cursor-pointer"
+                            className="hover:bg-[#292524]/30 transition border-b border-[#292524]/40 last:border-0 cursor-pointer"
                             onClick={() => setSelected({ ...o, _store: store })}
                           >
                             <td className="px-4 py-3 whitespace-nowrap">
-                              <div className="text-sm font-bold text-[#e2e8f0]">#{o.etsy_order_id || o.id.slice(0, 8).toUpperCase()}</div>
+                              <div className="text-sm font-bold text-[#d6d3d1]">#{o.etsy_order_id || o.id.slice(0, 8).toUpperCase()}</div>
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
-                              <div className="text-sm text-[#cbd5e1] truncate max-w-[130px]">{store?.name || "—"}</div>
+                              <div className="text-sm text-[#d6d3d1] truncate max-w-[130px]">{store?.name || "—"}</div>
                             </td>
-                            <td className="px-4 py-3 text-sm text-[#94a3b8] whitespace-nowrap">{maskBuyer(o.buyer_name)}</td>
+                            <td className="px-4 py-3 text-sm text-[#a8a29e] whitespace-nowrap">{maskBuyer(o.buyer_name)}</td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <span className="text-sm font-bold text-[#f1641e]">{formatTotal(o.total, o.currency)}</span>
                             </td>
@@ -200,7 +200,7 @@ export default function EtsyOrdersPage() {
                               </span>
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
-                              <div className="text-sm text-[#64748b]">{formatDateShort(o.created_at)}</div>
+                              <div className="text-sm text-[#78716c]">{formatDateShort(o.created_at)}</div>
                             </td>
                           </tr>
                         );
@@ -212,7 +212,7 @@ export default function EtsyOrdersPage() {
             </div>
 
             {!!filtered.length && (
-              <div className="mt-3 text-xs text-[#475569] text-right">
+              <div className="mt-3 text-xs text-[#57534e] text-right">
                 {filtered.length} / {data.orders.length} sipariş
               </div>
             )}
@@ -224,48 +224,48 @@ export default function EtsyOrdersPage() {
                 onClick={() => setSelected(null)}
               >
                 <div
-                  className="bg-[#0c1322] border border-[#1e293b] rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto"
+                  className="bg-[#0c0a09] border border-[#292524] rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="flex items-center justify-between p-5 border-b border-[#1e293b]">
+                  <div className="flex items-center justify-between p-5 border-b border-[#292524]">
                     <div>
-                      <h2 className="text-lg font-extrabold text-[#f8fafc]">
+                      <h2 className="text-lg font-extrabold text-[#fafaf9]">
                         Sipariş #{selected.etsy_order_id || selected.id.slice(0, 8).toUpperCase()}
                       </h2>
-                      <p className="text-xs text-[#64748b] mt-0.5">
+                      <p className="text-xs text-[#78716c] mt-0.5">
                         {new Date(selected.created_at).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                       </p>
                     </div>
                     <button
                       onClick={() => setSelected(null)}
-                      className="w-8 h-8 rounded-lg bg-[#111827] border border-[#1e293b] text-[#94a3b8] hover:text-[#e2e8f0] transition flex items-center justify-center"
+                      className="w-8 h-8 rounded-lg bg-[#1c1917] border border-[#292524] text-[#a8a29e] hover:text-[#d6d3d1] transition flex items-center justify-center"
                     >
                       ✕
                     </button>
                   </div>
 
                   <div className="p-5 space-y-4">
-                    <div className="bg-[#111827] rounded-xl p-4 border border-[#1e293b]">
-                      <div className="text-[10px] text-[#64748b] uppercase tracking-wider mb-2">Mağaza</div>
-                      <div className="text-sm font-semibold text-[#e2e8f0]">{selected._store?.name || "—"}</div>
-                      <div className="text-xs text-[#64748b]">
+                    <div className="bg-[#1c1917] rounded-xl p-4 border border-[#292524]">
+                      <div className="text-[10px] text-[#78716c] uppercase tracking-wider mb-2">Mağaza</div>
+                      <div className="text-sm font-semibold text-[#d6d3d1]">{selected._store?.name || "—"}</div>
+                      <div className="text-xs text-[#78716c]">
                         {selected._store?.category} / {selected._store?.sub_category}
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-[#111827] rounded-xl p-4 border border-[#1e293b]">
-                        <div className="text-[10px] text-[#64748b] uppercase tracking-wider mb-1">Alıcı</div>
-                        <div className="text-sm text-[#e2e8f0] font-bold">{selected.buyer_name || "—"}</div>
+                      <div className="bg-[#1c1917] rounded-xl p-4 border border-[#292524]">
+                        <div className="text-[10px] text-[#78716c] uppercase tracking-wider mb-1">Alıcı</div>
+                        <div className="text-sm text-[#d6d3d1] font-bold">{selected.buyer_name || "—"}</div>
                       </div>
-                      <div className="bg-[#111827] rounded-xl p-4 border border-[#1e293b]">
-                        <div className="text-[10px] text-[#64748b] uppercase tracking-wider mb-1">Tutar</div>
+                      <div className="bg-[#1c1917] rounded-xl p-4 border border-[#292524]">
+                        <div className="text-[10px] text-[#78716c] uppercase tracking-wider mb-1">Tutar</div>
                         <div className="text-lg font-black text-[#f1641e]">{formatTotal(selected.total, selected.currency)}</div>
                       </div>
                     </div>
 
-                    <div className="bg-[#111827] rounded-xl p-4 border border-[#1e293b]">
-                      <div className="text-[10px] text-[#64748b] uppercase tracking-wider mb-2">Durum</div>
+                    <div className="bg-[#1c1917] rounded-xl p-4 border border-[#292524]">
+                      <div className="text-[10px] text-[#78716c] uppercase tracking-wider mb-2">Durum</div>
                       {(() => {
                         const st = STATUS_MAP[selected.status] ?? STATUS_MAP.new;
                         return (
@@ -288,10 +288,10 @@ export default function EtsyOrdersPage() {
 
 function StatBox({ label, value, valueCls, sub }: { label: string; value: string | number; valueCls: string; sub: string }) {
   return (
-    <div className="bg-[#111827] border border-[#1e293b] rounded-xl p-4 hover:border-[#334155] transition">
-      <div className="text-xs text-[#64748b] mb-1">{label}</div>
+    <div className="bg-[#1c1917] border border-[#292524] rounded-xl p-4 hover:border-[#44403c] transition">
+      <div className="text-xs text-[#78716c] mb-1">{label}</div>
       <div className={cn("text-2xl font-black", valueCls)}>{value}</div>
-      <div className="text-[10px] text-[#475569] mt-1">{sub}</div>
+      <div className="text-[10px] text-[#57534e] mt-1">{sub}</div>
     </div>
   );
 }

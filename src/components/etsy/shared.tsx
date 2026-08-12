@@ -64,7 +64,7 @@ export function EtsyReady({ children }: { children: (data: EtsyOverview) => Reac
 
   if (state.kind === "loading") {
     return (
-      <div className="flex items-center gap-3 text-slate-400 py-24 justify-center">
+      <div className="flex items-center gap-3 text-stone-400 py-24 justify-center">
         <Loader2 className="h-6 w-6 animate-spin" /> Yükleniyor...
       </div>
     );
@@ -91,16 +91,16 @@ export function PageHeader({ title, subtitle }: { title: string; subtitle?: stri
     <div className="flex items-start justify-between gap-4 mb-8">
       <div>
         <h1 className="text-2xl md:text-3xl font-black">{title}</h1>
-        {subtitle && <p className="text-slate-400 text-sm mt-1.5 max-w-2xl leading-relaxed">{subtitle}</p>}
+        {subtitle && <p className="text-stone-400 text-sm mt-1.5 max-w-2xl leading-relaxed">{subtitle}</p>}
         {email && (
-          <p className="text-xs text-slate-500 mt-2">
-            Bağlı hesap: <span className="text-slate-300 font-medium">{email}</span>
+          <p className="text-xs text-stone-500 mt-2">
+            Bağlı hesap: <span className="text-stone-300 font-medium">{email}</span>
           </p>
         )}
       </div>
       <button
         onClick={reload}
-        className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm transition-colors flex-shrink-0"
+        className="flex items-center gap-1.5 text-stone-400 hover:text-white text-sm transition-colors flex-shrink-0"
       >
         <RefreshCw className="h-4 w-4" /> Yenile
       </button>
@@ -131,8 +131,8 @@ export function Stat({
           <Icon className="h-5 w-5" style={{ color: ETSY_ACCENT }} />
         </div>
         <p className="text-3xl font-black leading-none">{value}</p>
-        <p className="text-xs text-slate-400 mt-1.5">
-          {label}{sub ? <span className="text-slate-500"> · {sub}</span> : null}
+        <p className="text-xs text-stone-400 mt-1.5">
+          {label}{sub ? <span className="text-stone-500"> · {sub}</span> : null}
         </p>
       </div>
     </div>
@@ -142,7 +142,7 @@ export function Stat({
 export function Card({ children, pad = "p-4" }: { children: ReactNode; pad?: string }) {
   return (
     <div
-      className={`rounded-xl ${pad} transition-colors bg-[#111827] border border-[#1e293b] hover:border-[#334155]`}
+      className={`rounded-xl ${pad} transition-colors bg-[#1c1917] border border-[#292524] hover:border-[#44403c]`}
     >
       {children}
     </div>
@@ -151,7 +151,7 @@ export function Card({ children, pad = "p-4" }: { children: ReactNode; pad?: str
 
 export function Empty({ text }: { text: string }) {
   return (
-    <p className="text-[#64748b] text-sm py-10 text-center rounded-xl bg-[#0c1322] border border-[#1e293b]">
+    <p className="text-[#78716c] text-sm py-10 text-center rounded-xl bg-[#0c0a09] border border-[#292524]">
       {text}
     </p>
   );
@@ -164,7 +164,7 @@ export function InfoCard({ title, text }: { title: string; text: string }) {
         <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" style={{ color: ETSY_ACCENT }} />
         <div>
           <p className="font-semibold mb-1">{title}</p>
-          <p className="text-slate-400 text-sm leading-relaxed">{text}</p>
+          <p className="text-stone-400 text-sm leading-relaxed">{text}</p>
         </div>
       </div>
     </div>
@@ -173,11 +173,11 @@ export function InfoCard({ title, text }: { title: string; text: string }) {
 
 export function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    active: "#22c55e", new: "#3b82f6", pending: "#f59e0b", draft: "#94a3b8",
+    active: "#22c55e", new: "#3b82f6", pending: "#f59e0b", draft: "#a8a29e",
     error: "#ef4444", preparing: "#f59e0b", shipped: "#8b5cf6", delivered: "#22c55e",
-    cancelled: "#ef4444", inactive: "#94a3b8", paused: "#f59e0b",
+    cancelled: "#ef4444", inactive: "#a8a29e", paused: "#f59e0b",
   };
-  const c = map[status] ?? "#94a3b8";
+  const c = map[status] ?? "#a8a29e";
   return (
     <span
       className="text-[10px] font-medium rounded-full px-2 py-0.5 capitalize flex-shrink-0"

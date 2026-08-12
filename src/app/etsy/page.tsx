@@ -9,10 +9,10 @@ const PLACEHOLDER =
   "data:image/svg+xml;base64," +
   (typeof window === "undefined"
     ? Buffer.from(
-        '<svg width="36" height="36" xmlns="http://www.w3.org/2000/svg"><rect width="36" height="36" fill="#1e293b"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" fill="#475569" font-size="9" font-family="sans-serif">?</text></svg>'
+        '<svg width="36" height="36" xmlns="http://www.w3.org/2000/svg"><rect width="36" height="36" fill="#292524"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" fill="#57534e" font-size="9" font-family="sans-serif">?</text></svg>'
       ).toString("base64")
     : btoa(
-        '<svg width="36" height="36" xmlns="http://www.w3.org/2000/svg"><rect width="36" height="36" fill="#1e293b"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" fill="#475569" font-size="9" font-family="sans-serif">?</text></svg>'
+        '<svg width="36" height="36" xmlns="http://www.w3.org/2000/svg"><rect width="36" height="36" fill="#292524"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" fill="#57534e" font-size="9" font-family="sans-serif">?</text></svg>'
       ));
 
 function findStore(stores: EtsyStore[], id: string) {
@@ -45,31 +45,31 @@ export default function EtsyDashboardPage() {
             {/* Mağaza Depoları */}
             {data.stores.length > 0 && (
               <Card pad="p-5">
-                <h3 className="text-sm font-bold text-[#f1f5f9] mb-3">Mağaza Depoları</h3>
+                <h3 className="text-sm font-bold text-[#f5f5f4] mb-3">Mağaza Depoları</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {data.stores.map((store) => {
                     const storeProducts = data.products.filter((p) => p.store_id === store.id);
                     const storeWaiting = storeProducts.filter((p) => p.upload_status === "waiting").length;
                     const storeUploaded = storeProducts.filter((p) => p.upload_status === "uploaded").length;
                     return (
-                      <div key={store.id} className="bg-[#0a0e1a] border border-[#1e293b] rounded-xl p-3">
+                      <div key={store.id} className="bg-[#0c0a09] border border-[#292524] rounded-xl p-3">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-bold text-[#f1f5f9]">{store.name}</span>
+                          <span className="text-sm font-bold text-[#f5f5f4]">{store.name}</span>
                           {store.client_id && (
                             <span className="text-[10px] font-mono text-[#f1641e]/70">{store.client_id}</span>
                           )}
                         </div>
                         <div className="flex gap-4 text-xs">
                           <div>
-                            <span className="text-[#64748b]">Toplam </span>
-                            <span className="font-bold text-[#e2e8f0]">{storeProducts.length}</span>
+                            <span className="text-[#78716c]">Toplam </span>
+                            <span className="font-bold text-[#d6d3d1]">{storeProducts.length}</span>
                           </div>
                           <div>
-                            <span className="text-[#64748b]">Bekleyen </span>
+                            <span className="text-[#78716c]">Bekleyen </span>
                             <span className="font-bold text-yellow-400">{storeWaiting}</span>
                           </div>
                           <div>
-                            <span className="text-[#64748b]">Yüklenen </span>
+                            <span className="text-[#78716c]">Yüklenen </span>
                             <span className="font-bold text-green-400">{storeUploaded}</span>
                           </div>
                         </div>
@@ -84,28 +84,28 @@ export default function EtsyDashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
               {/* Son Ürünler */}
               <Card pad="p-5">
-                <h3 className="text-sm font-bold text-[#f1f5f9] mb-4">Son Ürünler</h3>
+                <h3 className="text-sm font-bold text-[#f5f5f4] mb-4">Son Ürünler</h3>
                 {data.products.length === 0 ? (
                   <Empty text="Henüz ürün yok." />
                 ) : (
                   data.products.slice(0, 5).map((p) => (
                     <div
                       key={p.id}
-                      className="flex justify-between items-center py-2.5 border-b border-[#1e293b]/30 last:border-0"
+                      className="flex justify-between items-center py-2.5 border-b border-[#292524]/30 last:border-0"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={p.images?.[0] || PLACEHOLDER}
                           alt=""
-                          className="w-9 h-9 rounded-lg object-cover bg-[#1e293b] flex-shrink-0 border border-[#334155]"
+                          className="w-9 h-9 rounded-lg object-cover bg-[#292524] flex-shrink-0 border border-[#44403c]"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = PLACEHOLDER;
                           }}
                         />
                         <div className="min-w-0">
-                          <div className="font-medium text-xs text-[#f1f5f9] truncate max-w-[180px]">{p.title}</div>
-                          <div className="text-[11px] text-[#64748b]">
+                          <div className="font-medium text-xs text-[#f5f5f4] truncate max-w-[180px]">{p.title}</div>
+                          <div className="text-[11px] text-[#78716c]">
                             {findStore(data.stores, p.store_id)?.name || "—"}
                           </div>
                         </div>
@@ -128,29 +128,29 @@ export default function EtsyDashboardPage() {
 
               {/* Son Siparişler */}
               <Card pad="p-5">
-                <h3 className="text-sm font-bold text-[#f1f5f9] mb-4">Son Siparişler</h3>
+                <h3 className="text-sm font-bold text-[#f5f5f4] mb-4">Son Siparişler</h3>
                 {data.orders.length === 0 ? (
                   <Empty text="Henüz sipariş yok." />
                 ) : (
                   data.orders.slice(0, 5).map((o) => (
                     <div
                       key={o.id}
-                      className="flex justify-between items-center py-2.5 border-b border-[#1e293b]/30 last:border-0"
+                      className="flex justify-between items-center py-2.5 border-b border-[#292524]/30 last:border-0"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-9 h-9 rounded-lg bg-[#1e293b] flex items-center justify-center text-[10px] text-[#94a3b8] font-mono shrink-0">
+                        <div className="w-9 h-9 rounded-lg bg-[#292524] flex items-center justify-center text-[10px] text-[#a8a29e] font-mono shrink-0">
                           #{o.etsy_order_id?.slice(-4) || "—"}
                         </div>
                         <div className="min-w-0">
-                          <div className="font-medium text-xs text-[#f1f5f9] truncate">{o.buyer_name || "Müşteri"}</div>
-                          <div className="text-[11px] text-[#64748b]">{findStore(data.stores, o.store_id)?.name}</div>
+                          <div className="font-medium text-xs text-[#f5f5f4] truncate">{o.buyer_name || "Müşteri"}</div>
+                          <div className="text-[11px] text-[#78716c]">{findStore(data.stores, o.store_id)?.name}</div>
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0">
                         <div className="font-bold text-xs text-[#f1641e]">
                           {o.total ? `${o.total} ${o.currency || "TRY"}` : "—"}
                         </div>
-                        <div className="text-[10px] text-[#64748b]">{o.status}</div>
+                        <div className="text-[10px] text-[#78716c]">{o.status}</div>
                       </div>
                     </div>
                   ))
