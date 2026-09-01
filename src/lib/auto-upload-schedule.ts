@@ -44,9 +44,12 @@ export function shouldRunScheduledUpload(
   const intervalHours = INTERVAL_HOURS[schedule];
   if (intervalHours != null) return hoursSinceLastRun >= intervalHours;
 
+  // Saat eşleşmesi tercih edilir AMA yeterli süre geçmişse herhangi bir saatte de çalışır.
+  // Önceki mantık: SADECE seçilen saatte çalışıyordu — o saat kaçırılırsa (deploy/restart)
+  // kullanıcı 24+ saat bekliyordu. Şimdi: 20+ saat geçmişse çalışır.
   const hourMatches = now.getUTCHours() === scheduleHour;
-  if (schedule === "daily") return hourMatches && hoursSinceLastRun >= 20;
-  if (schedule === "weekly") return hourMatches && hoursSinceLastRun >= 24 * 6.5;
+  if (schedule === "daily") return hoursSinceLastRun >= 20;
+  if (schedule === "weekly") return hoursSinceLastRun >= 24 * 6.5;
 
   return false;
 }

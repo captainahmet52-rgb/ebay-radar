@@ -14,23 +14,21 @@ export async function POST() {
 
   const userId = session.user.id;
 
-  // Aktif mağaza ve oto-yükleme açık mı, hızlı kontrol
-  const [user, account] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId }, select: { autoUploadEnabled: true } }),
-    prisma.ebayAccount.findFirst({ where: { userId, isActive: true }, select: { id: true } }),
-  ]);
-
+  // Aktif mağaza var mı, hızlı kontrol
+  const account = await prisma.ebayAccount.findFirst({ where: { userId, isActive: true }, select: { id: true } });
   if (!account) {
     return NextResponse.json(
       { error: "Aktif eBay mağazası yok. Mağazalarım'dan bir mağaza bağlayıp aktifleştir." },
       { status: 400 }
     );
   }
+
+  // Kullanıcı "Şimdi Çalıştır" dediğinde autoUploadEnabled kaydedilmemiş olabilir
+  // (toggle açıldı ama Kaydet basılmadı / kaydetme başarısız oldu).
+  // Bu durumda otomatik olarak aç — buton her zaman çalışsın.
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { autoUploadEnabled: true } });
   if (!user?.autoUploadEnabled) {
-    return NextResponse.json(
-      { error: "Önce oto-yüklemeyi açıp ayarları kaydet." },
-      { status: 400 }
-    );
+    await prisma.user.update({ where: { id: userId }, data: { autoUploadEnabled: true } });
   }
 
   await ebayAutoUploadQueue.add(

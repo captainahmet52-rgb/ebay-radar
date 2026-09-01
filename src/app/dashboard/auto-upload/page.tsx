@@ -189,7 +189,7 @@ export default function AutoUploadPage() {
       });
       const data = await res.json();
       if (res.ok) showToast("Ayarlar kaydedildi ✓", "success");
-      else showToast(data.error ?? "Bir hata oluştu", "danger");
+      else showToast(data.error ?? "Kaydetme başarısız — tekrar deneyin", "danger");
     } finally {
       setSaving(false);
     }
@@ -221,8 +221,34 @@ export default function AutoUploadPage() {
   const isCrossMarket = settings.uploadSourceMarket !== (EBAY_SITE_COUNTRY[settings.uploadEbaySite] ?? "US");
   const sourceCurrencySymbol = SOURCE_CURRENCY_SYMBOL[settings.uploadSourceMarket] ?? "$";
 
+  // Son yükleme logu
+  const lastLog = logs[0];
+
   return (
     <div style={{ color: C.text, minHeight: "100vh" }}>
+      {/* Durum banner'ı */}
+      <div style={{
+        padding: "12px 16px", borderRadius: 10, marginBottom: "1rem",
+        background: settings.autoUploadEnabled ? "rgba(0,255,204,0.08)" : "rgba(255,107,107,0.08)",
+        border: `1px solid ${settings.autoUploadEnabled ? "rgba(0,255,204,0.25)" : "rgba(255,107,107,0.25)"}`,
+        display: "flex", alignItems: "center", gap: 10, fontSize: "0.88rem",
+      }}>
+        <span style={{ fontSize: "1.2rem" }}>{settings.autoUploadEnabled ? "✅" : "⏸️"}</span>
+        <div>
+          <strong>{settings.autoUploadEnabled ? "Otomatik yükleme aktif" : "Otomatik yükleme kapalı"}</strong>
+          {settings.autoUploadEnabled && lastLog && (
+            <span style={{ color: C.muted, marginLeft: 8 }}>
+              Son çalışma: {new Date(lastLog.ranAt).toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+              {lastLog.productsUploaded > 0 && ` — ${lastLog.productsUploaded} ürün yüklendi`}
+              {lastLog.productsUploaded === 0 && lastLog.status === "partial" && ` — ürün bulunamadı (ayarları kontrol edin)`}
+            </span>
+          )}
+          {settings.autoUploadEnabled && !lastLog && (
+            <span style={{ color: C.muted, marginLeft: 8 }}>Henüz çalışmadı — "Şimdi Çalıştır" ile başlatabilirsiniz</span>
+          )}
+        </div>
+      </div>
+
       {/* Başlık */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
         <h4 style={{ fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
@@ -286,8 +312,8 @@ export default function AutoUploadPage() {
                 <div style={{ fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 6 }}>
                   <Power /> Otomatik Yükleme
                 </div>
-                <div style={{ fontSize: "0.82rem", color: C.muted, marginTop: 2 }}>
-                  Aktif olduğunda zamanlanmış yükleme çalışır
+                <div style={{ fontSize: "0.82rem", color: settings.autoUploadEnabled ? C.success : C.muted, marginTop: 2 }}>
+                  {settings.autoUploadEnabled ? "✅ Açık — zamanlanmış yükleme aktif" : "Kapalı — açıp Kaydet'e basın"}
                 </div>
               </div>
               {/* Tek tetikleyici: checkbox'ın kendi onChange'i. Görsel <span> artık
@@ -578,6 +604,11 @@ export default function AutoUploadPage() {
                         </td>
                         <td style={{ padding: "10px 10px" }}>
                           <StatusBadge status={log.status} />
+                          {log.errorMessage && (
+                            <div style={{ fontSize: "0.72rem", color: C.muted, marginTop: 3, maxWidth: 220, lineHeight: 1.3 }}>
+                              {log.errorMessage}
+                            </div>
+                          )}
                         </td>
                         <td style={{ padding: "10px 10px", textAlign: "center", color: C.text }}>{log.productsChecked}</td>
                         <td style={{ padding: "10px 10px", textAlign: "center", color: C.success, fontWeight: 600 }}>{log.productsUploaded}</td>

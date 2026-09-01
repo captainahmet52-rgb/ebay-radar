@@ -146,10 +146,13 @@ async function processForUser(userId: string): Promise<void> {
   await prisma.autoUploadLog.create({
     data: {
       userId,
-      status: uploaded > 0 ? "success" : "partial",
+      status: uploaded > 0 ? "success" : candidates.length === 0 ? "success" : "partial",
       productsUploaded: uploaded,
       productsSkipped: skipped,
       productsChecked: candidates.length,
+      errorMessage: candidates.length === 0
+        ? `Filtrelere uyan ürün yok (pazar: ${user.uploadSourceMarket}, fiyat: $${user.uploadMinAmazonPrice}–$${user.uploadMaxAmazonPrice}${soldCutoff ? ", son " + user.uploadSoldWithinDays + " gün" : ""})`
+        : null,
     },
   });
 }
