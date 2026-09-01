@@ -107,6 +107,32 @@ Deployment failed: Failed to read the Docker Compose file from the repository.
 - Windows'ta `core.autocrlf = true` var, git CRLF/LF dönüşümü yapıyor
 - Coolify Linux'ta çalışıyor — dosyalar LF olmalı (git bu zaten normalize ediyor)
 - Docker Compose dosyalarında comment'ler mümkün olduğunca ASCII-only olmalı
-- Her zaman `compose.yaml` (V2 standardı) da bulundur
+- ~~Her zaman `compose.yaml` (V2 standardı) da bulundur~~ → **BU DERS YANLIŞ ÇIKTI**,
+  ertesi gün geri alındı. Aşağıdaki 2026-09-02 kaydına bak.
+
+---
+
+## 2026-09-02 — Coolify compose düzeltmelerinin DEVAMI (yukarıdaki dersin iptali)
+
+### Yapılan
+1. **`compose.yaml` SİLİNDİ** (commit `5ed789d`) — bir gün önce "Coolify V2 `compose.yaml`
+   arar" varsayımıyla eklenmişti; gerçekte Coolify bu projede `docker-compose.yml`'i okuyor.
+   İki compose dosyası tutmak gereksiz + kafa karıştırıcı.
+2. **`ebay_net` özel ağı KALDIRILDI** (commit `881abe5`) — Coolify dokümanı özel ağlara karşı
+   uyarıyor: aralıklı kesinti ve deploy sorunlarına yol açıyor. Coolify her stack için kendi
+   izole ağını zaten oluşturuyor.
+
+### Güncel known-good compose durumu
+- `docker-compose.yml` TEK compose dosyası (`compose.yaml` YOK)
+- `networks:` bloğu YOK — Coolify kendi ağını kurar
+- `SERVICE_FQDN_APP_3000: "https://leanautomation.pro"` app servisinde DURUYOR (silinmemeli)
+- Yorumlar ASCII-only
+
+### Doğrulama
+- `https://leanautomation.pro` → **HTTP 200** (2026-09-02 kontrol edildi, site ayakta)
+
+### Kural
+Compose'a **ne ikinci bir dosya, ne `networks:` bloğu, ne de elle Traefik etiketi** ekle.
+Traefik/ağ yönetimi tamamen Coolify'ın işi.
 
 ---
