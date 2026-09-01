@@ -68,3 +68,45 @@ Depo ürünlerinin filtrelere uymaması → "0 ürün yüklendi"
 - [ ] Worker logları kontrol edilecek (`docker logs ebay_worker --tail 50`)
 
 ---
+
+## 2026-09-01 — Coolify Deploy Hatası Düzeltmesi
+
+### Sorun
+Coolify deploy logu:
+```
+Deployment failed: Failed to read the Docker Compose file from the repository.
+```
+
+### Kök Sebep
+1. `docker-compose.yml` yorum satırlarında Türkçe özel karakterler (ş,ı,ğ,ü,öç), emoji'ler ve
+   box-drawing karakterleri (`─`, `→`) vardı — bazı Coolify YAML parse'ları bunları hata veriyordu
+2. Coolify V2 varsayılan olarak `compose.yaml` arar, `docker-compose.yml` bulamaz
+
+### Yapılan Değişiklikler
+
+#### 1. `compose.yaml` — YENİ DOSYA
+- `docker-compose.yml`'in temiz versiyonu (yorumsuz, special karaktersiz)
+- Coolify V2'nin varsayılan aradığı dosya adı
+
+#### 2. `docker-compose.yml` — temizlendi
+- Yorumlardaki Türkçe karakterler, emoji'ler ve box-drawing karakterleri kaldırıldı
+- Yorumlar ASCII-only (İngilizce) olarak yeniden yazıldı
+- Docker Compose config ile validate edildi: ✅ VALID
+
+### Test Sonuçları
+- `docker compose -f docker-compose.yml config`: ✅ VALID
+- `docker compose -f compose.yaml config`: ✅ VALID
+- 124 unit test: ✅ tamamı geçti
+
+### Deploy
+- Commit: `dcdf4e9` → `fix: add compose.yaml for Coolify V2 + clean docker-compose.yml comments`
+- Push: `main` branch'e push edildi
+- Coolify otomatik deploy başlattı
+
+### Ders
+- Windows'ta `core.autocrlf = true` var, git CRLF/LF dönüşümü yapıyor
+- Coolify Linux'ta çalışıyor — dosyalar LF olmalı (git bu zaten normalize ediyor)
+- Docker Compose dosyalarında comment'ler mümkün olduğunca ASCII-only olmalı
+- Her zaman `compose.yaml` (V2 standardı) da bulundur
+
+---
