@@ -1,0 +1,146 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ebay_postgres
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_DB: ebay_db
+      POSTGRES_USER: ebay_user
+      POSTGRES_PASSWORD: ebay_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ebay_user -d ebay_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: ebay_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrate
+    container_name: ebay_migrate
+    env_file: .env
+    environment:
+      DATABASE_URL: "postgresql://ebay_user:ebay_pass@postgres:5432/ebay_db?options=-c%20lock_timeout%3D30s%20-c%20statement_timeout%3D300s"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    command:
+      - sh
+      - -c
+      - |
+        node_modules/.bin/prisma migrate resolve --rolled-back 20260628000000_order_dedup_unique || true
+        node_modules/.bin/prisma migrate deploy
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    container_name: ebay_app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      SERVICE_FQDN_APP_3000: "https://leanautomation.pro"
+      DATABASE_URL: postgresql://ebay_user:ebay_pass@postgres:5432/ebay_db
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 120s
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+    container_name: ebay_worker
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://ebay_user:ebay_pass@postgres:5432/ebay_db
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  etsyflow-automation:
+    build:
+      context: ./etsyflow-automation
+      dockerfile: Dockerfile
+    container_name: etsyflow_automation
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+
+  backup:
+    image: postgres:16-alpine
+    container_name: ebay_backup
+    restart: unless-stopped
+    environment:
+      PGPASSWORD: ebay_pass
+    volumes:
+      - backups_data:/backups
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        cat > /backup.sh <<'EOF'
+        #!/bin/sh
+        set -e
+        DATE=$$(date +%Y%m%d_%H%M%S)
+        FILE="/backups/ebay_db_$${DATE}.sql.gz"
+        echo "[$$(date '+%F %T')] Yedek basliyor..."
+        pg_dump -h postgres -U ebay_user -d ebay_db --no-password --clean --if-exists | gzip > "$$FILE"
+        echo "[$$(date '+%F %T')] Tamam: $$FILE ($$(du -h "$$FILE" | cut -f1))"
+        find /backups -name "*.sql.gz" -mtime +30 -delete
+        EOF
+        chmod +x /backup.sh
+        echo "0 3 * * * sh /backup.sh >> /backups/backup.log 2>&1" | crontab -
+        echo "[backup] cron kuruldu (03:00 gunluk). Ilk yedek simdi aliniyor..."
+        sh /backup.sh || echo "[backup] ilk yedek hatasi (postgres hazir olmayabilir)"
+        crond -f -l 2
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  backups_data:
+    driver: local
