@@ -16,8 +16,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-    networks:
-      - ebay_net
 
   redis:
     image: redis:7-alpine
@@ -32,8 +30,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 5s
-    networks:
-      - ebay_net
 
   migrate:
     build:
@@ -43,15 +39,11 @@ services:
     container_name: ebay_migrate
     env_file: .env
     environment:
-      # lock_timeout=30s prevents DDL lock hangs; statement_timeout=300s caps single command
       DATABASE_URL: "postgresql://ebay_user:ebay_pass@postgres:5432/ebay_db?options=-c%20lock_timeout%3D30s%20-c%20statement_timeout%3D300s"
     depends_on:
       postgres:
         condition: service_healthy
-    networks:
-      - ebay_net
     restart: "no"
-    # Resolve previously failed migration before deploying
     command:
       - sh
       - -c
@@ -72,14 +64,11 @@ services:
       DATABASE_URL: postgresql://ebay_user:ebay_pass@postgres:5432/ebay_db
       REDIS_URL: redis://redis:6379
       NODE_ENV: production
-    # Intentionally NOT dependent on migrate (see MEMORY.md for rationale)
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - ebay_net
     ports:
       - "127.0.0.1:3000:3000"
     healthcheck:
@@ -106,8 +95,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - ebay_net
 
   etsyflow-automation:
     build:
@@ -118,8 +105,6 @@ services:
     env_file: .env
     environment:
       NODE_ENV: production
-    networks:
-      - ebay_net
 
   backup:
     image: postgres:16-alpine
@@ -151,8 +136,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    networks:
-      - ebay_net
 
 volumes:
   postgres_data:
@@ -161,7 +144,3 @@ volumes:
     driver: local
   backups_data:
     driver: local
-
-networks:
-  ebay_net:
-    driver: bridge
