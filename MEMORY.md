@@ -136,3 +136,36 @@ Compose'a **ne ikinci bir dosya, ne `networks:` bloğu, ne de elle Traefik etike
 Traefik/ağ yönetimi tamamen Coolify'ın işi.
 
 ---
+
+## 2026-09-02 — 10 deploy neden patladı: GitHub + HTTP/1.1 (ÇÖZÜLDÜ)
+
+### Belirti
+`Deployment failed: Failed to read the Docker Compose file from the repository`
+Her deploy 7-10 saniyede ölüyordu. Site 200 dönüyordu çünkü **eski konteyner ayakta
+kalıyor** — "site açık" deploy başarılı demek DEĞİL.
+
+### Yanlış teoriler (ikisi de bu dosyaya yazılmıştı, ikisi de yanlıştı)
+1. "compose.yaml silindiği için" → `2046568` ile geri kondu, **yine patladı**
+2. "ebay_net ağı / Türkçe yorumlar" → alakasız
+
+**Çürüten kanıt:** son başarılı deploy `f4b54f8`, ilk patlayan `7d2bef4` — ikincisi
+SADECE MEMORY.md değiştiren docs commit'i. Compose dosyası birebir aynıydı.
+
+### Gerçek sebep
+Coolify klonlarken git'i HTTP/1.1'e zorluyor (`Application.php:1685`, koda gömülü):
+`git -c http.version=HTTP/1.1 clone ...`
+2026-09-01'de GitHub tarafında bir değişiklik oldu, bu kombinasyon host'ta kimlik
+doğrulama istemeye başladı:
+`fatal: could not read Username for 'https://github.com'`
+HTTP/1.1 olmadan aynı klon sorunsuz çalışıyor.
+
+### Çözüm (VPS'te uygulandı)
+```
+git config --global http.https://github.com.version HTTP/2
+```
+URL'e özel git ayarı, komut satırındaki genel ayarı ezer. Coolify'a dokunmaya gerek yok.
+Sonuç: deploy 112 `finished`, konteynerler yenilendi, site 200.
+
+### Sonuç
+`compose.yaml` gereksizmiş (Coolify `/docker-compose.yml` okuyor, DB'den doğrulandı),
+bu commit'te silindi. Tek compose dosyası kaldı.
