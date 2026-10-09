@@ -18,9 +18,17 @@ export async function GET() {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  // Ödeme sağlayıcısı yok (2026-07-17) → lemonSqueezySubscriptionId artık hiç
+  // yazılmıyor. Ücretli erişim admin aktivasyonuyla mağazaya paidUntil olarak
+  // işlenir; onu da saymazsak paket alan müşteri "Deneme süreniz doldu" görür.
+  const paidStore = await prisma.ebayAccount.findFirst({
+    where: { userId: session.user.id, paidUntil: { gt: new Date() } },
+    select: { id: true },
+  });
+
   const onTrial = isOnTrial(user.trialEndsAt);
   const daysLeft = trialDaysLeft(user.trialEndsAt);
-  const hasSubscription = !!user.lemonSqueezySubscriptionId;
+  const hasSubscription = !!user.lemonSqueezySubscriptionId || !!paidStore;
   const trialStarted = !!user.trialEndsAt;
   const trialExpired = trialStarted && !onTrial;
 
