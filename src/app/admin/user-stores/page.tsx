@@ -2,6 +2,7 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { PLAN_LIST, PRO_PLUS_PLANS, type PlanId } from "@/lib/plans";
+import { ADMIN_COMP_UNTIL, type AdminDuration } from "@/lib/store-access";
 
 interface UserStore {
   id: string;
@@ -9,6 +10,7 @@ interface UserStore {
   marketplace: string;
   isActive: boolean;
   activatedAt: string | null;
+  paidUntil: string | null;
   createdAt: string;
   plan: string;
   productLimit: number;
@@ -17,6 +19,21 @@ interface UserStore {
 
 // Aktifleştir/paket değiştir dropdown'unda gösterilen seçenekler (ana grid + Pro+).
 const PLAN_OPTIONS = [...PLAN_LIST, ...PRO_PLUS_PLANS];
+
+const DURATION_OPTIONS: { value: AdminDuration; label: string }[] = [
+  { value: "30", label: "30 gün" },
+  { value: "90", label: "90 gün" },
+  { value: "365", label: "1 yıl" },
+  { value: "comp", label: "Süresiz (hediye)" },
+];
+const DEFAULT_DURATION: AdminDuration = "30";
+
+function paidUntilLabel(paidUntil: string | null): string {
+  if (!paidUntil) return "—";
+  const d = new Date(paidUntil);
+  if (d.getTime() >= ADMIN_COMP_UNTIL.getTime()) return "Süresiz";
+  return d.toLocaleDateString("tr-TR");
+}
 
 const fetcher = (url: string) =>
   fetch(url).then((r) => r.json()) as Promise<{ data: UserStore[] }>;
@@ -35,6 +52,7 @@ export default function AdminUserStoresPage() {
   // Satır başına seçili paket — dropdown'da değiştirilince burada tutulur,
   // sunucudan yeni veri gelince (mutate) hâlâ boşsa mağazanın gerçek planına düşer.
   const [selectedPlan, setSelectedPlan] = useState<Record<string, PlanId>>({});
+  const [selectedDuration, setSelectedDuration] = useState<Record<string, AdminDuration>>({});
 
   const stores = data?.data ?? [];
   const filtered = q
@@ -49,13 +67,18 @@ export default function AdminUserStoresPage() {
     return selectedPlan[s.id] ?? (s.plan as PlanId);
   }
 
-  async function patch(id: string, isActive: boolean, plan: PlanId) {
+  function durationFor(s: UserStore): AdminDuration {
+    return selectedDuration[s.id] ?? DEFAULT_DURATION;
+  }
+
+  // duration verilmezse (paket değişikliği) sunucu mevcut bitiş tarihini korur.
+  async function patch(id: string, isActive: boolean, plan: PlanId, duration?: AdminDuration) {
     setBusyId(id);
     try {
       const res = await fetch("/api/admin/user-stores", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accountId: id, isActive, plan }),
+        body: JSON.stringify({ accountId: id, isActive, plan, duration }),
       });
       if (res.ok) mutate();
       else {
@@ -68,7 +91,11 @@ export default function AdminUserStoresPage() {
   }
 
   function toggle(s: UserStore) {
-    return patch(s.id, !s.isActive, planFor(s));
+    return patch(s.id, !s.isActive, planFor(s), s.isActive ? undefined : durationFor(s));
+  }
+
+  function extend(s: UserStore) {
+    return patch(s.id, true, planFor(s), durationFor(s));
   }
 
   function changePlan(s: UserStore, plan: PlanId) {
@@ -84,9 +111,9 @@ export default function AdminUserStoresPage() {
     <div className="max-w-5xl">
       <h1 className="text-xl font-bold mb-1">Müşteri Mağazaları</h1>
       <p className="text-sm text-slate-400 mb-4">
-        Kullanıcı eBay mağazalarını ödemesiz aktifleştir/pasifleştir, hangi paketi
-        kullanacağını seç (patron yetkisi — plan limiti yok; IBAN'dan ödeme alınan
-        müşteriler için buradan paket ata).
+        Kullanıcı eBay mağazalarını ödemesiz aktifleştir/pasifleştir, paketini ve
+        süresini seç (patron yetkisi — plan limiti yok; IBAN'dan ödeme alınan
+        müşteriler için buradan paket ata). Süre dolunca mağaza otomatik dondurulur.
       </p>
 
       <div className="flex items-center gap-3 mb-4">
@@ -115,6 +142,7 @@ export default function AdminUserStoresPage() {
                 <th className="px-4 py-3 font-medium">Pazar</th>
                 <th className="px-4 py-3 font-medium">Plan</th>
                 <th className="px-4 py-3 font-medium">Durum</th>
+                <th className="px-4 py-3 font-medium">Bitiş</th>
                 <th className="px-4 py-3 font-medium text-right">İşlem</th>
               </tr>
             </thead>
@@ -149,7 +177,32 @@ export default function AdminUserStoresPage() {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-slate-300">
+                    {s.isActive ? paidUntilLabel(s.paidUntil) : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <select
+                      value={durationFor(s)}
+                      onChange={(e) =>
+                        setSelectedDuration((prev) => ({ ...prev, [s.id]: e.target.value as AdminDuration }))
+                      }
+                      disabled={busyId === s.id}
+                      aria-label="Süre"
+                      className="mr-2 bg-slate-800 border border-slate-700/50 rounded-lg px-2 py-1 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500/50 disabled:opacity-50"
+                    >
+                      {DURATION_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                    {s.isActive && (
+                      <button
+                        onClick={() => extend(s)}
+                        disabled={busyId === s.id}
+                        className="mr-2 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 bg-violet-600 hover:bg-violet-500 text-white"
+                      >
+                        Süre uzat
+                      </button>
+                    )}
                     <button
                       onClick={() => toggle(s)}
                       disabled={busyId === s.id}

@@ -368,7 +368,7 @@ export default function AutoUploadPage() {
               </div>
               {showHourPicker && (
                 <div>
-                  <FieldLabel>Saat</FieldLabel>
+                  <FieldLabel>Saat (Türkiye saati)</FieldLabel>
                   <select
                     style={selectStyle}
                     value={settings.uploadScheduleHour}

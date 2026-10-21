@@ -208,19 +208,31 @@ export async function finalizeUgcVideo(job: UgcJobRow): Promise<UgcJobRow> {
     }
 
     if (result.status === "ERROR") {
-      await refundOnce(job.id);
-      const errText = "Video üretimi başarısız oldu — kredin iade edildi.";
-      await patchJob(job.id, {
-        status: "failed",
-        error: errText,
-        completedAt: new Date(),
-        step: null,
-      });
-      return { ...job, status: "failed", error: errText, step: null };
+      return failAndRefund(job, "Video üretimi başarısız oldu — kredin iade edildi.");
     }
-  } catch {
-    // Geçici hata — bir sonraki yoklamada tekrar denenir.
+  } catch (err) {
+    // Geçici hata — bir sonraki yoklamada tekrar denenir (zaman aşımı aşağıda yakalar).
+    console.warn(`[ugc-video] durum yoklama hatası (job=${job.id}):`, err instanceof Error ? err.message : err);
+  }
+
+  // Güvenlik ağı: fal hiç sonuç döndürmezse iş sonsuza kadar "işleniyor" kalmasın.
+  if (Date.now() - job.createdAt.getTime() > UGC_MAX_PROCESSING_MS) {
+    return failAndRefund(job, "Video üretimi zaman aşımına uğradı — kredin iade edildi.");
   }
 
   return job;
+}
+
+// Kling avatar videoları normalde birkaç dakikada biter; 45 dk açıkça takılmış demektir.
+const UGC_MAX_PROCESSING_MS = 45 * 60 * 1000;
+
+async function failAndRefund(job: UgcJobRow, errText: string): Promise<UgcJobRow> {
+  await refundOnce(job.id);
+  await patchJob(job.id, {
+    status: "failed",
+    error: errText,
+    completedAt: new Date(),
+    step: null,
+  });
+  return { ...job, status: "failed", error: errText, step: null };
 }

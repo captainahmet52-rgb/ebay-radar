@@ -208,7 +208,7 @@ export default function AmazonAutoUploadPage() {
               </div>
               {showHourPicker && (
                 <div>
-                  <label className="text-xs text-slate-500 mb-1 block">Saat (UTC)</label>
+                  <label className="text-xs text-slate-500 mb-1 block">Saat (Türkiye saati)</label>
                   <select className={selectCls} disabled={!s} value={s?.amazonUploadScheduleHour ?? 3}
                     onChange={(e) => set("amazonUploadScheduleHour", parseInt(e.target.value))}>
                     {Array.from({ length: 24 }, (_, i) => (

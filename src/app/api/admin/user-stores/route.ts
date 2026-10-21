@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
-import { ADMIN_COMP_UNTIL } from "@/lib/store-access";
+import { ADMIN_DURATIONS, adminPaidUntil } from "@/lib/store-access";
 import { getPlan, PLANS, type PlanId } from "@/lib/plans";
 import { z } from "zod";
 
@@ -40,6 +40,9 @@ const patchSchema = z.object({
   // Admin IBAN/manuel ödeme aldığı müşteriye hangi paketi vereceğini seçer —
   // boş bırakılırsa (eski istemci) en üst pakete düşülür (patron yetkisi).
   plan: z.enum(PLAN_IDS).optional(),
+  // Erişim süresi (gün) veya "comp" (süresiz hediye). Gönderilmezse (ör. sadece
+  // paket değişikliği) mevcut geçerli bitiş korunur; yoksa 30 gün verilir.
+  duration: z.enum(ADMIN_DURATIONS).optional(),
 });
 
 /**
@@ -56,23 +59,26 @@ export const PATCH = requireAdmin(async (req) => {
     return NextResponse.json({ error: "Geçersiz veri", details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { accountId, isActive, plan } = parsed.data;
-  const account = await prisma.ebayAccount.findUnique({ where: { id: accountId }, select: { id: true } });
+  const { accountId, isActive, plan, duration } = parsed.data;
+  const account = await prisma.ebayAccount.findUnique({
+    where: { id: accountId },
+    select: { id: true, paidUntil: true },
+  });
   if (!account) {
     return NextResponse.json({ error: "Mağaza bulunamadı" }, { status: 404 });
   }
 
   const resolvedPlan = plan ?? DEFAULT_COMP_PLAN;
 
-  // Admin aktivasyonu = ücretsiz süresiz erişim (comp). paidUntil uzak geleceğe
-  // set edilir ki freeze-stores worker'ı dondurmasın. Pasifleştirince temizlenir.
-  // PAKET = MAĞAZA: seçilen paket + ona ait ürün limiti burada yazılır.
+  // Admin aktivasyonu = manuel ödeme (IBAN vb.) karşılığı SÜRELİ erişim; süresi
+  // dolunca freeze-stores worker'ı dondurur. "comp" seçilirse süresiz hediye.
+  // Pasifleştirince temizlenir. PAKET = MAĞAZA: paket + ürün limiti burada yazılır.
   await prisma.ebayAccount.update({
     where: { id: accountId },
     data: {
       isActive,
       activatedAt: isActive ? new Date() : null,
-      paidUntil: isActive ? ADMIN_COMP_UNTIL : null,
+      paidUntil: isActive ? adminPaidUntil(account.paidUntil, duration) : null,
       ...(isActive
         ? { plan: resolvedPlan, productLimit: getPlan(resolvedPlan)?.productLimit ?? 10000 }
         : {}),

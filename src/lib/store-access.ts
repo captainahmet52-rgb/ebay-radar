@@ -40,6 +40,33 @@ export function hasStoreAccess(acc: AccessInput, now: Date = new Date()): boolea
   return storeAccessState(acc, now) !== "frozen";
 }
 
+/** Admin aktivasyon süresi: gün sayısı veya "comp" (süresiz hediye). */
+export const ADMIN_DURATIONS = ["30", "90", "365", "comp"] as const;
+export type AdminDuration = (typeof ADMIN_DURATIONS)[number];
+
+/**
+ * Admin aktivasyonunda yeni paidUntil.
+ * - duration yok (ör. sadece paket değişikliği): geçerli bitiş korunur; yoksa 30 gün.
+ * - gün sayısı: süresi dolmamışsa bitişe EKLENİR (kalan gün kaybolmaz), dolmuşsa bugünden.
+ * - "comp": süresiz hediye (2099).
+ */
+export function adminPaidUntil(
+  current: Date | null,
+  duration: AdminDuration | undefined,
+  now: Date = new Date()
+): Date {
+  if (duration === "comp") return ADMIN_COMP_UNTIL;
+
+  const isCurrentValid = current !== null && current.getTime() > now.getTime();
+  if (duration === undefined) {
+    return isCurrentValid ? current : addDays(now, STORE_SUBSCRIPTION_DAYS);
+  }
+
+  const isComp = current !== null && current.getTime() >= ADMIN_COMP_UNTIL.getTime();
+  const base = isCurrentValid && !isComp ? current : now;
+  return addDays(base, Number(duration));
+}
+
 /** Denemenin bitmesine kalan gün sayısı (0 = bitti). */
 export function trialDaysLeft(trialEndsAt: Date | null, now: Date = new Date()): number {
   if (!trialEndsAt) return 0;

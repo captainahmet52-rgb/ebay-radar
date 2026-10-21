@@ -2,7 +2,7 @@
 //   Nano Banana (ürünü karaktere görsel uygulama) + Kling AI Avatar v2 (konuşan video).
 // Video işi KUYRUĞA gönderilir (beklenmez) — durum ayrı yoklanır (serverless-safe).
 
-import { fal } from "@fal-ai/client";
+import { fal, ApiError } from "@fal-ai/client";
 
 export type AvatarQuality = "standard" | "pro";
 
@@ -100,11 +100,27 @@ export async function checkAvatarJob(
   const status = await fal.queue.status(model, { requestId });
 
   if (status.status === "COMPLETED") {
-    const result = await fal.queue.result(model, { requestId });
-    const videoUrl = (result.data as { video?: { url?: string } })?.video?.url;
-    return { status: "COMPLETED", videoUrl };
+    // fal kuyruğunda ayrı bir "ERROR" durumu yok: başarısız iş de COMPLETED olur,
+    // sonucu istenince kalıcı (4xx) hata fırlatır. Geçici hatalar (429/5xx/ağ)
+    // yukarı fırlatılır → çağıran bir sonraki yoklamada tekrar dener.
+    try {
+      const result = await fal.queue.result(model, { requestId });
+      const videoUrl = (result.data as { video?: { url?: string } })?.video?.url;
+      return videoUrl ? { status: "COMPLETED", videoUrl } : { status: "ERROR" };
+    } catch (err) {
+      if (isPermanentFalError(err)) return { status: "ERROR" };
+      throw err;
+    }
   }
 
   if (status.status === "IN_PROGRESS") return { status: "IN_PROGRESS" };
   return { status: "IN_QUEUE" };
+}
+
+const HTTP_TOO_MANY_REQUESTS = 429;
+
+/** fal hatası kalıcı mı (iş gerçekten başarısız) yoksa geçici mi (tekrar denenmeli)? */
+export function isPermanentFalError(err: unknown): boolean {
+  if (!(err instanceof ApiError)) return false;
+  return err.status >= 400 && err.status < 500 && err.status !== HTTP_TOO_MANY_REQUESTS;
 }
