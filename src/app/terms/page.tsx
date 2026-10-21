@@ -58,7 +58,7 @@ export default function TermsPage() {
         <section>
           <h2 className="text-xl font-semibold text-white">5. Sorumluluk Sınırı</h2>
           <p className="mt-2 text-slate-300">
-            Hizmet "olduğu gibi" sunulur. Otomasyon kaynaklı dolaylı zararlardan
+            Hizmet “olduğu gibi” sunulur. Otomasyon kaynaklı dolaylı zararlardan
             sorumluluk kabul edilmez. Maksimum sorumluluğumuz son 1 ayda ödediğin tutarla
             sınırlıdır.
           </p>

@@ -89,7 +89,7 @@ export default function ApiSetupPage() {
       <h1 style={{ fontSize: "1.5rem", fontWeight: 800, margin: "0 0 0.25rem" }}>API Kurulumu</h1>
       <p style={{ color: "#8b949e", fontSize: "0.85rem", margin: "0 0 1.5rem" }}>
         Her entegrasyonun adımları + .env durumu. Yeşil = dolu, kırmızı = eksik. Değerler güvenlik için gösterilmez.
-        Anahtarları VPS'te <code>/opt/ebay/.env</code> içine girip <code>docker compose up -d</code> ile uygula.
+        Anahtarları VPS’te <code>/opt/ebay/.env</code> içine girip <code>docker compose up -d</code> ile uygula.
       </p>
 
       {INTEGRATIONS.map((it) => {

@@ -178,7 +178,7 @@ export default function ImportPage() {
         </h1>
         <p className="text-sm text-slate-400 mt-1">
           Mağazandaki <span className="text-white font-medium">mevcut tüm eBay ilanlarını</span> sisteme çek —
-          SKU'sunda ASIN olanlar Amazon'a karşı otomatik stok/fiyat takibine alınır.
+          SKU’sunda ASIN olanlar Amazon’a karşı otomatik stok/fiyat takibine alınır.
         </p>
       </div>
 
@@ -254,14 +254,14 @@ export default function ImportPage() {
                     Toplam: <b className="text-white">{latest.totalListings.toLocaleString()}</b>
                   </span>
                   <span className="text-emerald-400">
-                    ASIN'li (takip edilebilir): <b>{asinBearing.toLocaleString()}</b>
+                    ASIN’li (takip edilebilir): <b>{asinBearing.toLocaleString()}</b>
                   </span>
                   <span className="text-slate-500">
                     Eşleşmeyen: <b>{(counts.unmatched ?? 0).toLocaleString()}</b>
                   </span>
                   {(counts.pending ?? 0) > 0 && (
                     <Button size="sm" variant="ghost" onClick={runVerify} loading={busy}>
-                      <RefreshCw className="h-3.5 w-3.5" /> Amazon'da Doğrula ({(counts.pending ?? 0).toLocaleString()})
+                      <RefreshCw className="h-3.5 w-3.5" /> Amazon’da Doğrula ({(counts.pending ?? 0).toLocaleString()})
                     </Button>
                   )}
                 </div>
@@ -274,8 +274,8 @@ export default function ImportPage() {
             <ShieldCheck className="h-4 w-4 text-emerald-500 flex-shrink-0 mt-0.5" />
             <span>
               <b className="text-slate-300">Sıfır hata güvencesi:</b> Sistem ASLA tahmin etmez. Bir ilan otomatik
-              takibe ancak SKU'sunda gerçek ASIN varsa, Amazon başlığı eşleşiyorsa ve fiyat/model/paket çelişkisi
-              yoksa alınır. Şüpheli olanlar <span className="text-amber-400">"İncelenecek"</span>e düşer — sen
+              takibe ancak SKU’sunda gerçek ASIN varsa, Amazon başlığı eşleşiyorsa ve fiyat/model/paket çelişkisi
+              yoksa alınır. Şüpheli olanlar <span className="text-amber-400">“İncelenecek”</span>e düşer — sen
               onaylamadan dokunulmaz.
             </span>
           </Card>

@@ -45,7 +45,7 @@ export default function StockHealthPage() {
     <div className="max-w-4xl space-y-6">
       <div>
         <h1 className="text-xl font-bold">Stok Sağlığı</h1>
-        <p className="text-sm text-slate-400 mt-1">Stok/fiyat takibinin durumu (30 sn'de bir yenilenir).</p>
+        <p className="text-sm text-slate-400 mt-1">Stok/fiyat takibinin durumu (30 sn’de bir yenilenir).</p>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

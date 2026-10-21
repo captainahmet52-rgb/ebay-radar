@@ -112,7 +112,7 @@ export default function AdminUserStoresPage() {
       <h1 className="text-xl font-bold mb-1">Müşteri Mağazaları</h1>
       <p className="text-sm text-slate-400 mb-4">
         Kullanıcı eBay mağazalarını ödemesiz aktifleştir/pasifleştir, paketini ve
-        süresini seç (patron yetkisi — plan limiti yok; IBAN'dan ödeme alınan
+        süresini seç (patron yetkisi — plan limiti yok; IBAN’dan ödeme alınan
         müşteriler için buradan paket ata). Süre dolunca mağaza otomatik dondurulur.
       </p>
 

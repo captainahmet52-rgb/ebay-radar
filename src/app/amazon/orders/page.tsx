@@ -140,7 +140,7 @@ export default function AmazonOrdersPage() {
                     >
                       {o.validTrackingNo} <Copy className="h-3.5 w-3.5" />
                     </button>
-                    <p className="text-[11px] text-slate-500 mt-0.5">Bu numarayı Amazon'a gir</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Bu numarayı Amazon’a gir</p>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 flex-wrap justify-end">

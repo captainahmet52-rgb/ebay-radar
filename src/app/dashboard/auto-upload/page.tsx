@@ -244,7 +244,7 @@ export default function AutoUploadPage() {
             </span>
           )}
           {settings.autoUploadEnabled && !lastLog && (
-            <span style={{ color: C.muted, marginLeft: 8 }}>Henüz çalışmadı — "Şimdi Çalıştır" ile başlatabilirsiniz</span>
+            <span style={{ color: C.muted, marginLeft: 8 }}>Henüz çalışmadı — “Şimdi Çalıştır” ile başlatabilirsiniz</span>
           )}
         </div>
       </div>

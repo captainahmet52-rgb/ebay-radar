@@ -1,0 +1,4 @@
+{
+  "extends": ["next/core-web-vitals", "next/typescript"],
+  "ignorePatterns": ["etsyflow-automation/", "demo-video/", "extension/", "backups/", "worker/dist/", "proje-kaynak-kodlari.txt"]
+}

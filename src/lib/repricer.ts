@@ -206,7 +206,7 @@ export function reprice(
   const shouldPause = qty === 0;
 
   // Floor price kontrolü
-  let finalEbayPrice = result.ebayPrice;
+  const finalEbayPrice = result.ebayPrice;
   if (product.floorPrice && finalEbayPrice < product.floorPrice) {
     // Hesaplanan fiyat tabandan düşükse duraklat
     return {
