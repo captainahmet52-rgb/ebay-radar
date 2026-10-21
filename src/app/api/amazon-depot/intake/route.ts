@@ -4,31 +4,18 @@
 // Kimlik: Authorization: Bearer ${CRON_SECRET} (requireCron — Radar'ın .env'indeki
 // EBAY_AMAZON_DEPOT_SECRET / EBAY_DEPOT_SECRET ile aynı değer olmalı).
 // eBay tarafındaki /api/depot/intake'in Amazon ikizi.
+//
+// Ürün başına doğrulama: tek bozuk ürün partiyi reddettirmez. Yanıttaki savedIds
+// Radar'a hangi ürünlerin GERÇEKTEN depoya girdiğini söyler — Radar yalnız bunları
+// "görüldü" sayar, gerisini sonraki turda tekrar dener.
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireCron } from "@/lib/api-helpers";
 import { upsertAmazonDepotProducts } from "@/lib/amazon-depot";
-
-const ItemSchema = z.object({
-  aliId: z.string().min(1).max(64),
-  title: z.string().min(1),
-  category: z.string().nullable().optional(),
-  brand: z.string().nullable().optional(),
-  imageUrl: z.string().nullable().optional(),
-  aliCostUsd: z.number().positive(),
-  aliShippingUsd: z.number().min(0),
-  aliOrders: z.number().int().min(0),
-  aliRating: z.number().min(0).max(5),
-  amazonBsr: z.number().int().min(0).nullable().optional(),
-  amazonSalesEst: z.number().int().min(0).nullable().optional(),
-  amazonSellerCount: z.number().int().min(0).nullable().optional(),
-  amazonSoldByAmazon: z.boolean().optional(),
-  radarScore: z.number().min(0).max(100),
-  sourceChannel: z.enum(["amazon", "shopify"]).optional(),
-});
+import { partitionIntakeItems, MAX_INTAKE_BATCH } from "@/lib/amazon-depot-intake";
 
 const BodySchema = z.object({
-  products: z.array(ItemSchema).min(1).max(500),
+  products: z.array(z.unknown()).min(1).max(MAX_INTAKE_BATCH),
 });
 
 export const POST = requireCron(async (req) => {
@@ -40,6 +27,24 @@ export const POST = requireCron(async (req) => {
     );
   }
 
-  const { saved } = await upsertAmazonDepotProducts(parsed.data.products);
-  return NextResponse.json({ ok: true, saved });
+  const { valid, rejected } = partitionIntakeItems(parsed.data.products);
+  if (rejected.length > 0) {
+    console.warn(
+      `[amazon-depot/intake] ${rejected.length} ürün reddedildi, ilk: ${rejected[0].aliId ?? "?"} — ${rejected[0].reason}`
+    );
+  }
+  if (valid.length === 0) {
+    return NextResponse.json(
+      { error: "Geçerli ürün yok", saved: 0, savedIds: [], rejected },
+      { status: 400 }
+    );
+  }
+
+  const { saved, savedIds, failedIds } = await upsertAmazonDepotProducts(valid);
+  return NextResponse.json({
+    ok: true,
+    saved,
+    savedIds,
+    rejected: [...rejected, ...failedIds.map((aliId) => ({ aliId, reason: "kayıt hatası" }))],
+  });
 });

@@ -10,16 +10,24 @@ import { NextResponse } from "next/server";
 import { requireCron } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 
+const CHANNELS = ["amazon", "shopify"] as const;
+
 export const GET = requireCron(async () => {
-  // SADECE Amazon izi sayılır — Shopify izi (ABD viral sinyalinden) ayrı bir
-  // depo/kapasite kavramı, Amazon hedefini (AMAZON_DEPOT_TARGET) etkilememeli
-  // (2026-07-22 ayrımı).
-  const where = { status: "active", sourceChannel: "amazon" };
-  const [total, available] = await Promise.all([
-    prisma.amazonDepotProduct.count({ where }),
-    prisma.amazonDepotProduct.count({
-      where: { ...where, listings: { none: {} } },
-    }),
-  ]);
-  return NextResponse.json({ total, available });
+  // Kanal başına ayrı sayım: Amazon deposu dolunca Shopify keşfi durmasın diye
+  // Radar kapasiteyi kanal bazında kontrol eder (byChannel). Üst düzey total/available
+  // geriye uyumluluk için SADECE Amazon izidir (2026-07-22 ayrımı).
+  const counts = await Promise.all(
+    CHANNELS.map(async (channel) => {
+      const where = { status: "active", sourceChannel: channel };
+      // "available" = kanalın kendi listelemesi olmayan ürün (Amazon: listings, Shopify: shopifyListings)
+      const unlisted = channel === "amazon" ? { listings: { none: {} } } : { shopifyListings: { none: {} } };
+      const [total, available] = await Promise.all([
+        prisma.amazonDepotProduct.count({ where }),
+        prisma.amazonDepotProduct.count({ where: { ...where, ...unlisted } }),
+      ]);
+      return [channel, { total, available }] as const;
+    })
+  );
+  const byChannel = Object.fromEntries(counts);
+  return NextResponse.json({ ...byChannel.amazon, byChannel });
 });

@@ -10,7 +10,7 @@
 import { prisma } from "@/lib/prisma";
 import { runBatched, DB_CONCURRENCY } from "@/lib/batch";
 
-/** Radar'ın gönderdiği kazanan ürün (skorlanmış, marka-güvenli). */
+/** Radar'ın gönderdiği kazanan ürün (skorlanmış, marka-güvenli). Doğrulama şeması: lib/amazon-depot-intake.ts */
 export interface AmazonDepotIntakeItem {
   aliId: string;
   title: string;
@@ -40,31 +40,45 @@ export interface AmazonDepotIntakeItem {
  */
 export async function upsertAmazonDepotProducts(
   items: AmazonDepotIntakeItem[]
-): Promise<{ saved: number }> {
-  await runBatched(items, DB_CONCURRENCY, async (it) => {
-    const data = {
-      title: it.title,
-      category: it.category ?? null,
-      brand: it.brand ?? null,
-      imageUrl: it.imageUrl ?? null,
-      brandSafe: true, // Radar yalnız marka-güvenli/filtreyi geçen ürünleri yollar
-      aliCostUsd: it.aliCostUsd,
-      aliShippingUsd: it.aliShippingUsd,
-      aliOrders: it.aliOrders,
-      aliRating: it.aliRating,
-      amazonBsr: it.amazonBsr ?? null,
-      amazonSalesEst: it.amazonSalesEst ?? null,
-      amazonSellerCount: it.amazonSellerCount ?? null,
-      amazonSoldByAmazon: it.amazonSoldByAmazon ?? false,
-      radarScore: it.radarScore,
-      sourceChannel: it.sourceChannel ?? "amazon",
-      lastScrapedAt: new Date(),
-    };
-    await prisma.amazonDepotProduct.upsert({
-      where: { aliId: it.aliId },
-      create: { aliId: it.aliId, status: "active", ...data },
-      update: data, // status'a dokunma — duraklatılmışsa kullanıcı/worker yönetir
-    });
+): Promise<{ saved: number; savedIds: string[]; failedIds: string[] }> {
+  // Ürün başına hata yakalanır: tek kaydın DB hatası tüm partiyi düşürmesin ve
+  // Radar hangi ürünlerin GERÇEKTEN kaydedildiğini bilsin (kaydedilmeyeni tekrar dener).
+  const results = await runBatched(items, DB_CONCURRENCY, async (it) => {
+    try {
+      await upsertOne(it);
+      return { aliId: it.aliId, ok: true };
+    } catch (err) {
+      console.error(`[amazon-depot] upsert hatası aliId=${it.aliId}:`, err instanceof Error ? err.message : err);
+      return { aliId: it.aliId, ok: false };
+    }
   });
-  return { saved: items.length };
+  const savedIds = results.filter((r) => r.ok).map((r) => r.aliId);
+  const failedIds = results.filter((r) => !r.ok).map((r) => r.aliId);
+  return { saved: savedIds.length, savedIds, failedIds };
+}
+
+async function upsertOne(it: AmazonDepotIntakeItem): Promise<void> {
+  const data = {
+    title: it.title,
+    category: it.category ?? null,
+    brand: it.brand ?? null,
+    imageUrl: it.imageUrl ?? null,
+    brandSafe: true, // Radar yalnız marka-güvenli/filtreyi geçen ürünleri yollar
+    aliCostUsd: it.aliCostUsd,
+    aliShippingUsd: it.aliShippingUsd,
+    aliOrders: it.aliOrders,
+    aliRating: it.aliRating,
+    amazonBsr: it.amazonBsr ?? null,
+    amazonSalesEst: it.amazonSalesEst ?? null,
+    amazonSellerCount: it.amazonSellerCount ?? null,
+    amazonSoldByAmazon: it.amazonSoldByAmazon ?? false,
+    radarScore: it.radarScore,
+    sourceChannel: it.sourceChannel ?? "amazon",
+    lastScrapedAt: new Date(),
+  };
+  await prisma.amazonDepotProduct.upsert({
+    where: { aliId: it.aliId },
+    create: { aliId: it.aliId, status: "active", ...data },
+    update: data, // status'a dokunma — duraklatılmışsa kullanıcı/worker yönetir
+  });
 }

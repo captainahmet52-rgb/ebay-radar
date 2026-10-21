@@ -9,7 +9,9 @@ import { requireCron } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 
 export const GET = requireCron(async () => {
+  // Yalnız AKTİF hesaplar: pasif/dondurulmuş hesabın pazarı için ücretli tarama yapılmasın.
   const rows = await prisma.amazonAccount.findMany({
+    where: { isActive: true },
     distinct: ["market"],
     select: { market: true },
   });
