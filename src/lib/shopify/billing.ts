@@ -37,6 +37,34 @@ export function getShopifyPlan(planId: string): ShopifyPlan | undefined {
   return SHOPIFY_PLANS.find((p) => p.id === planId);
 }
 
+/** Shopify'da görünen abonelik adı — oluşturma ve doğrulamada aynı olmalı. */
+export function subscriptionName(plan: ShopifyPlan): string {
+  return `Lean Automation — ${plan.name}`;
+}
+
+export interface VerifiedAppSubscription {
+  status: string;
+  name: string;
+  price: { amount: string; currencyCode: string } | null;
+}
+
+const PRICE_TOLERANCE_USD = 0.01;
+
+/**
+ * GÜVENLİK: Ödenen paketi Shopify'daki aboneliğin KENDİSİNDEN (ad + fiyat) belirler.
+ * Onay dönüş URL'sindeki ?plan= parametresine güvenilmez — aksi halde Starter
+ * ödeyen biri URL'yi plan=pro yapıp Pro limitlerini alabilirdi.
+ */
+export function resolvePaidShopifyPlan(sub: VerifiedAppSubscription | null): ShopifyPlan | null {
+  if (!sub || sub.status !== "ACTIVE" || !sub.price || sub.price.currencyCode !== "USD") return null;
+  const paid = Number(sub.price.amount);
+  return (
+    SHOPIFY_PLANS.find(
+      (p) => subscriptionName(p) === sub.name && Math.abs(p.priceUsd - paid) < PRICE_TOLERANCE_USD
+    ) ?? null
+  );
+}
+
 interface AppSubscriptionCreateResult {
   appSubscriptionCreate: {
     confirmationUrl: string | null;
@@ -77,7 +105,7 @@ export async function createAppSubscription(
     accessToken,
     APP_SUBSCRIPTION_CREATE,
     {
-      name: `Lean Automation — ${plan.name}`,
+      name: subscriptionName(plan),
       returnUrl,
       test: process.env.SHOPIFY_BILLING_TEST === "true",
       lineItems: [
@@ -103,7 +131,14 @@ export async function createAppSubscription(
 }
 
 interface AppSubscriptionStatusResult {
-  node: { id: string; status: string } | null;
+  node: {
+    id: string;
+    status: string;
+    name: string;
+    lineItems: {
+      plan: { pricingDetails: { price?: { amount: string; currencyCode: string } } };
+    }[];
+  } | null;
 }
 
 const APP_SUBSCRIPTION_STATUS = /* GraphQL */ `
@@ -112,17 +147,27 @@ const APP_SUBSCRIPTION_STATUS = /* GraphQL */ `
       ... on AppSubscription {
         id
         status
+        name
+        lineItems {
+          plan {
+            pricingDetails {
+              ... on AppRecurringPricing {
+                price { amount currencyCode }
+              }
+            }
+          }
+        }
       }
     }
   }
 `;
 
-/** Onay dönüşünde abonelik durumunu doğrular (charge_id → AppSubscription GID). */
-export async function getAppSubscriptionStatus(
+/** Onay dönüşünde aboneliği (durum + ad + fiyat) Shopify'dan okur (charge_id → AppSubscription GID). */
+export async function getAppSubscription(
   shopDomain: string,
   accessToken: string,
   chargeId: string
-): Promise<string | null> {
+): Promise<VerifiedAppSubscription | null> {
   // charge_id sayısal gelir; GID formatına çevrilir
   const gid = chargeId.startsWith("gid://")
     ? chargeId
@@ -134,5 +179,10 @@ export async function getAppSubscriptionStatus(
     APP_SUBSCRIPTION_STATUS,
     { id: gid }
   );
-  return res.node?.status ?? null;
+  if (!res.node) return null;
+  return {
+    status: res.node.status,
+    name: res.node.name,
+    price: res.node.lineItems[0]?.plan.pricingDetails.price ?? null,
+  };
 }

@@ -6,14 +6,16 @@ import { decryptToken } from "@/lib/crypto";
 import {
   isShopifyBillingEnabled,
   getShopifyPlan,
-  getAppSubscriptionStatus,
+  getAppSubscription,
+  resolvePaidShopifyPlan,
 } from "@/lib/shopify/billing";
 
 /**
  * GET /api/shopify/billing/callback — Shopify Billing onay dönüşü.
  * Shopify, mağaza sahibi aboneliği onaylayınca charge_id ile buraya yönlendirir.
- * Abonelik durumu Shopify'dan DOĞRULANIR (URL parametresine güvenilmez);
- * ACTIVE ise paket aktive edilir: plan + ürün limiti + 30 gün (+3 gün tolerans).
+ * Abonelik durumu VE ödenen paket (ad + fiyat) Shopify'dan DOĞRULANIR — URL'deki
+ * ?plan= parametresine güvenilmez. ACTIVE ise paket aktive edilir:
+ * plan + ürün limiti + 30 gün (+3 gün tolerans).
  */
 export async function GET(req: NextRequest) {
   const fail = (code: string) =>
@@ -28,8 +30,7 @@ export async function GET(req: NextRequest) {
     const chargeId = searchParams.get("charge_id");
     if (!accountId || !planId || !chargeId) return fail("missing_params");
 
-    const plan = getShopifyPlan(planId);
-    if (!plan) return fail("bad_plan");
+    if (!getShopifyPlan(planId)) return fail("bad_plan");
 
     // Sahiplik: yalnız giriş yapmış hesap sahibi kendi mağazasını aktive edebilir
     const session = await auth();
@@ -40,12 +41,18 @@ export async function GET(req: NextRequest) {
     });
     if (!account || !account.accessTokenEncrypted) return fail("not_found");
 
-    const status = await getAppSubscriptionStatus(
+    const subscription = await getAppSubscription(
       account.shopDomain,
       decryptToken(account.accessTokenEncrypted),
       chargeId
     );
-    if (status !== "ACTIVE") return fail("not_active");
+    if (subscription?.status !== "ACTIVE") return fail("not_active");
+
+    const plan = resolvePaidShopifyPlan(subscription);
+    if (!plan) return fail("plan_mismatch");
+    if (plan.id !== planId) {
+      console.warn(`[shopify/billing/callback] URL planı (${planId}) ödenen paketten (${plan.id}) farklı — ödenen uygulandı`);
+    }
 
     await prisma.shopifyAccount.update({
       where: { id: account.id },
