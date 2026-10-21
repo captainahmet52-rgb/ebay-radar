@@ -46,7 +46,7 @@ export const POST = requireAuth(async (req, { userId }) => {
     await listingImportQueue.add(
       "listing-import",
       { importId: imp.id },
-      { jobId: `listing-import:${imp.id}` }
+      { jobId: `listing-import-${imp.id}` }
     );
 
     return NextResponse.json({ data: imp });

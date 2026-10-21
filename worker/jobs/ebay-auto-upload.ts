@@ -134,7 +134,7 @@ async function processForUser(userId: string): Promise<void> {
     await pollProductQueue.add(
       "poll-product",
       { productId: product.id },
-      { delay: i * 1500, jobId: `auto-poll:${userId}:${product.id}:${Date.now()}` }
+      { delay: i * 1500, jobId: `auto-poll-${userId}-${product.id}-${Date.now()}` }
     );
 
     // Aynı çalıştırmada sonraki kullanıcılar bu ASIN'i almasın (münhasırlık)

@@ -16,11 +16,23 @@ import type { DispatchAmazonPollsJobData, AmazonPollProductJobData } from "@/lib
 
 // "Takibe değer" listing — stok kontrol SADECE yüklenmiş/yayın hattındaki ürünler
 // için çalışır (eBay'deki TRACKABLE_LISTING ile aynı mantık).
+// Yayınlanmamış taslaklar (publishStage "draft") Amazon'da satışta değil → ücretli
+// ScrapingBee taramasına girmemeli. publishStage null = eski kayıt, takip edilir.
+// (Prisma'da { not: "draft" } NULL'ları da dışladığı için açık OR gerekli.)
+const NOT_DRAFT: Prisma.AmazonListingWhereInput = {
+  OR: [{ publishStage: null }, { publishStage: { not: "draft" } }],
+};
+
 const TRACKABLE_AMAZON_LISTING: Prisma.AmazonListingWhereInput = {
-  OR: [
-    { asin: { not: null }, status: { not: "ended" } },
-    { status: "active" },
-    { status: "paused", lastError: null, amazonAccount: { isActive: true } },
+  AND: [
+    NOT_DRAFT,
+    {
+      OR: [
+        { asin: { not: null }, status: { not: "ended" } },
+        { status: "active" },
+        { status: "paused", lastError: null, amazonAccount: { isActive: true } },
+      ],
+    },
   ],
 };
 
@@ -87,7 +99,7 @@ async function guardStaleProducts(now: Date): Promise<number> {
   const pauseJobs = listings.map((l) => ({
     name: "amazon-update-listing" as const,
     data: { listingId: l.id, price: l.salePrice ?? 0, qty: 0 },
-    opts: { jobId: `pause-amazon-listing:${l.id}` },
+    opts: { jobId: `pause-amazon-listing-${l.id}` },
   }));
   for (const part of chunk(pauseJobs, QUEUE_CHUNK)) {
     await amazonUpdateListingQueue.addBulk(part);
@@ -101,7 +113,7 @@ async function guardStaleProducts(now: Date): Promise<number> {
   const shopifyPauseJobs = shopifyListings.map((l) => ({
     name: "shopify-update-listing" as const,
     data: { listingId: l.id, price: l.salePrice ?? 0, qty: 0, pause: true },
-    opts: { jobId: `pause-shopify-listing:${l.id}` },
+    opts: { jobId: `pause-shopify-listing-${l.id}` },
   }));
   for (const part of chunk(shopifyPauseJobs, QUEUE_CHUNK)) {
     await shopifyUpdateListingQueue.addBulk(part);
@@ -146,7 +158,7 @@ async function dispatchActive(now: Date): Promise<number> {
       jobs.push({
         name: "amazon-poll-product",
         data: { depotProductId: p.id },
-        opts: { jobId: `amazon-poll-product:${p.id}` },
+        opts: { jobId: `amazon-poll-product-${p.id}` },
       });
     }
   }
@@ -173,7 +185,7 @@ async function dispatchRecovery(now: Date): Promise<number> {
   const jobs = products.map((p) => ({
     name: "amazon-poll-product" as const,
     data: { depotProductId: p.id } as AmazonPollProductJobData,
-    opts: { jobId: `amazon-poll-product:${p.id}` },
+    opts: { jobId: `amazon-poll-product-${p.id}` },
   }));
   for (const part of chunk(jobs, QUEUE_CHUNK)) {
     await amazonPollProductQueue.addBulk(part);

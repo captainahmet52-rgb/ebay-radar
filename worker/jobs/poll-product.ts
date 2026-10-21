@@ -31,7 +31,7 @@ async function pauseAllListings(productId: string): Promise<void> {
         updateListingQueue.add(
           "update-listing",
           { listingId: l.id, price: l.currentPrice ?? 0, qty: 0 },
-          { jobId: `pause-listing:${l.id}` }
+          { jobId: `pause-listing-${l.id}` }
         )
       )
   );
@@ -274,7 +274,7 @@ async function processPollProduct(job: Job<PollProductJobData>): Promise<void> {
         return publishListingQueue.add(
           "publish-listing",
           { listingId: listing.id, ebayAccountId: listing.ebayAccountId },
-          { jobId: `publish-listing:${listing.id}:${Date.now()}` }
+          { jobId: `publish-listing-${listing.id}-${Date.now()}` }
         );
       }
 
@@ -291,7 +291,7 @@ async function processPollProduct(job: Job<PollProductJobData>): Promise<void> {
       return updateListingQueue.add(
         "update-listing",
         { listingId: listing.id, price: ebayPrice, qty: newQty },
-        { jobId: `update-listing:${listing.id}:${Date.now()}` }
+        { jobId: `update-listing-${listing.id}-${Date.now()}` }
       );
     })
   );

@@ -59,7 +59,7 @@ export const POST = requireAuth(async (req, { userId }) => {
         verifyImportMatchQueue.add(
           "verify-import-match",
           { importedListingId: p.id },
-          { jobId: `verify-import-match:${p.id}` }
+          { jobId: `verify-import-match-${p.id}` }
         )
       )
     );

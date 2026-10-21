@@ -91,7 +91,7 @@ export const POST = requireAuth(async (req, { userId }) => {
   await shopifyUpdateListingQueue.add(
     "shopify-update-listing",
     { listingId: listing.id, price: pricing.salePrice, qty },
-    { jobId: `shopify-create-listing:${listing.id}` }
+    { jobId: `shopify-create-listing-${listing.id}` }
   );
 
   return NextResponse.json({

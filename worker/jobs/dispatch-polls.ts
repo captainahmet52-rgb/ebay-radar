@@ -86,7 +86,7 @@ async function guardStaleProducts(now: Date): Promise<number> {
     .map((l) => ({
       name: "update-listing" as const,
       data: { listingId: l.id, price: l.currentPrice ?? 0, qty: 0 },
-      opts: { jobId: `pause-listing:${l.id}` },
+      opts: { jobId: `pause-listing-${l.id}` },
     }));
   for (const part of chunk(pauseJobs, QUEUE_CHUNK)) {
     await updateListingQueue.addBulk(part);
@@ -128,7 +128,7 @@ async function dispatchActive(now: Date): Promise<number> {
 
     for (const p of products) {
       // jobId stable → aynı ürün zaten kuyruktaysa tekrar eklenmez (idempotent).
-      jobs.push({ name: "poll-product", data: { productId: p.id }, opts: { jobId: `poll-product:${p.id}` } });
+      jobs.push({ name: "poll-product", data: { productId: p.id }, opts: { jobId: `poll-product-${p.id}` } });
     }
   }
   // Sıralı .add() yerine parçalı addBulk — bütçe büyütülse bile Redis'e tek tur.
@@ -156,7 +156,7 @@ async function dispatchRecovery(now: Date): Promise<number> {
   const jobs = products.map((p) => ({
     name: "poll-product" as const,
     data: { productId: p.id, recovery: true } as PollProductJobData,
-    opts: { jobId: `poll-product:${p.id}` },
+    opts: { jobId: `poll-product-${p.id}` },
   }));
   for (const part of chunk(jobs, QUEUE_CHUNK)) {
     await pollProductQueue.addBulk(part);

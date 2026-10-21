@@ -163,7 +163,7 @@ async function processVerifyOrder(
       await updateListingQueue.add(
         "update-listing",
         { listingId: listing.id, price: listing.currentPrice ?? 0, qty: 0 },
-        { jobId: `pause-listing:${listing.id}` }
+        { jobId: `pause-listing-${listing.id}` }
       );
     }
 

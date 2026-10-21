@@ -10,7 +10,7 @@ export const POST = requireAuth(async (_req, { userId }) => {
   await amazonAutoUploadQueue.add(
     "amazon-auto-upload",
     { userId },
-    { jobId: `amazon-auto-upload:${userId}:${Date.now()}` }
+    { jobId: `amazon-auto-upload-${userId}-${Date.now()}` }
   );
   return NextResponse.json({ ok: true, message: "Oto-yükleme kuyruğa eklendi" });
 });

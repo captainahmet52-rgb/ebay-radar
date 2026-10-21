@@ -72,7 +72,7 @@ async function processVerifyOrder(job: Job<AmazonVerifyOrderJobData>): Promise<v
       await amazonFulfillOrderQueue.add(
         "amazon-fulfill-order",
         { orderId },
-        { jobId: `amazon-fulfill:${orderId}` }
+        { jobId: `amazon-fulfill-${orderId}` }
       );
     }
   }

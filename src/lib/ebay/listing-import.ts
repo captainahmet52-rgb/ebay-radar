@@ -307,7 +307,7 @@ export async function enqueueVerificationForAccount(
   const jobs = pending.map((p) => ({
     name: "verify-import-match" as const,
     data: { importedListingId: p.id },
-    opts: { jobId: `verify-import-match:${p.id}` },
+    opts: { jobId: `verify-import-match-${p.id}` },
   }));
   for (const part of chunk(jobs, QUEUE_CHUNK)) {
     await verifyImportMatchQueue.addBulk(part);
@@ -403,7 +403,7 @@ export async function enableTracking(importedListingId: string): Promise<string 
   await pollProductQueue.add(
     "poll-product",
     { productId },
-    { jobId: `poll-product:${productId}` }
+    { jobId: `poll-product-${productId}` }
   );
 
   return productId;

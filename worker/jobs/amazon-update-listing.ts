@@ -19,6 +19,11 @@ async function processAmazonUpdateListing(job: Job<AmazonUpdateListingJobData>):
     job.log(`Listing sonlandırılmış — güncelleme atlandı: ${listingId}`);
     return;
   }
+  if (listing.publishStage === "draft") {
+    // Taslak kullanıcı onayı olmadan yayına çıkmasın — fiyat güncellemesi yayın değildir.
+    job.log(`Taslak listing — güncelleme atlandı (yayınlanmamış): ${listingId}`);
+    return;
+  }
   if (!listing.amazonAccount.spapiRefreshTokenEncrypted) {
     job.log(`Hesabın SP-API token'ı yok — atlandı: ${listingId}`);
     return;

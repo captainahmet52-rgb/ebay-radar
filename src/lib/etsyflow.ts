@@ -39,15 +39,29 @@ export function etsyflowAdmin(): SupabaseClient {
  * Eşleşme yoksa null döner (kullanıcının EtsyFlow hesabı yok demektir).
  */
 export async function resolveEtsyProfileId(email: string): Promise<string | null> {
+  const target = email.trim().toLowerCase();
+  if (!target) return null;
+
+  // GÜVENLİK: ilike desen eşleştirmesidir — "_" tek karakter, "%"/"*" her şey
+  // demektir. Joker karakterler kaçışlanır VE sonuç JS'de birebir karşılaştırılır;
+  // böylece "vict_m@x.com" ile kayıt olan biri "victim@x.com"un profiline eşlenemez.
   const db = etsyflowAdmin();
   const { data, error } = await db
     .from("profiles")
-    .select("id")
-    .ilike("email", email)
-    .maybeSingle();
+    .select("id, email")
+    .ilike("email", escapeLikePattern(target))
+    .limit(PROFILE_MATCH_LIMIT);
 
   if (error) throw new Error(error.message);
-  return data?.id ?? null;
+  const exact = (data ?? []).filter((p) => p.email?.trim().toLowerCase() === target);
+  return exact.length === 1 ? exact[0].id : null;
+}
+
+const PROFILE_MATCH_LIMIT = 10;
+
+/** LIKE/ILIKE joker karakterlerini (\ % _ *) literal hale getirir. */
+export function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_*]/g, (ch) => `\\${ch}`);
 }
 
 /**

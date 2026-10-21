@@ -32,7 +32,7 @@ async function pauseAllListings(depotProductId: string): Promise<void> {
       amazonUpdateListingQueue.add(
         "amazon-update-listing",
         { listingId: l.id, price: l.salePrice ?? 0, qty: 0 },
-        { jobId: `pause-amazon-listing:${l.id}` }
+        { jobId: `pause-amazon-listing-${l.id}` }
       )
     )
   );
@@ -51,7 +51,7 @@ async function pauseAllListings(depotProductId: string): Promise<void> {
       shopifyUpdateListingQueue.add(
         "shopify-update-listing",
         { listingId: l.id, price: l.salePrice ?? 0, qty: 0, pause: true },
-        { jobId: `pause-shopify-listing:${l.id}` }
+        { jobId: `pause-shopify-listing-${l.id}` }
       )
     )
   );
@@ -166,7 +166,7 @@ async function processAmazonPollProduct(job: Job<AmazonPollProductJobData>): Pro
     await amazonUpdateListingQueue.add(
       "amazon-update-listing",
       { listingId: listing.id, price: pricing.salePrice, qty: newQty },
-      { jobId: `amazon-update-listing:${listing.id}:${Date.now()}` }
+      { jobId: `amazon-update-listing-${listing.id}-${Date.now()}` }
     );
   }
 
@@ -194,7 +194,7 @@ async function processAmazonPollProduct(job: Job<AmazonPollProductJobData>): Pro
     await shopifyUpdateListingQueue.add(
       "shopify-update-listing",
       { listingId: sl.id, price: pricing.salePrice, qty: newQty },
-      { jobId: `shopify-update-listing:${sl.id}:${Date.now()}` }
+      { jobId: `shopify-update-listing-${sl.id}-${Date.now()}` }
     );
   }
 

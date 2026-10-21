@@ -34,7 +34,7 @@ export async function POST() {
   await ebayAutoUploadQueue.add(
     "ebay-auto-upload",
     { userId },
-    { jobId: `ebay-auto-upload:manual:${userId}:${Date.now()}` }
+    { jobId: `ebay-auto-upload-manual-${userId}-${Date.now()}` }
   );
 
   return NextResponse.json({

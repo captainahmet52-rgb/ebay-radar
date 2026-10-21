@@ -214,7 +214,7 @@ export async function GET(req: NextRequest) {
       await listingImportQueue.add(
         "listing-import",
         { importId: imp.id },
-        { jobId: `listing-import:${imp.id}` }
+        { jobId: `listing-import-${imp.id}` }
       );
     } catch (err) {
       console.error("[ebay/callback] otomatik ilan içe aktarma başlatılamadı:", err);

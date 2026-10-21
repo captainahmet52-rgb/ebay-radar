@@ -36,7 +36,7 @@ async function processDispatchPollOrders(
         "poll-orders",
         { ebayAccountId: account.id },
         {
-          jobId: `poll-orders:${account.id}`,
+          jobId: `poll-orders-${account.id}`,
         }
       );
       queued++;

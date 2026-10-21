@@ -97,7 +97,7 @@ async function pollAccount(accountId: string, log: (m: string) => void): Promise
       await amazonVerifyOrderQueue.add(
         "amazon-verify-order",
         { orderId: saved.id },
-        { jobId: `amazon-verify:${saved.id}` }
+        { jobId: `amazon-verify-${saved.id}` }
       );
     }
   }

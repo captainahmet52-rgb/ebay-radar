@@ -233,7 +233,7 @@ export const POST = requireAuth(async (req, { userId }) => {
     return {
       name: "poll-product" as const,
       data: { productId },
-      opts: { delay: i * intervalSec * 1000, jobId: `bulk-poll:${productId}:${Date.now()}:${i}` },
+      opts: { delay: i * intervalSec * 1000, jobId: `bulk-poll-${productId}-${Date.now()}-${i}` },
     };
   });
   for (const part of chunk(pollJobs, QUEUE_CHUNK)) {
