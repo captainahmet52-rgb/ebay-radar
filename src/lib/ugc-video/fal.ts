@@ -117,10 +117,12 @@ export async function checkAvatarJob(
   return { status: "IN_QUEUE" };
 }
 
-const HTTP_TOO_MANY_REQUESTS = 429;
+// Bizim tarafın sorunu (anahtar/bakiye/yetki) veya geçici durum — iş başarısız DEĞİL;
+// iade edilmez, sonraki yoklamada tekrar denenir (45 dk zaman aşımı yine güvenlik ağı).
+const NON_JOB_FAILURE_STATUSES = new Set([401, 402, 403, 408, 429]);
 
 /** fal hatası kalıcı mı (iş gerçekten başarısız) yoksa geçici mi (tekrar denenmeli)? */
 export function isPermanentFalError(err: unknown): boolean {
   if (!(err instanceof ApiError)) return false;
-  return err.status >= 400 && err.status < 500 && err.status !== HTTP_TOO_MANY_REQUESTS;
+  return err.status >= 400 && err.status < 500 && !NON_JOB_FAILURE_STATUSES.has(err.status);
 }

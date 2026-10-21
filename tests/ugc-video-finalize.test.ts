@@ -118,6 +118,16 @@ describe("finalizeUgcVideo", () => {
     expect(refunds).toEqual([]);
   });
 
+  it("fal anahtar/bakiye hatası (401/402/403) işi başarısız saymaz, iade etmez", async () => {
+    for (const status of [401, 402, 403]) {
+      refunds.length = 0;
+      falState.resultError = new (ApiError as unknown as new (s: number) => Error)(status);
+      const out = await finalizeUgcVideo(job(5));
+      expect(out.status).toBe("processing");
+      expect(refunds).toEqual([]);
+    }
+  });
+
   it("45 dakikayı geçen takılı iş başarısız sayılır ve kredi iade edilir", async () => {
     falState.status = "IN_PROGRESS";
     const out = await finalizeUgcVideo(job(46));
